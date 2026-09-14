@@ -19153,6 +19153,7 @@
         let shortTrainDays = 0;
         let shortTransportDays = 0;
         let linkageCount = 0;
+        let ghHospitalStayDays = 0;
 
         const daysInMonth = getDaysInTargetMonth(targetM);
 
@@ -19161,6 +19162,9 @@
             const dayObj = userRec.days[d];
             if (dayObj) {
               const isHospital = (dayObj.status === '入院・外出' || dayObj.status === '外出・入院');
+              if (dayObj.hospitalStay) {
+                ghHospitalStayDays++;
+              }
               if (dayObj.status === '利用' || dayObj.active) {
                 useDays++;
                 if (dayObj.bf) mealCounts.bf++;
@@ -19194,7 +19198,7 @@
 
         const extraAdditions = {
           linkageCount: linkageCount,
-          hospitalStayDays: (serviceType === 'グループホーム') ? linkageCount : 0,
+          hospitalStayDays: (serviceType === 'グループホーム') ? ghHospitalStayDays : 0,
           useDischargeInfo: (serviceType === '有料ホーム') && !!userRec?.useDischargeInfo,
           trainingUnits: trainingUnits,
           transportDeductionUnits: transportDeductionUnits,
@@ -20188,6 +20192,15 @@
         const chk = document.getElementById(`${m}_${day}`);
         if (chk) chk.checked = isUse;
       });
+
+      const hospChk = document.getElementById(`hosp_${day}`);
+      if (hospChk) {
+        if (next === '入院・外出') {
+          hospChk.checked = true;
+        } else if (isUse || next === '空室') {
+          hospChk.checked = false;
+        }
+      }
 
       updateLiveUserRecordSummary();
     }
@@ -21286,10 +21299,14 @@
       let bfCount = 0, lnCount = 0, dnCount = 0;
       let privateDays = 0, multiDays = 0;
       let trainingUnits = 0, transportDeductionUnits = 0, shortTrainDays = 0, shortTransportDays = 0, linkageCount = 0;
+      let ghHospitalStayDays = 0;
 
       for (let d = 1; d <= daysInMonth; d++) {
         const badge = document.querySelector(`#dayCard_${d} .day-status-badge`);
         const status = badge ? badge.textContent.trim() : '未利用';
+        if (serviceType === 'グループホーム' && document.getElementById(`hosp_${d}`)?.checked) {
+          ghHospitalStayDays++;
+        }
         if (status === '利用') {
           useDays++;
           if (serviceType === 'デイサービス') {
@@ -21340,6 +21357,7 @@
       const engine = CareEngines[serviceType] || CareEngines['有料ホーム'];
       const extraAdditions = {
         linkageCount: linkageCount,
+        hospitalStayDays: (serviceType === 'グループホーム') ? ghHospitalStayDays : 0,
         useDischargeInfo: (serviceType === '有料ホーム') && !!document.getElementById('chkDischargeInfo')?.checked,
         trainingUnits: trainingUnits,
         transportDeductionUnits: transportDeductionUnits,
@@ -21805,12 +21823,16 @@
         let shortTrainDays = 0;
         let shortTransportDays = 0;
         let linkageCount = 0;
+        let ghHospitalStayDays = 0;
 
         if (userRec && userRec.days) {
           Object.keys(userRec.days).forEach(d => {
             const dayObj = userRec.days[d];
             if (dayObj) {
               const isHospital = (dayObj.status === '入院・外出' || dayObj.status === '外出・入院');
+              if (dayObj.hospitalStay) {
+                ghHospitalStayDays++;
+              }
               if (dayObj.status === '利用' || dayObj.active) {
                 useDays++;
                 if (dayObj.bf) mealCounts.bf++;
@@ -21830,8 +21852,6 @@
                   if (dayObj.shortTransport) shortTransportDays++;
                 } else if (serviceType === '有料ホーム') {
                   if (dayObj.link) linkageCount++;
-                } else if (serviceType === 'グループホーム') {
-                  if (dayObj.hospitalStay) linkageCount++; // hospitalStay days for GH
                 }
               } else if (isHospital) {
                 hospitalDays++;
@@ -21845,7 +21865,7 @@
 
         const extraAdditions = {
           linkageCount: (serviceType === '有料ホーム') ? linkageCount : 0,
-          hospitalStayDays: (serviceType === 'グループホーム') ? linkageCount : 0,
+          hospitalStayDays: (serviceType === 'グループホーム') ? ghHospitalStayDays : 0,
           useDischargeInfo: (serviceType === '有料ホーム') && !!userRec?.useDischargeInfo,
           trainingUnits: trainingUnits,
           transportDeductionUnits: transportDeductionUnits,
