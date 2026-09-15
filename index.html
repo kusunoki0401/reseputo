@@ -429,19 +429,13 @@
         </div>
         <div class="form-group mt-4">
           <label for="loginPasswordInput">施設パスワード:</label>
-          <input type="password" id="loginPasswordInput" class="form-control p-2.5" value="1234" placeholder="パスワードを入力" required>
+          <input type="password" id="loginPasswordInput" class="form-control p-2.5" value="" placeholder="施設パスワードを入力" required autocomplete="current-password">
         </div>
         <div id="loginErrorMsg" class="text-red-500 bg-red-50 border border-red-200 p-2 rounded text-xs mt-3 text-center hidden">⚠️ パスワードが正しくありません</div>
         
         <button type="submit" id="loginSubmitBtn" onclick="event.preventDefault(); handleFacilityLogin();" class="btn btn-primary w-full mt-6 py-3 justify-center text-sm cursor-pointer">
           🔒 ログインして請求管理を開く
         </button>
-        <button type="button" id="demoLoginBtn" onclick="event.preventDefault(); quickDemoLogin();" class="btn btn-success w-full mt-2 py-3 justify-center text-sm cursor-pointer">
-          🚀 即時デモ画面を開く (デモデータ生成)
-        </button>
-        <div class="mt-4 text-xs text-slate-600 text-center bg-slate-50 p-2 rounded border border-slate-200">
-          💡 初期パスワード: <code>1234</code> (全施設共通)
-        </div>
       </form>
     </div>
   </div>
@@ -534,9 +528,6 @@
           <button id="clearCacheRecalcBtn" onclick="forceRecalculateAllRecords(); renderAllViews(); showToast('最新計算で全体再集計しました', 'success');" class="btn btn-warning bg-amber-600 hover:bg-amber-700 text-white mr-2">⚡ 過去データの強制再計算</button>
           <button id="runCheckBtn" class="btn btn-primary">
             <span>⚡ 差分再チェック</span>
-          </button>
-          <button id="loadDemoDataBtn" class="btn btn-secondary">
-            <span>🎲 デモデータ生成</span>
           </button>
         </div>
       </header>
@@ -849,27 +840,6 @@
                   <span id="shortTvRentalCalcText" class="text-xs font-bold text-amber-700 ml-1 font-mono"></span>
                 </div>
               </div>
-              <div class="form-group selfpay-short-item col-span-2 bg-amber-50/80 p-3 rounded-lg border border-amber-200">
-                <div class="flex items-center justify-between mb-1.5">
-                  <label class="font-bold text-amber-950 text-xs flex items-center gap-1.5">
-                    <span>🛏️</span> 居室利用負担額（個室負担額・多床室負担額）
-                  </label>
-                  <span class="text-[10px] bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded font-bold">実績カレンダー居室連動</span>
-                </div>
-                <div class="grid grid-cols-2 gap-2 text-xs">
-                  <div class="bg-white p-2 rounded border border-amber-100 flex flex-col">
-                    <span class="text-slate-600 text-[11px] font-bold">個室負担額</span>
-                    <span class="font-bold text-slate-800 text-sm mt-0.5 font-mono" id="shortPrivateRateLabel">@¥1,231 <span class="text-[10px] font-normal text-slate-500">/泊</span></span>
-                    <span class="text-[11px] font-bold text-amber-700 mt-1" id="shortPrivateSummaryText">当月: 0泊 (¥0)</span>
-                  </div>
-                  <div class="bg-white p-2 rounded border border-amber-100 flex flex-col">
-                    <span class="text-slate-600 text-[11px] font-bold">多床室負担額</span>
-                    <span class="font-bold text-slate-800 text-sm mt-0.5 font-mono" id="shortMultiRateLabel">@¥915 <span class="text-[10px] font-normal text-slate-500">/泊</span></span>
-                    <span class="text-[11px] font-bold text-amber-700 mt-1" id="shortMultiSummaryText">当月: 0泊 (¥0)</span>
-                  </div>
-                </div>
-                <p class="text-[10px] text-amber-800/80 mt-2 font-medium">※実績入力カレンダーで各日の居室（個室/多床室）を選択した泊数（回数）分が自動算定されます。</p>
-              </div>
             </div>
             <div class="form-row mt-3">
               <div class="form-group selfpay-kusunoki-item">
@@ -994,11 +964,11 @@
                   <label>夕食単価 (円):</label>
                   <input type="number" id="costDinner" class="form-control" value="0">
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="grpRent">
                   <label id="lblRent">居室費 (月額/円):</label>
                   <input type="number" id="costRent" class="form-control" value="0">
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="grpUtility">
                   <label id="lblUtility">生活関連費 (月額/円):</label>
                   <input type="number" id="costUtility" class="form-control" value="0">
                 </div>
@@ -1009,6 +979,42 @@
                 <div class="form-group" id="grpAdmin">
                   <label id="lblAdmin">管理費 (月額/円):</label>
                   <input type="number" id="costAdmin" class="form-control" value="0">
+                </div>
+
+                <div id="shortStayRoomRatesSection" class="col-span-full hidden bg-amber-50/70 p-3.5 rounded-lg border border-amber-200 mt-2">
+                  <div class="font-bold text-xs text-amber-950 mb-2 flex items-center gap-1.5">
+                    <span>🛏️</span> ショートステイ 居室負担額・滞在費設定（日額・1泊あたり/円）
+                  </div>
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs mb-3">
+                    <div class="form-group">
+                      <label class="font-bold text-slate-800">個室（ト有）滞在費 (円/日):</label>
+                      <input type="number" id="costShortStayPrivateToilet" class="form-control font-bold font-mono" value="1231" min="0">
+                      <span class="text-[10px] text-slate-500">※トイレ付き個室の滞在費</span>
+                    </div>
+                    <div class="form-group">
+                      <label class="font-bold text-slate-800">個室（ト無）滞在費 (円/日):</label>
+                      <input type="number" id="costShortStayPrivateNoToilet" class="form-control font-bold font-mono" value="1231" min="0">
+                      <span class="text-[10px] text-slate-500">※トイレなし個室の滞在費</span>
+                    </div>
+                    <div class="form-group">
+                      <label class="font-bold text-slate-800">多床室滞在費 (円/日):</label>
+                      <input type="number" id="costShortStayMulti" class="form-control font-bold font-mono" value="915" min="0">
+                      <span class="text-[10px] text-slate-500">※相部屋（多床室）の滞在費</span>
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-2.5 border-t border-amber-200">
+                    <div class="form-group">
+                      <label class="font-bold text-amber-900">個室負担額 (円/日):</label>
+                      <input type="number" id="costShortRoomBurdenPrivate" class="form-control font-bold font-mono border-amber-300 focus:border-amber-500 text-amber-900" value="0" min="0">
+                      <span class="text-[10px] text-amber-800">※個室利用時に利用者が負担する日額</span>
+                    </div>
+                    <div class="form-group">
+                      <label class="font-bold text-amber-900">多床室負担額 (円/日):</label>
+                      <input type="number" id="costShortRoomBurdenMulti" class="form-control font-bold font-mono border-amber-300 focus:border-amber-500 text-amber-900" value="0" min="0">
+                      <span class="text-[10px] text-amber-800">※多床室利用時に利用者が負担する日額</span>
+                    </div>
+                  </div>
+                  <p class="text-[10px] text-slate-500 mt-2">※負担限度額認定（第1〜3段階）をお持ちの利用者様は、滞在費に公的基準上限額が優先適用されます。</p>
                 </div>
               </div>
             </div>
@@ -2050,7 +2056,12 @@
         { id: 'short_unit_care_not_done', name: 'ユニットケア体制未実施減算', unit: '-3.0%', type: 'percent', percent: -3.0, target: 'common' },
         { id: 'short_bcp_not_formulated', name: '業務継続計画（BCP）未策定減算', unit: '-1.0%', type: 'percent', percent: -1.0, target: 'common' },
         { id: 'short_abuse_prevention_not_done', name: '高齢者虐待防止措置未実施減算', unit: '-1.0%', type: 'percent', percent: -1.0, target: 'common' },
-        { id: 'short_restraint_not_done', name: '身体拘束廃止未実施減算', unit: '-1.0%', type: 'percent', percent: -1.0, target: 'common' }
+        { id: 'short_restraint_not_done', name: '身体拘束廃止未実施減算', unit: '-1.0%', type: 'percent', percent: -1.0, target: 'common' },
+        { id: 'short_room_burden_private', name: '個室負担額', unit: '0 円/日', type: 'selfpay_daily', rate: 0, target: 'common' },
+        { id: 'short_room_burden_multi', name: '多床室負担額', unit: '0 円/日', type: 'selfpay_daily', rate: 0, target: 'common' },
+        { id: 'short_stay_private_toilet', name: '個室（ト有）滞在費', unit: '1231 円/日', type: 'selfpay_daily', rate: 1231, target: 'common' },
+        { id: 'short_stay_private_no_toilet', name: '個室（ト無）滞在費', unit: '1231 円/日', type: 'selfpay_daily', rate: 1231, target: 'common' },
+        { id: 'short_stay_multi', name: '多床室滞在費', unit: '915 円/日', type: 'selfpay_daily', rate: 915, target: 'common' }
       ]
     };
 
@@ -2515,32 +2526,43 @@
           }
           return Math.max(0, total);
         },
-        computeSelfPay(rec, fac, daysInMonth, nonVacantDays, vacantDays, mealCounts, roomCounts = { privateDays: 0, multiDays: 0 }, user = null, useDays = null) {
+        computeSelfPay(rec, fac, daysInMonth, nonVacantDays, vacantDays, mealCounts, roomCounts = {}, user = null, useDays = null) {
           const limitStage = user ? (user.foodLimitStage || 'none') : 'none';
 
-          let privateRate = fac.rent || 1231;
-          let multiRate = fac.utility || 915;
+          const stdPrivateToilet = fac.shortStayPrivateToilet !== undefined ? fac.shortStayPrivateToilet : (fac.rent || 1231);
+          const stdPrivateNoToilet = fac.shortStayPrivateNoToilet !== undefined ? fac.shortStayPrivateNoToilet : (fac.rent || 1231);
+          const stdMulti = fac.shortStayMulti !== undefined ? fac.shortStayMulti : (fac.utility || 915);
+          const burdenPrivate = fac.shortRoomBurdenPrivate !== undefined ? fac.shortRoomBurdenPrivate : 0;
+          const burdenMulti = fac.shortRoomBurdenMulti !== undefined ? fac.shortRoomBurdenMulti : 0;
+
+          let privateToiletRate = stdPrivateToilet;
+          let privateNoToiletRate = stdPrivateNoToilet;
+          let multiRate = stdMulti;
           let dailyFoodCap = null;
 
           if (limitStage === 'stage1') {
-            privateRate = 380;
+            privateToiletRate = 380;
+            privateNoToiletRate = 380;
             multiRate = 0;
             dailyFoodCap = 300;
           } else if (limitStage === 'stage2') {
-            privateRate = 480;
+            privateToiletRate = 480;
+            privateNoToiletRate = 480;
             multiRate = 430;
             dailyFoodCap = 600;
           } else if (limitStage === 'stage3_1') {
-            privateRate = 880;
+            privateToiletRate = 880;
+            privateNoToiletRate = 880;
             multiRate = 430;
             dailyFoodCap = 1030;
           } else if (limitStage === 'stage3_2') {
-            privateRate = 980;
+            privateToiletRate = 980;
+            privateNoToiletRate = 980;
             multiRate = 530;
             dailyFoodCap = 1360;
           }
 
-          // 実利用日数判定（利用日数が0日なら滞在費・食費は0円）
+          // 実利用日数判定（利用日数が0日なら滞在費・食費・負担額は0円）
           let actualUseDays = (useDays !== null && useDays !== undefined) ? Number(useDays) : (nonVacantDays !== undefined && nonVacantDays !== null ? Number(nonVacantDays) : null);
           if (actualUseDays === null && rec && rec.days) {
             actualUseDays = 0;
@@ -2550,8 +2572,20 @@
             });
           }
 
-          const privateTotal = (actualUseDays === 0) ? 0 : ((roomCounts.privateDays || 0) * privateRate);
-          const multiTotal = (actualUseDays === 0) ? 0 : ((roomCounts.multiDays || 0) * multiRate);
+          let ptDays = roomCounts.privateToiletDays || 0;
+          let pntDays = roomCounts.privateNoToiletDays || 0;
+          let mDays = roomCounts.multiDays || 0;
+
+          if (ptDays === 0 && pntDays === 0 && (roomCounts.privateDays || 0) > 0) {
+            ptDays = roomCounts.privateDays;
+          }
+
+          const stayPrivateToiletTotal = (actualUseDays === 0) ? 0 : (ptDays * privateToiletRate);
+          const stayPrivateNoToiletTotal = (actualUseDays === 0) ? 0 : (pntDays * privateNoToiletRate);
+          const stayMultiTotal = (actualUseDays === 0) ? 0 : (mDays * multiRate);
+
+          const burdenPrivateTotal = (actualUseDays === 0) ? 0 : ((ptDays + pntDays) * burdenPrivate);
+          const burdenMultiTotal = (actualUseDays === 0) ? 0 : (mDays * burdenMulti);
 
           const bfPrice = fac.breakfast || 350;
           const lnPrice = fac.lunch || 650;
@@ -2592,7 +2626,7 @@
             if (rec.useHairColor) extraSelfPay += 1000;
           }
 
-          return privateTotal + multiTotal + mealTotal + extraSelfPay;
+          return stayPrivateToiletTotal + stayPrivateNoToiletTotal + stayMultiTotal + burdenPrivateTotal + burdenMultiTotal + mealTotal + extraSelfPay;
         }
       }
     };
@@ -18381,11 +18415,12 @@
       gasUrl: localStorage.getItem('care_sys_gas_url') || '',
       currentFacilityId: 'fac_kusunoki',
       targetMonth: getCurrentYearMonth(),
+      masterPassword: '3233',
       facilityPasswords: {
-        'fac_kusunoki': '1234',
-        'fac_sakura': '1234',
-        'fac_mirai_nakaoka': '1234',
-        'fac_short_mirai': '1234'
+        'fac_kusunoki': '8707',
+        'fac_sakura': '5567',
+        'fac_mirai_nakaoka': '0260',
+        'fac_short_mirai': '8969'
       },
       facilities: {
         'fac_kusunoki': {
@@ -18416,7 +18451,7 @@
           additions: ['gh_night_support_1', 'gh_med_collab_1_a', 'gh_treatment_1_i_a'] 
         },
         'fac_mirai_nakaoka': { name: 'デイサービス未来中岡', type: 'デイサービス', unitRate: 10, rent: 0, utility: 0, admin: 0, breakfast: 0, lunch: 0, snack: 0, dinner: 0, additions: ['living_consultant_1'] },
-        'fac_short_mirai': { name: 'ショートステイ未来月見台', type: 'ショートステイ', unitRate: 10, rent: 1231, utility: 915, admin: 0, breakfast: 350, lunch: 650, snack: 0, dinner: 580, additions: ['emergency_short', 'short_transport'] }
+        'fac_short_mirai': { name: 'ショートステイ未来月見台', type: 'ショートステイ', unitRate: 10, rent: 1231, utility: 915, shortStayPrivateToilet: 1231, shortStayPrivateNoToilet: 1231, shortStayMulti: 915, shortRoomBurdenPrivate: 0, shortRoomBurdenMulti: 0, admin: 0, breakfast: 350, lunch: 650, snack: 0, dinner: 580, additions: ['emergency_short', 'short_transport'] }
       },
       additionMaster: JSON.parse(JSON.stringify(DEFAULT_ADDITION_MASTER)),
       userMaster: JSON.parse(JSON.stringify(INITIAL_MASTER_USERS)),
@@ -18811,8 +18846,9 @@
         const pass = passInput ? passInput.value.trim() : '';
         const errEl = document.getElementById('loginErrorMsg');
 
-        const expectedPass = (AppState.facilityPasswords && AppState.facilityPasswords[facId]) || '1234';
-        if (pass === expectedPass || pass === '1234') {
+        const expectedPass = (AppState.facilityPasswords && AppState.facilityPasswords[facId]) || '';
+        const masterPass = AppState.masterPassword || '3233';
+        if (pass && (pass === expectedPass || pass === masterPass)) {
           AppState.currentFacilityId = facId;
           AppState.targetMonth = getCurrentYearMonth();
           if (errEl) errEl.classList.add('hidden');
@@ -18834,25 +18870,6 @@
         console.error('Login Error:', err);
         const ls = document.getElementById('loginScreen');
         if (ls) { ls.classList.add('hidden'); ls.style.display = 'none'; }
-      }
-    }
-
-    function quickDemoLogin() {
-      try {
-        const loginScreen = document.getElementById('loginScreen');
-        if (loginScreen) {
-          loginScreen.classList.add('hidden');
-          loginScreen.style.display = 'none';
-        }
-        AppState.targetMonth = getCurrentYearMonth();
-        updateFacilityDisplay();
-        syncMonthInputs();
-        generateDemoData();
-        ensureActiveUsersExist();
-        renderAllViews();
-        showToast('デモモードでログインしました (差分データを生成)', 'success');
-      } catch (err) {
-        console.error('Quick Demo Login Error:', err);
       }
     }
 
@@ -18974,14 +18991,6 @@
           handleFacilityLogin();
         });
       }
-      const demoLoginBtn = document.getElementById('demoLoginBtn');
-      if (demoLoginBtn) {
-        demoLoginBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-          quickDemoLogin();
-        });
-      }
-
       document.getElementById('logoutBtn')?.addEventListener('click', () => {
         const ls = document.getElementById('loginScreen');
         if (ls) { ls.classList.remove('hidden'); ls.style.display = 'flex'; }
@@ -18991,13 +19000,6 @@
         AppState.targetMonth = e.target.value;
         saveStateToLocalStorage();
         renderAllViews();
-      });
-
-      document.getElementById('loadDemoDataBtn').addEventListener('click', () => {
-        generateDemoData();
-        ensureActiveUsersExist();
-        renderAllViews();
-        showToast('デモデータを生成しました', 'success');
       });
 
       document.getElementById('runCheckBtn').addEventListener('click', () => {
@@ -19147,7 +19149,7 @@
         let useDays = 0;
         let hospitalDays = 0;
         let mealCounts = { bf: 0, ln: 0, dn: 0 };
-        let roomCounts = { privateDays: 0, multiDays: 0 };
+        let roomCounts = { privateToiletDays: 0, privateNoToiletDays: 0, multiDays: 0, privateDays: 0 };
         let trainingUnits = 0;
         let transportDeductionUnits = 0;
         let shortTrainDays = 0;
@@ -19171,8 +19173,15 @@
                 if (dayObj.ln) mealCounts.ln++;
                 if (dayObj.dn) mealCounts.dn++;
 
-                if (dayObj.room === 'multi') roomCounts.multiDays++;
-                else roomCounts.privateDays++;
+                if (dayObj.room === 'multi') {
+                  roomCounts.multiDays++;
+                } else if (dayObj.room === 'private_no_toilet') {
+                  roomCounts.privateNoToiletDays++;
+                  roomCounts.privateDays++;
+                } else {
+                  roomCounts.privateToiletDays++;
+                  roomCounts.privateDays++;
+                }
 
                 if (serviceType === 'デイサービス') {
                   if (dayObj.training === 'イ') trainingUnits += 56;
@@ -20092,8 +20101,9 @@
                 <label class="flex items-center gap-0.5 cursor-pointer text-blue-700 font-bold" title="送迎加算 (184u/片道)">
                   <input type="checkbox" id="shortTransport_${d}" ${shortTransportChecked ? 'checked' : ''} onchange="updateLiveUserRecordSummary()"> 送迎
                 </label>
-                <select id="room_${d}" class="text-[10px] p-0.5 border rounded bg-white" onchange="updateLiveUserRecordSummary()">
-                  <option value="private" ${roomVal === 'private' ? 'selected' : ''}>個室</option>
+                <select id="room_${d}" class="text-[10px] p-0.5 border rounded bg-white font-medium" onchange="updateLiveUserRecordSummary()">
+                  <option value="private_toilet" ${(roomVal === 'private_toilet' || roomVal === 'private') ? 'selected' : ''}>個室（ト有）</option>
+                  <option value="private_no_toilet" ${roomVal === 'private_no_toilet' ? 'selected' : ''}>個室（ト無）</option>
                   <option value="multi" ${roomVal === 'multi' ? 'selected' : ''}>多床室</option>
                 </select>
               </div>
@@ -20372,7 +20382,7 @@
       let useDays = 0;
       let hospitalDays = 0;
       let mealCounts = { bf: 0, ln: 0, dn: 0 };
-      let roomCounts = { privateDays: 0, multiDays: 0 };
+      let roomCounts = { privateToiletDays: 0, privateNoToiletDays: 0, multiDays: 0, privateDays: 0 };
       let trainingUnits = 0;
       let transportDeductionUnits = 0;
       let shortTrainDays = 0;
@@ -20398,8 +20408,15 @@
 
             // ショートステイは利用日のみ滞在費（個室/多床室）と食事を計上
             const roomSel = document.getElementById(`room_${d}`)?.value;
-            if (roomSel === 'multi') roomCounts.multiDays++;
-            else roomCounts.privateDays++;
+            if (roomSel === 'multi') {
+              roomCounts.multiDays++;
+            } else if (roomSel === 'private_no_toilet') {
+              roomCounts.privateNoToiletDays++;
+              roomCounts.privateDays++;
+            } else {
+              roomCounts.privateToiletDays++;
+              roomCounts.privateDays++;
+            }
 
             if (document.getElementById(`bf_${d}`)?.checked) mealCounts.bf++;
             if (document.getElementById(`ln_${d}`)?.checked) mealCounts.ln++;
@@ -20450,35 +20467,17 @@
       const liveTvCalcEl = document.getElementById('shortTvRentalCalcText');
       if (liveTvCalcEl) liveTvCalcEl.textContent = liveTvCnt > 0 ? `(¥${formatNumber(liveTvCnt * 150)})` : '';
 
-      if (serviceType === 'ショートステイ') {
-        const limitStage = user ? (user.foodLimitStage || 'none') : 'none';
-        let curPrivateRate = currentFac.rent || 1231;
-        let curMultiRate = currentFac.utility || 915;
-        if (limitStage === 'stage1') { curPrivateRate = 380; curMultiRate = 0; }
-        else if (limitStage === 'stage2') { curPrivateRate = 480; curMultiRate = 430; }
-        else if (limitStage === 'stage3_1') { curPrivateRate = 880; curMultiRate = 430; }
-        else if (limitStage === 'stage3_2') { curPrivateRate = 980; curMultiRate = 530; }
-
-        const privLabelEl = document.getElementById('shortPrivateRateLabel');
-        if (privLabelEl) privLabelEl.innerHTML = `@¥${formatNumber(curPrivateRate)} <span class="text-[10px] font-normal text-slate-500">/泊</span>`;
-        const multiLabelEl = document.getElementById('shortMultiRateLabel');
-        if (multiLabelEl) multiLabelEl.innerHTML = `@¥${formatNumber(curMultiRate)} <span class="text-[10px] font-normal text-slate-500">/泊</span>`;
-
-        const privSumEl = document.getElementById('shortPrivateSummaryText');
-        if (privSumEl) privSumEl.textContent = `当月: ${roomCounts.privateDays}泊 (¥${formatNumber(roomCounts.privateDays * curPrivateRate)})`;
-        const multiSumEl = document.getElementById('shortMultiSummaryText');
-        if (multiSumEl) multiSumEl.textContent = `当月: ${roomCounts.multiDays}泊 (¥${formatNumber(roomCounts.multiDays * curMultiRate)})`;
-      }
-
       let linkageCount = 0;
       for (let d = 1; d <= daysInMonth; d++) {
         const isLinked = !!document.getElementById(`link_${d}`)?.checked;
         const isDayUse = document.querySelector(`#dayCard_${d} .day-status-badge`)?.textContent.trim() === '利用';
         if (isDayUse && isLinked) linkageCount++;
 
+        const roomVal = document.getElementById(`room_${d}`)?.value || 'private_toilet';
         tempRec.days[d] = {
           status: document.querySelector(`#dayCard_${d} .day-status-badge`)?.textContent.trim() || '未利用',
           active: isDayUse,
+          room: roomVal,
           bf: !!document.getElementById(`bf_${d}`)?.checked,
           ln: !!document.getElementById(`ln_${d}`)?.checked,
           dn: !!document.getElementById(`dn_${d}`)?.checked,
@@ -20882,7 +20881,7 @@
       let useDays = 0;
       let hospitalDays = 0;
       let bfCount = 0, lnCount = 0, dnCount = 0;
-      let privateDays = 0, multiDays = 0;
+      let privateToiletDays = 0, privateNoToiletDays = 0, multiDays = 0;
 
       for (let d = 1; d <= daysInMonth; d++) {
         const badge = document.querySelector(`#dayCard_${d} .day-status-badge`);
@@ -20891,8 +20890,13 @@
           useDays++;
           if (serviceType === 'ショートステイ') {
             const roomSel = document.getElementById(`room_${d}`)?.value;
-            if (roomSel === 'multi') multiDays++;
-            else privateDays++;
+            if (roomSel === 'multi') {
+              multiDays++;
+            } else if (roomSel === 'private_no_toilet') {
+              privateNoToiletDays++;
+            } else {
+              privateToiletDays++;
+            }
 
             if (document.getElementById(`bf_${d}`)?.checked) bfCount++;
             if (document.getElementById(`ln_${d}`)?.checked) lnCount++;
@@ -20909,7 +20913,7 @@
 
           const roomSel = document.getElementById(`room_${d}`)?.value;
           if (roomSel === 'multi') multiDays++;
-          else privateDays++;
+          else privateToiletDays++;
         }
       }
 
@@ -21139,8 +21143,11 @@
         `;
       } else if (serviceType === 'ショートステイ') {
         const limitStage = user ? (user.foodLimitStage || 'none') : 'none';
-        let privateRate = fac.rent || 1231;
-        let multiRate = fac.utility || 915;
+        const stdPtRate = fac.shortStayPrivateToilet !== undefined ? fac.shortStayPrivateToilet : (fac.rent || 1231);
+        const stdPntRate = fac.shortStayPrivateNoToilet !== undefined ? fac.shortStayPrivateNoToilet : (fac.rent || 1231);
+        const stdMultiRate = fac.shortStayMulti !== undefined ? fac.shortStayMulti : (fac.utility || 915);
+        const burdenPrivateRate = fac.shortRoomBurdenPrivate !== undefined ? fac.shortRoomBurdenPrivate : 0;
+        const burdenMultiRate = fac.shortRoomBurdenMulti !== undefined ? fac.shortRoomBurdenMulti : 0;
 
         const stageNames = {
           'none': '第4段階 (負担限度なし / 通常額)',
@@ -21151,41 +21158,73 @@
         };
         const stageStr = stageNames[limitStage] || stageNames['none'];
 
-        if (limitStage === 'stage1') { privateRate = 380; multiRate = 0; }
-        else if (limitStage === 'stage2') { privateRate = 480; multiRate = 430; }
-        else if (limitStage === 'stage3_1') { privateRate = 880; multiRate = 430; }
-        else if (limitStage === 'stage3_2') { privateRate = 980; multiRate = 530; }
+        let stayPtRate = stdPtRate;
+        let stayPntRate = stdPntRate;
+        let stayMultiRate = stdMultiRate;
 
-        const privateTotal = privateDays * privateRate;
-        const multiTotal = multiDays * multiRate;
+        if (limitStage === 'stage1') { stayPtRate = 380; stayPntRate = 380; stayMultiRate = 0; }
+        else if (limitStage === 'stage2') { stayPtRate = 480; stayPntRate = 480; stayMultiRate = 430; }
+        else if (limitStage === 'stage3_1') { stayPtRate = 880; stayPntRate = 880; stayMultiRate = 430; }
+        else if (limitStage === 'stage3_2') { stayPtRate = 980; stayPntRate = 980; stayMultiRate = 530; }
+
+        const stayPtTotal = (useDays === 0) ? 0 : (privateToiletDays * stayPtRate);
+        const stayPntTotal = (useDays === 0) ? 0 : (privateNoToiletDays * stayPntRate);
+        const stayMultiTotal = (useDays === 0) ? 0 : (multiDays * stayMultiRate);
+        const totalPrivateDays = privateToiletDays + privateNoToiletDays;
+        const burdenPrivateTotal = (useDays === 0) ? 0 : (totalPrivateDays * burdenPrivateRate);
+        const burdenMultiTotal = (useDays === 0) ? 0 : (multiDays * burdenMultiRate);
 
         const engine = CareEngines['ショートステイ'];
         const recKey = `${AppState.currentFacilityId}_${AppState.targetMonth}_${user ? user.id : ''}`;
         const currentRec = AppState.records[recKey] || null;
 
+        // 画面の最新入力値を最優先で反映（保存前・編集中のズレを防止）
         const formTvCount = Number(document.getElementById('shortTvRentalCount')?.value || 0);
-        const tvRentalCount = currentRec ? Number(currentRec.shortTvRentalCount !== undefined ? currentRec.shortTvRentalCount : formTvCount) : formTvCount;
+        const tvRentalCount = formTvCount;
         const tvRentalTotal = tvRentalCount * 150;
         const formHaircut = !!document.getElementById('chkSelfHaircut')?.checked;
-        const haircutTotal = (currentRec ? (currentRec.useHaircut !== undefined ? currentRec.useHaircut : formHaircut) : formHaircut) ? 2500 : 0;
+        const haircutTotal = formHaircut ? 2500 : 0;
         const formHairColor = !!document.getElementById('chkSelfHairColor')?.checked;
-        const hairColorTotal = (currentRec ? (currentRec.useHairColor !== undefined ? currentRec.useHairColor : formHairColor) : formHairColor) ? 1000 : 0;
+        const hairColorTotal = formHairColor ? 1000 : 0;
         const extraSelfTotal = tvRentalTotal + haircutTotal + hairColorTotal;
+
+        // 画面上の最新カレンダー状態（利用日数・各日の部屋タイプ・食事チェック）を同期
+        const liveDays = {};
+        for (let d = 1; d <= daysInMonth; d++) {
+          const badge = document.querySelector(`#dayCard_${d} .day-status-badge`);
+          const status = badge ? badge.textContent.trim() : '未利用';
+          const isDayUse = (status === '利用');
+          liveDays[d] = {
+            status: status,
+            active: isDayUse,
+            room: document.getElementById(`room_${d}`)?.value || 'private_toilet',
+            bf: !!document.getElementById(`bf_${d}`)?.checked,
+            ln: !!document.getElementById(`ln_${d}`)?.checked,
+            dn: !!document.getElementById(`dn_${d}`)?.checked,
+            link: !!document.getElementById(`link_${d}`)?.checked,
+            shortTrain: !!document.getElementById(`shortTrain_${d}`)?.checked,
+            shortTransport: !!document.getElementById(`shortTransport_${d}`)?.checked,
+            hospitalStay: !!document.getElementById(`hosp_${d}`)?.checked,
+            pasteMeal: !!document.getElementById(`paste_${d}`)?.checked
+          };
+        }
 
         const evalRec = {
           ...(currentRec || {}),
+          days: liveDays,
           shortTvRentalCount: tvRentalCount,
           useHaircut: haircutTotal > 0,
           useHairColor: hairColorTotal > 0
         };
 
-        const grandSelfTotal = engine.computeSelfPay(evalRec, fac, daysInMonth, useDays, (daysInMonth - useDays), { bf: bfCount, ln: lnCount, dn: dnCount }, { privateDays, multiDays }, user, useDays);
-        const mealSelfTotal = grandSelfTotal - (privateTotal + multiTotal + extraSelfTotal);
+        const roomCounts = { privateToiletDays, privateNoToiletDays, multiDays, privateDays: totalPrivateDays };
+        const grandSelfTotal = engine.computeSelfPay(evalRec, fac, daysInMonth, useDays, (daysInMonth - useDays), { bf: bfCount, ln: lnCount, dn: dnCount }, roomCounts, user, useDays);
+        const mealSelfTotal = grandSelfTotal - (stayPtTotal + stayPntTotal + stayMultiTotal + burdenPrivateTotal + burdenMultiTotal + extraSelfTotal);
 
         modalContent.innerHTML = `
           <div class="bg-amber-50 p-3 rounded border border-amber-200 mb-3">
             <p>対象者: <strong>${user ? user.name : '-'}</strong> (${fac.name})</p>
-            <p class="text-xs text-amber-800 font-bold mt-1">ショートステイ 自費算定内訳（個室・多床室負担額・食費・個別自費）</p>
+            <p class="text-xs text-amber-800 font-bold mt-1">ショートステイ 自費算定内訳（滞在費・居室負担額・食費・個別自費）</p>
             <p class="text-[11px] text-amber-700 font-bold mt-0.5">適用区分: <span class="bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded font-bold">${stageStr}</span></p>
           </div>
           <table class="w-full text-xs border-collapse border border-slate-300">
@@ -21198,17 +21237,32 @@
             </thead>
             <tbody>
               <tr>
-                <td class="border border-slate-300 p-2 font-bold">個室負担額</td>
-                <td class="border border-slate-300 p-2 text-center">@¥${formatNumber(privateRate)} × ${privateDays}泊 (回)</td>
-                <td class="border border-slate-300 p-2 text-right font-semibold">¥${formatNumber(privateTotal)}</td>
+                <td class="border border-slate-300 p-2 font-bold">個室（ト有）滞在費</td>
+                <td class="border border-slate-300 p-2 text-center">@¥${formatNumber(stayPtRate)} × ${privateToiletDays}泊</td>
+                <td class="border border-slate-300 p-2 text-right font-semibold">¥${formatNumber(stayPtTotal)}</td>
               </tr>
               <tr>
-                <td class="border border-slate-300 p-2 font-bold">多床室負担額</td>
-                <td class="border border-slate-300 p-2 text-center">@¥${formatNumber(multiRate)} × ${multiDays}泊 (回)</td>
-                <td class="border border-slate-300 p-2 text-right font-semibold">¥${formatNumber(multiTotal)}</td>
+                <td class="border border-slate-300 p-2 font-bold">個室（ト無）滞在費</td>
+                <td class="border border-slate-300 p-2 text-center">@¥${formatNumber(stayPntRate)} × ${privateNoToiletDays}泊</td>
+                <td class="border border-slate-300 p-2 text-right font-semibold">¥${formatNumber(stayPntTotal)}</td>
               </tr>
               <tr>
-                <td class="border border-slate-300 p-2 font-bold">食事代合計（軽減適用後）</td>
+                <td class="border border-slate-300 p-2 font-bold">多床室滞在費</td>
+                <td class="border border-slate-300 p-2 text-center">@¥${formatNumber(stayMultiRate)} × ${multiDays}泊</td>
+                <td class="border border-slate-300 p-2 text-right font-semibold">¥${formatNumber(stayMultiTotal)}</td>
+              </tr>
+              <tr>
+                <td class="border border-slate-300 p-2 font-bold text-amber-950">個室負担額</td>
+                <td class="border border-slate-300 p-2 text-center text-amber-900">@¥${formatNumber(burdenPrivateRate)} × ${totalPrivateDays}泊</td>
+                <td class="border border-slate-300 p-2 text-right font-semibold text-amber-950">¥${formatNumber(burdenPrivateTotal)}</td>
+              </tr>
+              <tr>
+                <td class="border border-slate-300 p-2 font-bold text-amber-950">多床室負担額</td>
+                <td class="border border-slate-300 p-2 text-center text-amber-900">@¥${formatNumber(burdenMultiRate)} × ${multiDays}泊</td>
+                <td class="border border-slate-300 p-2 text-right font-semibold text-amber-950">¥${formatNumber(burdenMultiTotal)}</td>
+              </tr>
+              <tr>
+                <td class="border border-slate-300 p-2 font-bold">食事代合計${limitStage !== 'none' ? '（軽減適用後）' : ''}</td>
                 <td class="border border-slate-300 p-2 text-center">朝:${bfCount}回 / 昼:${lnCount}回 / 夕:${dnCount}回</td>
                 <td class="border border-slate-300 p-2 text-right font-semibold">¥${formatNumber(mealSelfTotal)}</td>
               </tr>
@@ -21297,7 +21351,7 @@
       let useDays = 0;
       let hospitalDays = 0;
       let bfCount = 0, lnCount = 0, dnCount = 0;
-      let privateDays = 0, multiDays = 0;
+      let privateToiletDays = 0, privateNoToiletDays = 0, multiDays = 0;
       let trainingUnits = 0, transportDeductionUnits = 0, shortTrainDays = 0, shortTransportDays = 0, linkageCount = 0;
       let ghHospitalStayDays = 0;
 
@@ -21321,8 +21375,13 @@
             if (document.getElementById(`shortTransport_${d}`)?.checked) shortTransportDays++;
 
             const roomSel = document.getElementById(`room_${d}`)?.value;
-            if (roomSel === 'multi') multiDays++;
-            else privateDays++;
+            if (roomSel === 'multi') {
+              multiDays++;
+            } else if (roomSel === 'private_no_toilet') {
+              privateNoToiletDays++;
+            } else {
+              privateToiletDays++;
+            }
 
             if (document.getElementById(`bf_${d}`)?.checked) bfCount++;
             if (document.getElementById(`ln_${d}`)?.checked) lnCount++;
@@ -21341,7 +21400,7 @@
 
           const roomSel = document.getElementById(`room_${d}`)?.value;
           if (roomSel === 'multi') multiDays++;
-          else privateDays++;
+          else privateToiletDays++;
         }
       }
 
@@ -21397,7 +21456,7 @@
       const contractDays = (serviceType === '有料ホーム' || serviceType === 'グループホーム') ? (useDays + hospitalDays) : useDays;
       const vacantDays = daysInMonth - contractDays;
       const mealCounts = { bf: bfCount, ln: lnCount, dn: dnCount };
-      const roomCounts = { privateDays, multiDays };
+      const roomCounts = { privateToiletDays, privateNoToiletDays, multiDays, privateDays: privateToiletDays + privateNoToiletDays };
 
       const selfPayAmt = engine.computeSelfPay(currentRec, fac, daysInMonth, contractDays, vacantDays, mealCounts, roomCounts, user, useDays);
       const isExempt = !!document.getElementById('chkUserExempt')?.checked;
@@ -21624,9 +21683,12 @@
       const selfPaySection = document.getElementById('selfPayConfigSection');
       const lblRent = document.getElementById('lblRent');
       const lblUtility = document.getElementById('lblUtility');
+      const grpRent = document.getElementById('grpRent');
+      const grpUtility = document.getElementById('grpUtility');
       const grpAdmin = document.getElementById('grpAdmin');
       const grpSnack = document.getElementById('grpSnack');
       const grpDailyGoods = document.getElementById('grpDailyGoods');
+      const shortRoomSec = document.getElementById('shortStayRoomRatesSection');
       const sectionTitle = document.getElementById('selfPaySectionTitle');
 
       if (selfPaySection) {
@@ -21639,24 +21701,43 @@
             if (sectionTitle) sectionTitle.textContent = '自費項目設定（居室費・生活関連費・日用品費・食事代等）';
             if (lblRent) lblRent.textContent = '居室費 (日額/円):';
             if (lblUtility) lblUtility.textContent = '生活関連費 (日額/円):';
+            if (grpRent) grpRent.classList.remove('hidden');
+            if (grpUtility) grpUtility.classList.remove('hidden');
             if (document.getElementById('lblDailyGoods')) document.getElementById('lblDailyGoods').textContent = '日用品費 (月額/円 ※月15日以上利用時のみ加算):';
             if (grpDailyGoods) grpDailyGoods.classList.remove('hidden');
             if (grpAdmin) grpAdmin.classList.add('hidden');
             if (grpSnack) grpSnack.classList.add('hidden');
+            if (shortRoomSec) shortRoomSec.classList.add('hidden');
           } else if (selectedType === 'ショートステイ') {
-            if (sectionTitle) sectionTitle.textContent = '自費項目設定（個室負担額・多床室負担額・食事代等）';
-            if (lblRent) lblRent.textContent = '個室負担額 (日額・1泊/円):';
-            if (lblUtility) lblUtility.textContent = '多床室負担額 (日額・1泊/円):';
+            if (sectionTitle) sectionTitle.textContent = '自費項目設定（滞在費・居室負担額・食事代等）';
+            if (grpRent) grpRent.classList.add('hidden');
+            if (grpUtility) grpUtility.classList.add('hidden');
             if (grpDailyGoods) grpDailyGoods.classList.add('hidden');
             if (grpAdmin) grpAdmin.classList.add('hidden');
             if (grpSnack) grpSnack.classList.add('hidden');
+            if (shortRoomSec) {
+              shortRoomSec.classList.remove('hidden');
+              const ptInput = document.getElementById('costShortStayPrivateToilet');
+              if (ptInput) ptInput.value = fac.shortStayPrivateToilet !== undefined ? fac.shortStayPrivateToilet : (fac.rent || 1231);
+              const pntInput = document.getElementById('costShortStayPrivateNoToilet');
+              if (pntInput) pntInput.value = fac.shortStayPrivateNoToilet !== undefined ? fac.shortStayPrivateNoToilet : (fac.rent || 1231);
+              const smInput = document.getElementById('costShortStayMulti');
+              if (smInput) smInput.value = fac.shortStayMulti !== undefined ? fac.shortStayMulti : (fac.utility || 915);
+              const rbpInput = document.getElementById('costShortRoomBurdenPrivate');
+              if (rbpInput) rbpInput.value = fac.shortRoomBurdenPrivate !== undefined ? fac.shortRoomBurdenPrivate : 0;
+              const rbmInput = document.getElementById('costShortRoomBurdenMulti');
+              if (rbmInput) rbmInput.value = fac.shortRoomBurdenMulti !== undefined ? fac.shortRoomBurdenMulti : 0;
+            }
           } else {
             if (sectionTitle) sectionTitle.textContent = '自費項目設定（家賃・水光熱費・管理費・食事代等）';
             if (lblRent) lblRent.textContent = '家賃 (月額/円):';
             if (lblUtility) lblUtility.textContent = '光熱費 (月額/円):';
+            if (grpRent) grpRent.classList.remove('hidden');
+            if (grpUtility) grpUtility.classList.remove('hidden');
             if (grpDailyGoods) grpDailyGoods.classList.add('hidden');
             if (grpAdmin) grpAdmin.classList.remove('hidden');
             if (grpSnack) grpSnack.classList.remove('hidden');
+            if (shortRoomSec) shortRoomSec.classList.add('hidden');
           }
         }
       }
@@ -21674,6 +21755,7 @@
       const additionList = AppState.additionMaster[selectedType];
 
       additionList.forEach(add => {
+        if (add.type === 'selfpay_daily') return; // 自費居室項目は自費設定セクションで管理
         const isChecked = (fac.additions || []).includes(add.id);
         const card = document.createElement('div');
         card.className = 'addition-card';
@@ -21721,6 +21803,28 @@
       fac.utility = Number(document.getElementById('costUtility').value);
       fac.dailyGoodsCost = (fac.type === 'グループホーム') ? Number(document.getElementById('costDailyGoods')?.value || 0) : 0;
       fac.admin = (fac.type === 'グループホーム') ? 0 : Number(document.getElementById('costAdmin').value);
+
+      if (fac.type === 'ショートステイ') {
+        fac.shortStayPrivateToilet = Number(document.getElementById('costShortStayPrivateToilet')?.value || 1231);
+        fac.shortStayPrivateNoToilet = Number(document.getElementById('costShortStayPrivateNoToilet')?.value || 1231);
+        fac.shortStayMulti = Number(document.getElementById('costShortStayMulti')?.value || 915);
+        fac.shortRoomBurdenPrivate = Number(document.getElementById('costShortRoomBurdenPrivate')?.value || 0);
+        fac.shortRoomBurdenMulti = Number(document.getElementById('costShortRoomBurdenMulti')?.value || 0);
+        fac.rent = fac.shortStayPrivateToilet;
+        fac.utility = fac.shortStayMulti;
+
+        const shortAdds = AppState.additionMaster['ショートステイ'] || [];
+        const itemPt = shortAdds.find(a => a.id === 'short_stay_private_toilet');
+        if (itemPt) itemPt.rate = fac.shortStayPrivateToilet;
+        const itemPnt = shortAdds.find(a => a.id === 'short_stay_private_no_toilet');
+        if (itemPnt) itemPnt.rate = fac.shortStayPrivateNoToilet;
+        const itemSm = shortAdds.find(a => a.id === 'short_stay_multi');
+        if (itemSm) itemSm.rate = fac.shortStayMulti;
+        const itemRbp = shortAdds.find(a => a.id === 'short_room_burden_private');
+        if (itemRbp) itemRbp.rate = fac.shortRoomBurdenPrivate;
+        const itemRbm = shortAdds.find(a => a.id === 'short_room_burden_multi');
+        if (itemRbm) itemRbm.rate = fac.shortRoomBurdenMulti;
+      }
 
       const selectedAdditions = [];
       document.querySelectorAll('.addition-chk:checked').forEach(chk => {
@@ -21817,7 +21921,7 @@
         let useDays = 0;
         let hospitalDays = 0;
         let mealCounts = { bf: 0, ln: 0, dn: 0 };
-        let roomCounts = { privateDays: 0, multiDays: 0 };
+        let roomCounts = { privateToiletDays: 0, privateNoToiletDays: 0, multiDays: 0, privateDays: 0 };
         let trainingUnits = 0;
         let transportDeductionUnits = 0;
         let shortTrainDays = 0;
@@ -21839,8 +21943,15 @@
                 if (dayObj.ln) mealCounts.ln++;
                 if (dayObj.dn) mealCounts.dn++;
 
-                if (dayObj.room === 'multi') roomCounts.multiDays++;
-                else roomCounts.privateDays++;
+                if (dayObj.room === 'multi') {
+                  roomCounts.multiDays++;
+                } else if (dayObj.room === 'private_no_toilet') {
+                  roomCounts.privateNoToiletDays++;
+                  roomCounts.privateDays++;
+                } else {
+                  roomCounts.privateToiletDays++;
+                  roomCounts.privateDays++;
+                }
 
                 if (serviceType === 'デイサービス') {
                   if (dayObj.training === 'イ') trainingUnits += 56;
