@@ -417,10 +417,10 @@
         <p class="text-xs text-blue-600 font-bold mt-1">【全サービス種別 加算・減算フル対応】</p>
         <p class="text-xs text-slate-500 mt-2">対象事業所を選択してログインしてください</p>
       </div>
-      <form id="loginForm" onsubmit="event.preventDefault(); handleFacilityLogin();">
+      <div id="loginFormContainer" onkeydown="if(event.key==='Enter'){event.preventDefault(); handleFacilityLogin();}">
         <div class="form-group">
           <label for="loginFacilitySelect">ログイン対象施設:</label>
-          <select id="loginFacilitySelect" class="form-control font-bold p-2.5 border-blue-600">
+          <select id="loginFacilitySelect" class="form-control font-bold p-2.5 border-blue-600" onchange="const pi = document.getElementById('loginPasswordInput'); if(pi){ pi.value = ''; pi.setAttribute('readonly', 'readonly'); }">
             <option value="fac_kusunoki">有料老人ホームくすの木（特定施設入居者生活介護）</option>
             <option value="fac_sakura">グループホーム桜（認知症対応型共同生活介護）</option>
             <option value="fac_mirai_nakaoka">デイサービス未来中岡（地域密着型通所介護）</option>
@@ -429,14 +429,14 @@
         </div>
         <div class="form-group mt-4">
           <label for="loginPasswordInput">施設パスワード:</label>
-          <input type="password" id="loginPasswordInput" class="form-control p-2.5" value="" placeholder="施設パスワードを入力" required autocomplete="off">
+          <input type="text" id="loginPasswordInput" name="fac_auth_token_prevent_autofill" class="form-control p-2.5 font-bold" value="" placeholder="施設パスワードを入力" required autocomplete="off" style="-webkit-text-security: disc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;" readonly onfocus="this.removeAttribute('readonly');" oninput="this.removeAttribute('readonly');">
         </div>
         <div id="loginErrorMsg" class="text-red-500 bg-red-50 border border-red-200 p-2 rounded text-xs mt-3 text-center hidden">⚠️ パスワードが正しくありません</div>
         
-        <button type="submit" id="loginSubmitBtn" onclick="event.preventDefault(); handleFacilityLogin();" class="btn btn-primary w-full mt-6 py-3 justify-center text-sm cursor-pointer">
+        <button type="button" id="loginSubmitBtn" onclick="handleFacilityLogin();" class="btn btn-primary w-full mt-6 py-3 justify-center text-sm cursor-pointer">
           🔒 ログインして請求管理を開く
         </button>
-      </form>
+      </div>
     </div>
   </div>
 
@@ -1850,7 +1850,10 @@
     window.logoutFacility = function() {
       try {
         const passInput = document.getElementById('loginPasswordInput');
-        if (passInput) passInput.value = '';
+        if (passInput) {
+          passInput.value = '';
+          passInput.setAttribute('readonly', 'readonly');
+        }
         const errEl = document.getElementById('loginErrorMsg');
         if (errEl) errEl.classList.add('hidden');
         const loginScreen = document.getElementById('loginScreen');
@@ -18856,7 +18859,10 @@
           AppState.currentFacilityId = facId;
           AppState.targetMonth = getCurrentYearMonth();
           if (errEl) errEl.classList.add('hidden');
-          if (passInput) passInput.value = '';
+          if (passInput) {
+            passInput.value = '';
+            passInput.setAttribute('readonly', 'readonly');
+          }
           const loginScreen = document.getElementById('loginScreen');
           if (loginScreen) {
             loginScreen.classList.add('hidden');
@@ -18922,8 +18928,19 @@
       updateFacilityDisplay();
       syncMonthInputs();
 
-      const initialPassInput = document.getElementById('loginPasswordInput');
-      if (initialPassInput) initialPassInput.value = '';
+      const clearLoginPassword = () => {
+        const passInput = document.getElementById('loginPasswordInput');
+        if (passInput) {
+          passInput.value = '';
+          passInput.setAttribute('readonly', 'readonly');
+        }
+      };
+      clearLoginPassword();
+      setTimeout(clearLoginPassword, 50);
+      setTimeout(clearLoginPassword, 150);
+      setTimeout(clearLoginPassword, 300);
+      setTimeout(clearLoginPassword, 600);
+      window.addEventListener('load', clearLoginPassword);
 
       document.querySelectorAll('.nav-item').forEach(btn => {
         btn.addEventListener('click', (e) => {
