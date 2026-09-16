@@ -429,7 +429,7 @@
         </div>
         <div class="form-group mt-4">
           <label for="loginPasswordInput">施設パスワード:</label>
-          <input type="password" id="loginPasswordInput" class="form-control p-2.5" value="" placeholder="施設パスワードを入力" required autocomplete="current-password">
+          <input type="password" id="loginPasswordInput" class="form-control p-2.5" value="" placeholder="施設パスワードを入力" required autocomplete="off">
         </div>
         <div id="loginErrorMsg" class="text-red-500 bg-red-50 border border-red-200 p-2 rounded text-xs mt-3 text-center hidden">⚠️ パスワードが正しくありません</div>
         
@@ -1849,6 +1849,10 @@
     
     window.logoutFacility = function() {
       try {
+        const passInput = document.getElementById('loginPasswordInput');
+        if (passInput) passInput.value = '';
+        const errEl = document.getElementById('loginErrorMsg');
+        if (errEl) errEl.classList.add('hidden');
         const loginScreen = document.getElementById('loginScreen');
         if (loginScreen) {
           loginScreen.classList.remove('hidden');
@@ -18852,6 +18856,7 @@
           AppState.currentFacilityId = facId;
           AppState.targetMonth = getCurrentYearMonth();
           if (errEl) errEl.classList.add('hidden');
+          if (passInput) passInput.value = '';
           const loginScreen = document.getElementById('loginScreen');
           if (loginScreen) {
             loginScreen.classList.add('hidden');
@@ -18916,6 +18921,9 @@
       ensureActiveUsersExist();
       updateFacilityDisplay();
       syncMonthInputs();
+
+      const initialPassInput = document.getElementById('loginPasswordInput');
+      if (initialPassInput) initialPassInput.value = '';
 
       document.querySelectorAll('.nav-item').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -18992,8 +19000,7 @@
         });
       }
       document.getElementById('logoutBtn')?.addEventListener('click', () => {
-        const ls = document.getElementById('loginScreen');
-        if (ls) { ls.classList.remove('hidden'); ls.style.display = 'flex'; }
+        logoutFacility();
       });
 
       document.getElementById('targetMonth').addEventListener('change', (e) => {
@@ -20527,7 +20534,19 @@
       const careInfo = getUserCareInfo(user, serviceType, useDays);
 
       const exemptTag = isExempt ? ' <span class="bg-amber-100 text-amber-900 border border-amber-300 px-1.5 py-0.5 rounded text-[11px] font-bold">減免(公費)</span>' : '';
-      document.getElementById('userCareLevelInfo').innerHTML = `${careInfo.levelName} (${user.ratio})${exemptTag}`;
+      let careInfoDisplay = `${careInfo.levelName} (${user.ratio})`;
+      if (serviceType === 'ショートステイ') {
+        const stageMap = {
+          'stage1': '第1段階',
+          'stage2': '第2段階',
+          'stage3_1': '第3段階①',
+          'stage3_2': '第3段階②',
+          'none': '第4段階'
+        };
+        const stageStr = stageMap[user.foodLimitStage || 'none'] || '第4段階';
+        careInfoDisplay = `${careInfo.levelName} (${user.ratio}・${stageStr})`;
+      }
+      document.getElementById('userCareLevelInfo').innerHTML = `${careInfoDisplay}${exemptTag}`;
       document.getElementById('userCalcUnits').textContent = `${formatNumber(units)} 単位`;
       document.getElementById('userEstAmount').innerHTML = isExempt 
         ? `<span class="line-through text-slate-400 mr-1 text-xs">¥${formatNumber(Math.floor(totalInsuranceYen * ratioNum))}</span><span class="text-amber-700 font-bold">¥0</span>`
