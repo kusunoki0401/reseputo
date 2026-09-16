@@ -1014,7 +1014,7 @@
                       <span class="text-[10px] text-amber-800">※多床室利用時に利用者が負担する日額</span>
                     </div>
                   </div>
-                  <p class="text-[10px] text-slate-500 mt-2">※負担限度額認定（第1〜3段階）をお持ちの利用者様は、滞在費に公的基準上限額が優先適用されます。</p>
+                  <p class="text-[10px] text-slate-500 mt-2">※負担限度額認定（第1〜3段階）をお持ちの利用者様は、個室/多床室負担額に公的基準上限額が優先適用されます。</p>
                 </div>
               </div>
             </div>
@@ -1406,15 +1406,15 @@
           </div>
 
           <div id="shortStayFoodLimitGroup" class="form-group bg-amber-50/70 p-3 rounded-lg border border-amber-200 hidden">
-            <label class="text-amber-900 font-bold mb-1">🍚 負担限度額区分 (ショートステイ滞在費・食費):</label>
+            <label class="text-amber-900 font-bold mb-1">🍚 負担限度額区分 (ショートステイ居室負担額・食費):</label>
             <select id="modalEditFoodLimitStage" class="form-control font-bold border-amber-500">
               <option value="none">第4段階（負担限度なし / 通常額）</option>
-              <option value="stage3_2">第3段階②（個室:980円 / 多床室:530円 / 食費上限:1,360円）</option>
-              <option value="stage3_1">第3段階①（個室:880円 / 多床室:430円 / 食費上限:1,030円）</option>
-              <option value="stage2">第2段階（個室:480円 / 多床室:430円 / 食費上限:600円）</option>
-              <option value="stage1">第1段階（個室:380円 / 多床室:0円 / 食費上限:300円）</option>
+              <option value="stage3_2">第3段階②（個室負担:980円 / 多床室負担:530円 / 食費上限:1,360円）</option>
+              <option value="stage3_1">第3段階①（個室負担:880円 / 多床室負担:430円 / 食費上限:1,030円）</option>
+              <option value="stage2">第2段階（個室負担:480円 / 多床室負担:430円 / 食費上限:600円）</option>
+              <option value="stage1">第1段階（個室負担:380円 / 多床室負担:0円 / 食費上限:300円）</option>
             </select>
-            <p class="text-[11px] text-amber-700 mt-1">※介護保険負担限度額認定証に基づく滞在費・食事負担限度額を適用します。</p>
+            <p class="text-[11px] text-amber-700 mt-1">※介護保険負担限度額認定証に基づく居室負担額・食事負担限度額を適用します。</p>
           </div>
 
           <div class="form-group bg-amber-50 p-2.5 rounded border border-amber-200">
@@ -2539,33 +2539,32 @@
           const stdPrivateToilet = fac.shortStayPrivateToilet !== undefined ? fac.shortStayPrivateToilet : (fac.rent || 1231);
           const stdPrivateNoToilet = fac.shortStayPrivateNoToilet !== undefined ? fac.shortStayPrivateNoToilet : (fac.rent || 1231);
           const stdMulti = fac.shortStayMulti !== undefined ? fac.shortStayMulti : (fac.utility || 915);
-          const burdenPrivate = fac.shortRoomBurdenPrivate !== undefined ? fac.shortRoomBurdenPrivate : 0;
-          const burdenMulti = fac.shortRoomBurdenMulti !== undefined ? fac.shortRoomBurdenMulti : 0;
+          const stdBurdenPrivate = fac.shortRoomBurdenPrivate !== undefined ? fac.shortRoomBurdenPrivate : 0;
+          const stdBurdenMulti = fac.shortRoomBurdenMulti !== undefined ? fac.shortRoomBurdenMulti : 0;
 
-          let privateToiletRate = stdPrivateToilet;
-          let privateNoToiletRate = stdPrivateNoToilet;
-          let multiRate = stdMulti;
+          const privateToiletRate = stdPrivateToilet;
+          const privateNoToiletRate = stdPrivateNoToilet;
+          const multiRate = stdMulti;
+
+          let burdenPrivateRate = stdBurdenPrivate;
+          let burdenMultiRate = stdBurdenMulti;
           let dailyFoodCap = null;
 
           if (limitStage === 'stage1') {
-            privateToiletRate = 380;
-            privateNoToiletRate = 380;
-            multiRate = 0;
+            burdenPrivateRate = 380;
+            burdenMultiRate = 0;
             dailyFoodCap = 300;
           } else if (limitStage === 'stage2') {
-            privateToiletRate = 480;
-            privateNoToiletRate = 480;
-            multiRate = 430;
+            burdenPrivateRate = 480;
+            burdenMultiRate = 430;
             dailyFoodCap = 600;
           } else if (limitStage === 'stage3_1') {
-            privateToiletRate = 880;
-            privateNoToiletRate = 880;
-            multiRate = 430;
+            burdenPrivateRate = 880;
+            burdenMultiRate = 430;
             dailyFoodCap = 1030;
           } else if (limitStage === 'stage3_2') {
-            privateToiletRate = 980;
-            privateNoToiletRate = 980;
-            multiRate = 530;
+            burdenPrivateRate = 980;
+            burdenMultiRate = 530;
             dailyFoodCap = 1360;
           }
 
@@ -2591,8 +2590,8 @@
           const stayPrivateNoToiletTotal = (actualUseDays === 0) ? 0 : (pntDays * privateNoToiletRate);
           const stayMultiTotal = (actualUseDays === 0) ? 0 : (mDays * multiRate);
 
-          const burdenPrivateTotal = (actualUseDays === 0) ? 0 : ((ptDays + pntDays) * burdenPrivate);
-          const burdenMultiTotal = (actualUseDays === 0) ? 0 : (mDays * burdenMulti);
+          const burdenPrivateTotal = (actualUseDays === 0) ? 0 : ((ptDays + pntDays) * burdenPrivateRate);
+          const burdenMultiTotal = (actualUseDays === 0) ? 0 : (mDays * burdenMultiRate);
 
           const bfPrice = fac.breakfast || 350;
           const lnPrice = fac.lunch || 650;
@@ -21182,26 +21181,29 @@
         const stdPtRate = fac.shortStayPrivateToilet !== undefined ? fac.shortStayPrivateToilet : (fac.rent || 1231);
         const stdPntRate = fac.shortStayPrivateNoToilet !== undefined ? fac.shortStayPrivateNoToilet : (fac.rent || 1231);
         const stdMultiRate = fac.shortStayMulti !== undefined ? fac.shortStayMulti : (fac.utility || 915);
-        const burdenPrivateRate = fac.shortRoomBurdenPrivate !== undefined ? fac.shortRoomBurdenPrivate : 0;
-        const burdenMultiRate = fac.shortRoomBurdenMulti !== undefined ? fac.shortRoomBurdenMulti : 0;
+        const stdBurdenPrivate = fac.shortRoomBurdenPrivate !== undefined ? fac.shortRoomBurdenPrivate : 0;
+        const stdBurdenMulti = fac.shortRoomBurdenMulti !== undefined ? fac.shortRoomBurdenMulti : 0;
 
         const stageNames = {
           'none': '第4段階 (負担限度なし / 通常額)',
-          'stage3_2': '第3段階② (個室:980円 / 多床室:530円 / 食費上限:1,360円)',
-          'stage3_1': '第3段階① (個室:880円 / 多床室:430円 / 食費上限:1,030円)',
-          'stage2': '第2段階 (個室:480円 / 多床室:430円 / 食費上限:600円)',
-          'stage1': '第1段階 (個室:380円 / 多床室:0円 / 食費上限:300円)'
+          'stage3_2': '第3段階② (個室負担:980円 / 多床室負担:530円 / 食費上限:1,360円)',
+          'stage3_1': '第3段階① (個室負担:880円 / 多床室負担:430円 / 食費上限:1,030円)',
+          'stage2': '第2段階 (個室負担:480円 / 多床室負担:430円 / 食費上限:600円)',
+          'stage1': '第1段階 (個室負担:380円 / 多床室負担:0円 / 食費上限:300円)'
         };
         const stageStr = stageNames[limitStage] || stageNames['none'];
 
-        let stayPtRate = stdPtRate;
-        let stayPntRate = stdPntRate;
-        let stayMultiRate = stdMultiRate;
+        const stayPtRate = stdPtRate;
+        const stayPntRate = stdPntRate;
+        const stayMultiRate = stdMultiRate;
 
-        if (limitStage === 'stage1') { stayPtRate = 380; stayPntRate = 380; stayMultiRate = 0; }
-        else if (limitStage === 'stage2') { stayPtRate = 480; stayPntRate = 480; stayMultiRate = 430; }
-        else if (limitStage === 'stage3_1') { stayPtRate = 880; stayPntRate = 880; stayMultiRate = 430; }
-        else if (limitStage === 'stage3_2') { stayPtRate = 980; stayPntRate = 980; stayMultiRate = 530; }
+        let burdenPrivateRate = stdBurdenPrivate;
+        let burdenMultiRate = stdBurdenMulti;
+
+        if (limitStage === 'stage1') { burdenPrivateRate = 380; burdenMultiRate = 0; }
+        else if (limitStage === 'stage2') { burdenPrivateRate = 480; burdenMultiRate = 430; }
+        else if (limitStage === 'stage3_1') { burdenPrivateRate = 880; burdenMultiRate = 430; }
+        else if (limitStage === 'stage3_2') { burdenPrivateRate = 980; burdenMultiRate = 530; }
 
         const stayPtTotal = (useDays === 0) ? 0 : (privateToiletDays * stayPtRate);
         const stayPntTotal = (useDays === 0) ? 0 : (privateNoToiletDays * stayPntRate);
@@ -21288,12 +21290,12 @@
                 <td class="border border-slate-300 p-2 text-right font-semibold">¥${formatNumber(stayMultiTotal)}</td>
               </tr>
               <tr>
-                <td class="border border-slate-300 p-2 font-bold text-amber-950">個室負担額</td>
+                <td class="border border-slate-300 p-2 font-bold text-amber-950">個室負担額${limitStage !== 'none' ? '（限度額適用）' : ''}</td>
                 <td class="border border-slate-300 p-2 text-center text-amber-900">@¥${formatNumber(burdenPrivateRate)} × ${totalPrivateDays}泊</td>
                 <td class="border border-slate-300 p-2 text-right font-semibold text-amber-950">¥${formatNumber(burdenPrivateTotal)}</td>
               </tr>
               <tr>
-                <td class="border border-slate-300 p-2 font-bold text-amber-950">多床室負担額</td>
+                <td class="border border-slate-300 p-2 font-bold text-amber-950">多床室負担額${limitStage !== 'none' ? '（限度額適用）' : ''}</td>
                 <td class="border border-slate-300 p-2 text-center text-amber-900">@¥${formatNumber(burdenMultiRate)} × ${multiDays}泊</td>
                 <td class="border border-slate-300 p-2 text-right font-semibold text-amber-950">¥${formatNumber(burdenMultiTotal)}</td>
               </tr>
