@@ -835,10 +835,34 @@
               <div class="form-group selfpay-short-item">
                 <label class="font-bold text-slate-800 text-xs">📺 テレビ貸し出し (1回 150円):</label>
                 <div class="flex items-center gap-2 mt-2">
-                  <input type="number" id="shortTvRentalCount" class="form-control font-bold bg-white text-right w-24 h-9 border-amber-300 focus:border-amber-500" value="" min="0" placeholder="0" oninput="updateLiveUserRecordSummary()">
+                  <input type="number" id="shortTvRentalCount" class="form-control font-bold bg-white text-right w-24 h-9 border-amber-300 focus:border-amber-500 font-mono" value="" min="0" placeholder="0" oninput="updateLiveUserRecordSummary()">
                   <span class="text-xs font-bold text-slate-600">回</span>
                   <span id="shortTvRentalCalcText" class="text-xs font-bold text-amber-700 ml-1 font-mono"></span>
                 </div>
+              </div>
+              <div class="form-group selfpay-short-item">
+                <div class="flex justify-between items-center mb-1">
+                  <label class="font-bold text-slate-800 text-xs">🍚 食事負担超過額 (436円/日):</label>
+                  <span class="text-[10px] text-amber-800 font-normal">※限度額超過＆3食提供時</span>
+                </div>
+                <div class="flex items-center gap-2 mt-1">
+                  <input type="number" id="shortMealExcessDays" class="form-control font-bold bg-white text-right w-24 h-9 border-amber-300 focus:border-amber-500 font-mono" value="" min="0" placeholder="0" oninput="updateLiveUserRecordSummary(true)">
+                  <span class="text-xs font-bold text-slate-600">日</span>
+                  <span id="shortMealExcessCalcText" class="text-xs font-bold text-amber-700 ml-1 font-mono"></span>
+                </div>
+                <p class="text-[10px] text-slate-500 mt-1">※カレンダーの食事入力から自動判定・自動反映されます（手動修正も可）</p>
+              </div>
+              <div class="form-group selfpay-short-item">
+                <div class="flex justify-between items-center mb-1">
+                  <label class="font-bold text-slate-800 text-xs">⏳ 前月からの継続入所日数:</label>
+                  <span class="text-[10px] text-blue-700 font-normal">※31日目から長期減算</span>
+                </div>
+                <div class="flex items-center gap-2 mt-1">
+                  <input type="number" id="shortPriorContinuousDays" class="form-control font-bold bg-white text-right w-24 h-9 border-blue-300 focus:border-blue-500 font-mono" value="" min="0" placeholder="0" oninput="updateLiveUserRecordSummary(false, true)">
+                  <span class="text-xs font-bold text-slate-600">日</span>
+                  <span id="shortLongTermDeductText" class="text-xs font-bold text-red-700 ml-1 font-mono"></span>
+                </div>
+                <p class="text-[10px] text-slate-500 mt-1">※前月データから自動検出されます（手動指定も可能）</p>
               </div>
             </div>
             <div class="form-row mt-3">
@@ -1002,7 +1026,7 @@
                       <span class="text-[10px] text-slate-500">※相部屋（多床室）の滞在費</span>
                     </div>
                   </div>
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-2.5 border-t border-amber-200">
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs pt-2.5 border-t border-amber-200">
                     <div class="form-group">
                       <label class="font-bold text-amber-900">個室負担額 (円/日):</label>
                       <input type="number" id="costShortRoomBurdenPrivate" class="form-control font-bold font-mono border-amber-300 focus:border-amber-500 text-amber-900" value="0" min="0">
@@ -1012,6 +1036,11 @@
                       <label class="font-bold text-amber-900">多床室負担額 (円/日):</label>
                       <input type="number" id="costShortRoomBurdenMulti" class="form-control font-bold font-mono border-amber-300 focus:border-amber-500 text-amber-900" value="0" min="0">
                       <span class="text-[10px] text-amber-800">※多床室利用時に利用者が負担する日額</span>
+                    </div>
+                    <div class="form-group">
+                      <label class="font-bold text-amber-900">🍚 食事負担超過額 (円/日):</label>
+                      <input type="number" id="costShortMealExcess" class="form-control font-bold font-mono border-amber-300 focus:border-amber-500 text-amber-900" value="436" min="0">
+                      <span class="text-[10px] text-amber-800">※限度額超過＆3食提供時に加算される日額</span>
                     </div>
                   </div>
                   <p class="text-[10px] text-slate-500 mt-2">※負担限度額認定（第1〜3段階）をお持ちの利用者様は、個室/多床室負担額に公的基準上限額が優先適用されます。</p>
@@ -1357,9 +1386,46 @@
             <label>氏名:</label>
             <input type="text" id="modalEditName" class="form-control" placeholder="例: 山田 太郎" required>
           </div>
-          <div class="form-group">
-            <label>生年月日:</label>
-            <input type="text" id="modalEditBirth" class="form-control" placeholder="1940/01/01">
+          <div class="form-group bg-slate-50 p-3 rounded-lg border border-slate-200">
+            <div class="flex justify-between items-center mb-1.5">
+              <label class="font-bold text-slate-800 text-xs mb-0">🎂 生年月日 (和暦・西暦入力対応):</label>
+              <span id="birthAgePreview" class="text-xs font-bold text-blue-800 bg-blue-100 border border-blue-200 px-2 py-0.5 rounded hidden"></span>
+            </div>
+
+            <!-- 和暦パーツ入力 (元号 + 年 + 月 + 日) -->
+            <div class="grid grid-cols-12 gap-1.5 items-center mb-2">
+              <div class="col-span-4">
+                <select id="modalEditBirthEra" class="form-control text-xs font-bold border-blue-400 bg-white">
+                  <option value="昭" selected>昭和 (昭/S)</option>
+                  <option value="大">大正 (大/T)</option>
+                  <option value="明">明治 (明/M)</option>
+                  <option value="平">平成 (平/H)</option>
+                  <option value="令">令和 (令/R)</option>
+                  <option value="西暦">西暦 (年号なし)</option>
+                </select>
+              </div>
+              <div class="col-span-3 flex items-center gap-0.5">
+                <input type="number" id="modalEditBirthYear" class="form-control text-xs font-mono text-center px-1 font-bold" placeholder="年" min="1" max="99">
+                <span class="text-xs text-slate-600 font-bold shrink-0">年</span>
+              </div>
+              <div class="col-span-2 flex items-center gap-0.5">
+                <input type="number" id="modalEditBirthMonth" class="form-control text-xs font-mono text-center px-1 font-bold" placeholder="月" min="1" max="12">
+                <span class="text-xs text-slate-600 font-bold shrink-0">月</span>
+              </div>
+              <div class="col-span-3 flex items-center gap-0.5">
+                <input type="number" id="modalEditBirthDay" class="form-control text-xs font-mono text-center px-1 font-bold" placeholder="日" min="1" max="31">
+                <span class="text-xs text-slate-600 font-bold shrink-0">日</span>
+              </div>
+            </div>
+
+            <!-- 直接入力欄 ＆ 相互変換プレビュー -->
+            <div class="flex items-center gap-2">
+              <div class="flex-1">
+                <input type="text" id="modalEditBirth" class="form-control text-xs font-mono" placeholder="直接入力例: 昭15.02.04 / S15.02.04 / 1940/02/04">
+              </div>
+            </div>
+            <div id="birthDisplayConverted" class="text-[11px] text-blue-900 font-bold mt-1.5 pl-0.5 min-h-[16px]"></div>
+            <p class="text-[10px] text-slate-500 mt-1">※保険証を見ながら「元号・年・月・日」を入力できます。下段に「昭15.2.4」「S15.02.04」「1940/2/4」等を直接打ち込んでも自動判別・相互連動します。</p>
           </div>
           <div class="form-group">
             <label>認定要介護度:</label>
@@ -2122,6 +2188,67 @@
         .replace(/廣/g, '広');
     }
 
+    // 【ショートステイ長期利用減算判定】前月継続および当月の通算31日目以降を判定
+    function calcShortStayConsecutiveDays(userId, targetM, currentRec) {
+      if (!targetM) targetM = (typeof AppState !== 'undefined' && AppState.targetMonth) ? AppState.targetMonth : '2026-07';
+      const daysInM = getDaysInTargetMonth(targetM);
+
+      // 1. 前月からの継続入所日数の特定
+      let priorDays = 0;
+      if (currentRec && currentRec.priorContinuousDays !== undefined && currentRec.priorContinuousDays !== null && currentRec.priorContinuousDays !== '') {
+        priorDays = Number(currentRec.priorContinuousDays);
+      } else if (typeof AppState !== 'undefined' && AppState.records && userId) {
+        // 前月レコードを探索
+        const [y, m] = targetM.split('-').map(Number);
+        const prevD = new Date(y, m - 2, 1);
+        const prevM = `${prevD.getFullYear()}-${String(prevD.getMonth() + 1).padStart(2, '0')}`;
+        const prevKey = `fac_short_mirai_${prevM}_${userId}`;
+        const prevRec = AppState.records[prevKey];
+        if (prevRec && prevRec.days) {
+          const prevDaysInMonth = new Date(prevD.getFullYear(), prevD.getMonth() + 1, 0).getDate();
+          for (let d = prevDaysInMonth; d >= 1; d--) {
+            const pDay = prevRec.days[d];
+            if (pDay && (pDay.status === '利用' || pDay.active)) {
+              priorDays++;
+            } else {
+              break;
+            }
+          }
+          if (priorDays === prevDaysInMonth && prevRec.priorContinuousDays) {
+            priorDays += Number(prevRec.priorContinuousDays);
+          }
+        }
+      }
+
+      // 2. 当月カレンダーを日ごとに走査し、通算31日目以降の日数をカウント
+      let streak = priorDays;
+      let deductDays = 0;
+      const dayStreaks = {};
+
+      if (currentRec && currentRec.days) {
+        for (let d = 1; d <= daysInM; d++) {
+          const dayObj = currentRec.days[d];
+          const isUse = dayObj && (dayObj.status === '利用' || dayObj.active);
+          if (isUse) {
+            streak++;
+            dayStreaks[d] = streak;
+            if (streak >= 31) {
+              deductDays++;
+            }
+          } else {
+            streak = 0;
+            dayStreaks[d] = 0;
+          }
+        }
+      }
+
+      return {
+        priorDays: priorDays,
+        deductDays: deductDays,
+        dayStreaks: dayStreaks
+      };
+    }
+
     function getDaysInTargetMonth(targetM) {
       if (!targetM) return 31;
       const parts = String(targetM).split('-');
@@ -2519,6 +2646,16 @@
 
           selectedAddIds.forEach(addId => {
             if (addId === 'short_indiv_training' || addId === 'short_transport') return;
+
+            // 【長期利用者減算】連続31日目以降の日数のみ減算（-30単位/日）
+            if (addId === 'short_long_term_user_deduct') {
+              const deductDays = (extraAdditions && extraAdditions.longTermDeductDays !== undefined) ? extraAdditions.longTermDeductDays : 0;
+              if (deductDays > 0) {
+                total += -30 * deductDays;
+              }
+              return;
+            }
+
             const item = currentTypeAdditions.find(a => a.id === addId);
             if (item) {
               if (careInfo.isYoushien && item.target === 'kaigo_only') return;
@@ -2586,18 +2723,50 @@
             ptDays = roomCounts.privateDays;
           }
 
-          const stayPrivateToiletTotal = (actualUseDays === 0) ? 0 : (ptDays * privateToiletRate);
-          const stayPrivateNoToiletTotal = (actualUseDays === 0) ? 0 : (pntDays * privateNoToiletRate);
-          const stayMultiTotal = (actualUseDays === 0) ? 0 : (mDays * multiRate);
+          // 【滞在費22日上限ルール】一月内合計利用日数が22日を超えた場合、23日目以降の滞在費は徴収しない（毎月1日再起算）
+          let billablePtStayDays = 0;
+          let billablePntStayDays = 0;
+          let billableMStayDays = 0;
+
+          if (rec && rec.days && Object.keys(rec.days).length > 0) {
+            let useCount = 0;
+            const daysInM = (daysInMonth !== undefined && daysInMonth !== null) ? Number(daysInMonth) : 31;
+            for (let d = 1; d <= daysInM; d++) {
+              const dayObj = rec.days[d];
+              if (dayObj && (dayObj.status === '利用' || dayObj.active)) {
+                useCount++;
+                if (useCount <= 22) {
+                  const r = dayObj.room || 'private_toilet';
+                  if (r === 'multi') billableMStayDays++;
+                  else if (r === 'private_no_toilet') billablePntStayDays++;
+                  else billablePtStayDays++;
+                }
+              }
+            }
+          } else {
+            let remainingCap = 22;
+            billablePtStayDays = Math.min(ptDays, remainingCap);
+            remainingCap -= billablePtStayDays;
+            billablePntStayDays = Math.min(pntDays, remainingCap);
+            remainingCap -= billablePntStayDays;
+            billableMStayDays = Math.min(mDays, remainingCap);
+          }
+
+          const stayPrivateToiletTotal = (actualUseDays === 0) ? 0 : (billablePtStayDays * privateToiletRate);
+          const stayPrivateNoToiletTotal = (actualUseDays === 0) ? 0 : (billablePntStayDays * privateNoToiletRate);
+          const stayMultiTotal = (actualUseDays === 0) ? 0 : (billableMStayDays * multiRate);
 
           const burdenPrivateTotal = (actualUseDays === 0) ? 0 : ((ptDays + pntDays) * burdenPrivateRate);
           const burdenMultiTotal = (actualUseDays === 0) ? 0 : (mDays * burdenMultiRate);
 
-          const bfPrice = fac.breakfast || 350;
-          const lnPrice = fac.lunch || 650;
-          const dnPrice = fac.dinner || 580;
+          const bfPrice = fac.breakfast !== undefined ? fac.breakfast : 513;
+          const lnPrice = fac.lunch !== undefined ? fac.lunch : 803;
+          const dnPrice = fac.dinner !== undefined ? fac.dinner : 665;
+          const mealExcessRate = fac.shortMealExcessRate !== undefined ? fac.shortMealExcessRate : 436;
 
           let mealTotal = 0;
+          let autoExcessDays = 0;
+
           if (actualUseDays !== 0) {
             if (rec && rec.days && Object.keys(rec.days).length > 0) {
               Object.keys(rec.days).forEach(d => {
@@ -2609,7 +2778,14 @@
                   if (dayObj.dn) dayMealCost += dnPrice;
 
                   if (dayMealCost > 0 && dailyFoodCap !== null) {
-                    dayMealCost = Math.min(dayMealCost, dailyFoodCap);
+                    if (dayMealCost > dailyFoodCap) {
+                      // 上限に達した場合：上限額を請求
+                      dayMealCost = dailyFoodCap;
+                      // さらに上限に達し、かつ朝・昼・夕の3食を提供した日に限り食事負担超過額の対象（2食では加算しない）
+                      if (dayObj.bf && dayObj.ln && dayObj.dn) {
+                        autoExcessDays++;
+                      }
+                    }
                   }
                   mealTotal += dayMealCost;
                 }
@@ -2624,6 +2800,13 @@
             }
           }
 
+          // 食事負担超過額の算定（手動設定値があれば手動値を優先、なければカレンダーの自動集計日数）
+          let effectiveExcessDays = autoExcessDays;
+          if (rec && rec.shortMealExcessDays !== undefined && rec.shortMealExcessDays !== null && rec.shortMealExcessDays !== '') {
+            effectiveExcessDays = Number(rec.shortMealExcessDays);
+          }
+          const mealExcessTotal = (actualUseDays === 0) ? 0 : (effectiveExcessDays * mealExcessRate);
+
           let extraSelfPay = 0;
           if (rec) {
             const tvCount = Number(rec.shortTvRentalCount || 0);
@@ -2632,7 +2815,7 @@
             if (rec.useHairColor) extraSelfPay += 1000;
           }
 
-          return stayPrivateToiletTotal + stayPrivateNoToiletTotal + stayMultiTotal + burdenPrivateTotal + burdenMultiTotal + mealTotal + extraSelfPay;
+          return stayPrivateToiletTotal + stayPrivateNoToiletTotal + stayMultiTotal + burdenPrivateTotal + burdenMultiTotal + mealTotal + mealExcessTotal + extraSelfPay;
         }
       }
     };
@@ -18457,7 +18640,7 @@
           additions: ['gh_night_support_1', 'gh_med_collab_1_a', 'gh_treatment_1_i_a'] 
         },
         'fac_mirai_nakaoka': { name: 'デイサービス未来中岡', type: 'デイサービス', unitRate: 10, rent: 0, utility: 0, admin: 0, breakfast: 0, lunch: 0, snack: 0, dinner: 0, additions: ['living_consultant_1'] },
-        'fac_short_mirai': { name: 'ショートステイ未来月見台', type: 'ショートステイ', unitRate: 10, rent: 1231, utility: 915, shortStayPrivateToilet: 1231, shortStayPrivateNoToilet: 1231, shortStayMulti: 915, shortRoomBurdenPrivate: 0, shortRoomBurdenMulti: 0, admin: 0, breakfast: 350, lunch: 650, snack: 0, dinner: 580, additions: ['emergency_short', 'short_transport'] }
+        'fac_short_mirai': { name: 'ショートステイ未来月見台', type: 'ショートステイ', unitRate: 10, rent: 1231, utility: 915, shortStayPrivateToilet: 1231, shortStayPrivateNoToilet: 1231, shortStayMulti: 915, shortRoomBurdenPrivate: 0, shortRoomBurdenMulti: 0, admin: 0, breakfast: 513, lunch: 803, snack: 0, dinner: 665, shortMealExcessRate: 436, additions: ['emergency_short', 'short_transport'] }
       },
       additionMaster: JSON.parse(JSON.stringify(DEFAULT_ADDITION_MASTER)),
       userMaster: JSON.parse(JSON.stringify(INITIAL_MASTER_USERS)),
@@ -18772,13 +18955,45 @@
           if (AppState.facilities['fac_kusunoki'] && AppState.facilities['fac_kusunoki'].utility === 21000) {
             AppState.facilities['fac_kusunoki'].utility = 25000;
           }
+          if (AppState.facilities['fac_short_mirai']) {
+            const sm = AppState.facilities['fac_short_mirai'];
+            if (sm.breakfast === 350 || sm.breakfast === undefined) sm.breakfast = 513;
+            if (sm.lunch === 650 || sm.lunch === undefined) sm.lunch = 803;
+            if (sm.dinner === 580 || sm.dinner === undefined) sm.dinner = 665;
+            if (sm.shortMealExcessRate === undefined) sm.shortMealExcessRate = 436;
+          }
         }
         if (parsed.additionMaster) Object.assign(AppState.additionMaster, parsed.additionMaster);
         if (parsed.records) AppState.records = parsed.records || {};
         if (parsed.softwareData) AppState.softwareData = parsed.softwareData || {};
         if (parsed.lockedMonths) AppState.lockedMonths = Object.assign({}, parsed.lockedMonths);
         if (parsed.currentFacilityId) AppState.currentFacilityId = parsed.currentFacilityId;
-        if (parsed.targetMonth) AppState.targetMonth = parsed.targetMonth;
+        // ショートステイ専用バックアップからの保護復元（不意のリセットを100%防止）
+        try {
+          const shortAddsBackup = localStorage.getItem('care_sys_short_stay_additions_backup');
+          if (shortAddsBackup) {
+            const parsedAdds = JSON.parse(shortAddsBackup);
+            if (Array.isArray(parsedAdds) && parsedAdds.length > 0 && AppState.facilities['fac_short_mirai']) {
+              AppState.facilities['fac_short_mirai'].additions = parsedAdds;
+            }
+          }
+          const shortMasterBackup = localStorage.getItem('care_sys_short_stay_master_backup');
+          if (shortMasterBackup) {
+            const parsedMaster = JSON.parse(shortMasterBackup);
+            if (Array.isArray(parsedMaster) && parsedMaster.length > 0) {
+              AppState.additionMaster['ショートステイ'] = parsedMaster;
+            }
+          }
+          const shortFacBackup = localStorage.getItem('care_sys_short_stay_facility_backup');
+          if (shortFacBackup && AppState.facilities['fac_short_mirai']) {
+            const parsedFac = JSON.parse(shortFacBackup);
+            if (parsedFac && typeof parsedFac === 'object') {
+              Object.assign(AppState.facilities['fac_short_mirai'], parsedFac);
+            }
+          }
+        } catch (backupErr) {
+          console.warn('ショートステイバックアップ復元警告:', backupErr);
+        }
 
         // 全4施設の初期利用者・実績が欠落していないか自動同期補完
         ensureInitialMasterSync();
@@ -18926,6 +19141,7 @@
       ensureActiveUsersExist();
       updateFacilityDisplay();
       syncMonthInputs();
+      if (typeof setupBirthInputListenersOnce === 'function') setupBirthInputListenersOnce();
 
       const clearLoginPassword = () => {
         const passInput = document.getElementById('loginPasswordInput');
@@ -19228,6 +19444,12 @@
         const contractDays = (serviceType === '有料ホーム' || serviceType === 'グループホーム') ? (useDays + hospitalDays) : useDays;
         const vacantDays = daysInMonth - contractDays;
 
+        let shortLongTermDeductDays = 0;
+        if (serviceType === 'ショートステイ') {
+          const cInfo = calcShortStayConsecutiveDays(uId, AppState.targetMonth, userRec);
+          shortLongTermDeductDays = cInfo.deductDays;
+        }
+
         const extraAdditions = {
           linkageCount: linkageCount,
           hospitalStayDays: (serviceType === 'グループホーム') ? ghHospitalStayDays : 0,
@@ -19236,6 +19458,7 @@
           transportDeductionUnits: transportDeductionUnits,
           shortTrainDays: shortTrainDays,
           shortTransportDays: shortTransportDays,
+          longTermDeductDays: shortLongTermDeductDays,
           oralTrainingCount: (serviceType === 'デイサービス') ? Number(userRec?.oralTrainingCount ?? (user?.oralTrainingCount || 0)) : 0
         };
 
@@ -19761,8 +19984,8 @@
         allGroups.forEach(el => el.classList.remove('hidden'));
 
         if (serviceType === 'ショートステイ' || facId === 'fac_short_mirai') {
-          // 【ショートステイ未来月見台】居室負担額・テレビ貸出・理美容代を表示
-          if (titleEl) titleEl.innerHTML = '<span>💳</span> 個別自費項目設定 (ショートステイ未来月見台：個室/多床室負担額・テレビ貸出・理美容代)';
+          // 【ショートステイ未来月見台】居室負担額・食事負担超過額・テレビ貸出・理美容代を表示
+          if (titleEl) titleEl.innerHTML = '<span>💳</span> 個別自費項目設定 (ショートステイ未来月見台：個室/多床室負担額・食事負担超過額・テレビ貸出・理美容代)';
           allGroups.forEach(el => {
             if (el.classList.contains('selfpay-hair-item') || el.classList.contains('selfpay-short-item')) {
               el.classList.remove('hidden');
@@ -19988,6 +20211,22 @@
         document.getElementById('shortTvRentalCount').value = tvCnt;
         const tvCalcEl = document.getElementById('shortTvRentalCalcText');
         if (tvCalcEl) tvCalcEl.textContent = tvCnt > 0 ? `(¥${formatNumber(tvCnt * 150)})` : '';
+      }
+      if (document.getElementById('shortMealExcessDays')) {
+        const excessDays = (existingRec.shortMealExcessDays !== undefined && existingRec.shortMealExcessDays !== null) ? existingRec.shortMealExcessDays : '';
+        document.getElementById('shortMealExcessDays').value = excessDays;
+        const excessCalcEl = document.getElementById('shortMealExcessCalcText');
+        if (excessCalcEl) excessCalcEl.textContent = (excessDays !== '' && Number(excessDays) > 0) ? `(¥${formatNumber(Number(excessDays) * 436)})` : '';
+      }
+      if (document.getElementById('shortPriorContinuousDays')) {
+        let pDays = (existingRec.priorContinuousDays !== undefined && existingRec.priorContinuousDays !== null) ? existingRec.priorContinuousDays : '';
+        if (pDays === '' && serviceType === 'ショートステイ') {
+          const autoInfo = calcShortStayConsecutiveDays(userId, targetM, null);
+          if (autoInfo && autoInfo.priorDays > 0) {
+            pDays = autoInfo.priorDays;
+          }
+        }
+        document.getElementById('shortPriorContinuousDays').value = pDays;
       }
 
 
@@ -20382,7 +20621,7 @@
       showToast('登録利用曜日をカレンダーに適用しました', 'success');
     }
 
-    function updateLiveUserRecordSummary() {
+    function updateLiveUserRecordSummary(isManualExcessChange = false) {
       try {
         const userSelect = document.getElementById('inputUserSelect');
         if (!userSelect) return;
@@ -20414,8 +20653,6 @@
       for (let d = 1; d <= daysInMonth; d++) {
         const badge = document.querySelector(`#dayCard_${d} .day-status-badge`);
         const status = badge ? badge.textContent.trim() : '未利用';
-
-        const isHospital = (status === '入院・外出' || status === '外出・入院');
         if (status === '利用') {
           useDays++;
           if (serviceType === 'デイサービス') {
@@ -20425,12 +20662,17 @@
 
             if (!document.getElementById(`pick_${d}`)?.checked) transportDeductionUnits += 47;
             if (!document.getElementById(`drop_${d}`)?.checked) transportDeductionUnits += 47;
-          } else if (serviceType === 'ショートステイ') {
-            if (document.getElementById(`shortTrain_${d}`)?.checked) shortTrainDays++;
-            if (document.getElementById(`shortTransport_${d}`)?.checked) shortTransportDays++;
+          }
 
-            // ショートステイは利用日のみ滞在費（個室/多床室）と食事を計上
-            const roomSel = document.getElementById(`room_${d}`)?.value;
+          if (document.getElementById(`shortTrain_${d}`)?.checked) shortTrainDays++;
+          if (document.getElementById(`shortTransport_${d}`)?.checked) shortTransportDays++;
+
+          if (document.getElementById(`bf_${d}`)?.checked) mealCounts.bf++;
+          if (document.getElementById(`ln_${d}`)?.checked) mealCounts.ln++;
+          if (document.getElementById(`dn_${d}`)?.checked) mealCounts.dn++;
+
+          const roomSel = document.getElementById(`room_${d}`)?.value;
+          if (serviceType === 'ショートステイ') {
             if (roomSel === 'multi') {
               roomCounts.multiDays++;
             } else if (roomSel === 'private_no_toilet') {
@@ -20440,24 +20682,15 @@
               roomCounts.privateToiletDays++;
               roomCounts.privateDays++;
             }
-
-            if (document.getElementById(`bf_${d}`)?.checked) mealCounts.bf++;
-            if (document.getElementById(`ln_${d}`)?.checked) mealCounts.ln++;
-            if (document.getElementById(`dn_${d}`)?.checked) mealCounts.dn++;
+          } else {
+            if (roomSel === 'multi') roomCounts.multiDays++;
+            else roomCounts.privateDays++;
           }
-        } else if (isHospital) {
-          hospitalDays++;
-        }
-
-        // ショートステイ以外（有料ホーム・グループホーム）の部屋・食事計上
-        if (serviceType !== 'ショートステイ') {
-          if (document.getElementById(`bf_${d}`)?.checked) mealCounts.bf++;
-          if (document.getElementById(`ln_${d}`)?.checked) mealCounts.ln++;
-          if (document.getElementById(`dn_${d}`)?.checked) mealCounts.dn++;
-
-          const roomSel = document.getElementById(`room_${d}`)?.value;
-          if (roomSel === 'multi') roomCounts.multiDays++;
-          else roomCounts.privateDays++;
+        } else {
+          const isHospital = (status === '入院・外出' || status === '外出・入院');
+          if (isHospital) {
+            hospitalDays++;
+          }
         }
       }
 
@@ -20480,6 +20713,7 @@
         useHaircut: !!document.getElementById('chkSelfHaircut')?.checked,
         useHairColor: !!document.getElementById('chkSelfHairColor')?.checked,
         shortTvRentalCount: Number(document.getElementById('shortTvRentalCount')?.value || 0),
+        shortMealExcessDays: Number(document.getElementById('shortMealExcessDays')?.value || 0),
         bathCount: Number(document.getElementById('selfBathCount')?.value || 0),
         useDischargeInfo: (serviceType === '有料ホーム') && !!document.getElementById('chkDischargeInfo')?.checked,
         useInitialFee: !!document.getElementById('chkSelfInitialFee')?.checked,
@@ -20512,6 +20746,46 @@
         };
       }
 
+      // 【ショートステイ食事負担超過額】自動集計（負担限度額到達かつ3食提供した日数）
+      let autoExcessDays = 0;
+      if (serviceType === 'ショートステイ') {
+        const limitStage = user ? (user.foodLimitStage || 'none') : 'none';
+        let dailyCap = null;
+        if (limitStage === 'stage1') dailyCap = 300;
+        else if (limitStage === 'stage2') dailyCap = 600;
+        else if (limitStage === 'stage3_1') dailyCap = 1030;
+        else if (limitStage === 'stage3_2') dailyCap = 1360;
+
+        const bfP = currentFac.breakfast !== undefined ? currentFac.breakfast : 513;
+        const lnP = currentFac.lunch !== undefined ? currentFac.lunch : 803;
+        const dnP = currentFac.dinner !== undefined ? currentFac.dinner : 665;
+
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dObj = tempRec.days[d];
+          if (dObj && dObj.active) {
+            let dMealCost = (dObj.bf ? bfP : 0) + (dObj.ln ? lnP : 0) + (dObj.dn ? dnP : 0);
+            if (dailyCap !== null && dMealCost > dailyCap && dObj.bf && dObj.ln && dObj.dn) {
+              autoExcessDays++;
+            }
+          }
+        }
+
+        const excessInput = document.getElementById('shortMealExcessDays');
+        let currentExcessVal = excessInput ? excessInput.value : '';
+        if (!isManualExcessChange && excessInput) {
+          excessInput.value = autoExcessDays > 0 ? autoExcessDays : '';
+          currentExcessVal = autoExcessDays;
+        }
+        const excessDaysNum = (currentExcessVal !== '' && currentExcessVal !== undefined) ? Number(currentExcessVal) : autoExcessDays;
+        tempRec.shortMealExcessDays = excessDaysNum;
+
+        const excessCalcEl = document.getElementById('shortMealExcessCalcText');
+        if (excessCalcEl) {
+          const excessRate = currentFac.shortMealExcessRate !== undefined ? currentFac.shortMealExcessRate : 436;
+          excessCalcEl.textContent = excessDaysNum > 0 ? `(¥${formatNumber(excessDaysNum * excessRate)})` : '';
+        }
+      }
+
       let liveOralCount = 0;
       if (serviceType === 'デイサービス') {
         const careInfo = getUserCareInfo(user, serviceType, useDays);
@@ -20519,6 +20793,29 @@
           liveOralCount = document.getElementById('chkOralTrainingYoushien')?.checked ? 1 : 0;
         } else {
           liveOralCount = Number(document.getElementById('selOralTrainingKaigo')?.value || 0);
+        }
+      }
+
+      let shortLongTermDeductDays = 0;
+      if (serviceType === 'ショートステイ') {
+        const priorDaysInput = document.getElementById('shortPriorContinuousDays');
+        let priorDaysVal = priorDaysInput ? priorDaysInput.value : '';
+        const recWithPrior = {
+          ...tempRec,
+          priorContinuousDays: (priorDaysVal !== '' ? Number(priorDaysVal) : null)
+        };
+        const consecutiveInfo = calcShortStayConsecutiveDays(userId, AppState.targetMonth, recWithPrior);
+        shortLongTermDeductDays = consecutiveInfo.deductDays;
+
+        const deductTextEl = document.getElementById('shortLongTermDeductText');
+        if (deductTextEl) {
+          if (shortLongTermDeductDays > 0) {
+            deductTextEl.textContent = `(当月減算: ${shortLongTermDeductDays}日 / -${shortLongTermDeductDays * 30}u)`;
+          } else if (consecutiveInfo.priorDays > 0) {
+            deductTextEl.textContent = `(前月繰越: ${consecutiveInfo.priorDays}日)`;
+          } else {
+            deductTextEl.textContent = '';
+          }
         }
       }
 
@@ -20530,6 +20827,7 @@
         transportDeductionUnits: transportDeductionUnits,
         shortTrainDays: shortTrainDays,
         shortTransportDays: shortTransportDays,
+        longTermDeductDays: shortLongTermDeductDays,
         oralTrainingCount: liveOralCount
       };
 
@@ -20791,6 +21089,37 @@
         if (careInfo.isYoushien && item.target === 'kaigo_only') return;
         if (addId === 'oral_func_1' || addId === 'indiv_training_1_i' || addId === 'indiv_training_1_ro' || addId === 'short_indiv_training' || addId === 'short_transport' || addId === 'gh_hospital_stay') return;
         if (serviceType === 'デイサービス' && careInfo.isYoushien && (addId === 'indiv_training_2' || addId.includes('indiv_training'))) return;
+
+        // 【ショートステイ 長期利用者減算】連続31日目以降の日数のみ減算（-30単位/日）
+        if (addId === 'short_long_term_user_deduct') {
+          const priorDaysInput = document.getElementById('shortPriorContinuousDays');
+          let priorDaysVal = priorDaysInput ? priorDaysInput.value : '';
+          const recKey = `${AppState.currentFacilityId}_${targetM}_${userId}`;
+          const savedRec = AppState.records[recKey] || {};
+          const liveDays = {};
+          for (let d = 1; d <= daysInMonth; d++) {
+            const badge = document.querySelector(`#dayCard_${d} .day-status-badge`);
+            const status = badge ? badge.textContent.trim() : '未利用';
+            liveDays[d] = { status: status, active: (status === '利用') };
+          }
+          const recWithPrior = {
+            ...savedRec,
+            days: liveDays,
+            priorContinuousDays: (priorDaysVal !== '' ? Number(priorDaysVal) : (savedRec.priorContinuousDays !== undefined ? savedRec.priorContinuousDays : null))
+          };
+          const deductInfo = calcShortStayConsecutiveDays(userId, targetM, recWithPrior);
+          const deductDays = deductInfo.deductDays;
+          if (deductDays > 0) {
+            const u = -30 * deductDays;
+            subtotalUnits += u;
+            detailLines.push({
+              name: '長期利用者減算',
+              formula: `@-30 単位 × ${deductDays} 日 (連続31日目以降)`,
+              units: u
+            });
+          }
+          return;
+        }
 
         if (item.type === 'daily') {
           const u = (item.rate || 0) * useDays;
@@ -21205,9 +21534,29 @@
         else if (limitStage === 'stage3_1') { burdenPrivateRate = 880; burdenMultiRate = 430; }
         else if (limitStage === 'stage3_2') { burdenPrivateRate = 980; burdenMultiRate = 530; }
 
-        const stayPtTotal = (useDays === 0) ? 0 : (privateToiletDays * stayPtRate);
-        const stayPntTotal = (useDays === 0) ? 0 : (privateNoToiletDays * stayPntRate);
-        const stayMultiTotal = (useDays === 0) ? 0 : (multiDays * stayMultiRate);
+        // 【滞在費22日上限ルール】一月内合計利用日数が22日を超えた場合、23日目以降の滞在費は徴収しない（毎月1日再起算）
+        let billablePtStayDays = 0;
+        let billablePntStayDays = 0;
+        let billableMStayDays = 0;
+        let liveUseCount = 0;
+
+        for (let d = 1; d <= daysInMonth; d++) {
+          const badge = document.querySelector(`#dayCard_${d} .day-status-badge`);
+          const status = badge ? badge.textContent.trim() : '未利用';
+          if (status === '利用') {
+            liveUseCount++;
+            if (liveUseCount <= 22) {
+              const r = document.getElementById(`room_${d}`)?.value || 'private_toilet';
+              if (r === 'multi') billableMStayDays++;
+              else if (r === 'private_no_toilet') billablePntStayDays++;
+              else billablePtStayDays++;
+            }
+          }
+        }
+
+        const stayPtTotal = (useDays === 0) ? 0 : (billablePtStayDays * stayPtRate);
+        const stayPntTotal = (useDays === 0) ? 0 : (billablePntStayDays * stayPntRate);
+        const stayMultiTotal = (useDays === 0) ? 0 : (billableMStayDays * stayMultiRate);
         const totalPrivateDays = privateToiletDays + privateNoToiletDays;
         const burdenPrivateTotal = (useDays === 0) ? 0 : (totalPrivateDays * burdenPrivateRate);
         const burdenMultiTotal = (useDays === 0) ? 0 : (multiDays * burdenMultiRate);
@@ -21220,6 +21569,9 @@
         const formTvCount = Number(document.getElementById('shortTvRentalCount')?.value || 0);
         const tvRentalCount = formTvCount;
         const tvRentalTotal = tvRentalCount * 150;
+        const formExcessDays = Number(document.getElementById('shortMealExcessDays')?.value || 0);
+        const mealExcessRate = fac.shortMealExcessRate !== undefined ? fac.shortMealExcessRate : 436;
+        const mealExcessTotal = formExcessDays * mealExcessRate;
         const formHaircut = !!document.getElementById('chkSelfHaircut')?.checked;
         const haircutTotal = formHaircut ? 2500 : 0;
         const formHairColor = !!document.getElementById('chkSelfHairColor')?.checked;
@@ -21251,19 +21603,21 @@
           ...(currentRec || {}),
           days: liveDays,
           shortTvRentalCount: tvRentalCount,
+          shortMealExcessDays: formExcessDays,
           useHaircut: haircutTotal > 0,
           useHairColor: hairColorTotal > 0
         };
 
         const roomCounts = { privateToiletDays, privateNoToiletDays, multiDays, privateDays: totalPrivateDays };
         const grandSelfTotal = engine.computeSelfPay(evalRec, fac, daysInMonth, useDays, (daysInMonth - useDays), { bf: bfCount, ln: lnCount, dn: dnCount }, roomCounts, user, useDays);
-        const mealSelfTotal = grandSelfTotal - (stayPtTotal + stayPntTotal + stayMultiTotal + burdenPrivateTotal + burdenMultiTotal + extraSelfTotal);
+        const mealSelfTotal = grandSelfTotal - (stayPtTotal + stayPntTotal + stayMultiTotal + burdenPrivateTotal + burdenMultiTotal + extraSelfTotal + mealExcessTotal);
 
         modalContent.innerHTML = `
           <div class="bg-amber-50 p-3 rounded border border-amber-200 mb-3">
             <p>対象者: <strong>${user ? user.name : '-'}</strong> (${fac.name})</p>
             <p class="text-xs text-amber-800 font-bold mt-1">ショートステイ 自費算定内訳（滞在費・居室負担額・食費・個別自費）</p>
             <p class="text-[11px] text-amber-700 font-bold mt-0.5">適用区分: <span class="bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded font-bold">${stageStr}</span></p>
+            ${useDays > 22 ? `<p class="text-[11px] text-emerald-800 font-bold mt-1 bg-emerald-100 p-1 rounded border border-emerald-300">💡 滞在費22日上限ルール適用: 利用${useDays}日中、23日目以降（${useDays - 22}泊分）の滞在費は全額免除（¥0）となっています。</p>` : ''}
           </div>
           <table class="w-full text-xs border-collapse border border-slate-300">
             <thead>
@@ -21276,17 +21630,17 @@
             <tbody>
               <tr>
                 <td class="border border-slate-300 p-2 font-bold">個室（ト有）滞在費</td>
-                <td class="border border-slate-300 p-2 text-center">@¥${formatNumber(stayPtRate)} × ${privateToiletDays}泊</td>
+                <td class="border border-slate-300 p-2 text-center">@¥${formatNumber(stayPtRate)} × ${billablePtStayDays}泊${privateToiletDays > billablePtStayDays ? ` <span class="text-emerald-700 font-bold">(${privateToiletDays - billablePtStayDays}泊上限免除)</span>` : ''}</td>
                 <td class="border border-slate-300 p-2 text-right font-semibold">¥${formatNumber(stayPtTotal)}</td>
               </tr>
               <tr>
                 <td class="border border-slate-300 p-2 font-bold">個室（ト無）滞在費</td>
-                <td class="border border-slate-300 p-2 text-center">@¥${formatNumber(stayPntRate)} × ${privateNoToiletDays}泊</td>
+                <td class="border border-slate-300 p-2 text-center">@¥${formatNumber(stayPntRate)} × ${billablePntStayDays}泊${privateNoToiletDays > billablePntStayDays ? ` <span class="text-emerald-700 font-bold">(${privateNoToiletDays - billablePntStayDays}泊上限免除)</span>` : ''}</td>
                 <td class="border border-slate-300 p-2 text-right font-semibold">¥${formatNumber(stayPntTotal)}</td>
               </tr>
               <tr>
                 <td class="border border-slate-300 p-2 font-bold">多床室滞在費</td>
-                <td class="border border-slate-300 p-2 text-center">@¥${formatNumber(stayMultiRate)} × ${multiDays}泊</td>
+                <td class="border border-slate-300 p-2 text-center">@¥${formatNumber(stayMultiRate)} × ${billableMStayDays}泊${multiDays > billableMStayDays ? ` <span class="text-emerald-700 font-bold">(${multiDays - billableMStayDays}泊上限免除)</span>` : ''}</td>
                 <td class="border border-slate-300 p-2 text-right font-semibold">¥${formatNumber(stayMultiTotal)}</td>
               </tr>
               <tr>
@@ -21300,10 +21654,17 @@
                 <td class="border border-slate-300 p-2 text-right font-semibold text-amber-950">¥${formatNumber(burdenMultiTotal)}</td>
               </tr>
               <tr>
-                <td class="border border-slate-300 p-2 font-bold">食事代合計${limitStage !== 'none' ? '（軽減適用後）' : ''}</td>
+                <td class="border border-slate-300 p-2 font-bold">食事代合計${limitStage !== 'none' ? '（基本食費）' : ''}</td>
                 <td class="border border-slate-300 p-2 text-center">朝:${bfCount}回 / 昼:${lnCount}回 / 夕:${dnCount}回</td>
                 <td class="border border-slate-300 p-2 text-right font-semibold">¥${formatNumber(mealSelfTotal)}</td>
               </tr>
+              ${mealExcessTotal > 0 ? `
+              <tr>
+                <td class="border border-slate-300 p-2 font-bold text-amber-900 bg-amber-50/50">🍚 食事負担超過額</td>
+                <td class="border border-slate-300 p-2 text-center text-amber-900">@¥${formatNumber(mealExcessRate)} × ${formExcessDays}日（限度超過＆3食提供）</td>
+                <td class="border border-slate-300 p-2 text-right font-bold text-amber-900">¥${formatNumber(mealExcessTotal)}</td>
+              </tr>
+              ` : ''}
               ${tvRentalTotal > 0 ? `
               <tr>
                 <td class="border border-slate-300 p-2 font-bold text-amber-900 bg-amber-50/50">📺 テレビ貸し出し</td>
@@ -21451,6 +21812,27 @@
         }
       }
 
+      let modalLongTermDeductDays = 0;
+      if (serviceType === 'ショートステイ') {
+        const priorDaysInput = document.getElementById('shortPriorContinuousDays');
+        let priorDaysVal = priorDaysInput ? priorDaysInput.value : '';
+        const recKey = `${AppState.currentFacilityId}_${AppState.targetMonth}_${user ? user.id : ''}`;
+        const savedRec = AppState.records[recKey] || {};
+        const liveDays = {};
+        for (let d = 1; d <= daysInMonth; d++) {
+          const badge = document.querySelector(`#dayCard_${d} .day-status-badge`);
+          const status = badge ? badge.textContent.trim() : '未利用';
+          liveDays[d] = { status: status, active: (status === '利用') };
+        }
+        const recWithPrior = {
+          ...savedRec,
+          days: liveDays,
+          priorContinuousDays: (priorDaysVal !== '' ? Number(priorDaysVal) : (savedRec.priorContinuousDays !== undefined ? savedRec.priorContinuousDays : null))
+        };
+        const cInfo = calcShortStayConsecutiveDays(userId, AppState.targetMonth, recWithPrior);
+        modalLongTermDeductDays = cInfo.deductDays;
+      }
+
       const engine = CareEngines[serviceType] || CareEngines['有料ホーム'];
       const extraAdditions = {
         linkageCount: linkageCount,
@@ -21460,6 +21842,7 @@
         transportDeductionUnits: transportDeductionUnits,
         shortTrainDays: shortTrainDays,
         shortTransportDays: shortTransportDays,
+        longTermDeductDays: modalLongTermDeductDays,
         oralTrainingCount: modalBillingOralCount
       };
 
@@ -21635,6 +22018,8 @@
         useHaircut: !!document.getElementById('chkSelfHaircut')?.checked,
         useHairColor: !!document.getElementById('chkSelfHairColor')?.checked,
         shortTvRentalCount: Number(document.getElementById('shortTvRentalCount')?.value || 0),
+        shortMealExcessDays: Number(document.getElementById('shortMealExcessDays')?.value || 0),
+        priorContinuousDays: (document.getElementById('shortPriorContinuousDays')?.value !== '' ? Number(document.getElementById('shortPriorContinuousDays').value) : null),
         isExempt: !!document.getElementById('chkUserExempt')?.checked,
         useInitialFee: !!document.getElementById('chkSelfInitialFee')?.checked
       };
@@ -21694,18 +22079,30 @@
     }
 
     function renderMasterConfig(isTypeChange = false) {
-      const fac = AppState.facilities[AppState.currentFacilityId];
-      if (!fac) return;
+      const currentFac = AppState.facilities[AppState.currentFacilityId];
+      if (!currentFac) return;
 
-      document.getElementById('facilityNameInput').value = fac.name;
-      
       const typeSelect = document.getElementById('facilityTypeSelect');
       if (typeSelect) {
         if (!isTypeChange) {
-          typeSelect.value = fac.type || '有料ホーム';
+          typeSelect.value = currentFac.type || '有料ホーム';
         }
       }
-      const selectedType = typeSelect ? typeSelect.value : (fac.type || '有料ホーム');
+      const selectedType = typeSelect ? typeSelect.value : (currentFac.type || '有料ホーム');
+
+      // サービス種別に応じた施設オブジェクトを取得（ショートステイ選択時は確実にショートステイ未来月見台を対象とする）
+      let fac = currentFac;
+      if (selectedType === 'ショートステイ') {
+        fac = AppState.facilities['fac_short_mirai'] || currentFac;
+      } else if (selectedType === 'グループホーム') {
+        fac = AppState.facilities['fac_sakura'] || currentFac;
+      } else if (selectedType === 'デイサービス') {
+        fac = AppState.facilities['fac_mirai_nakaoka'] || currentFac;
+      } else if (selectedType === '有料ホーム') {
+        fac = AppState.facilities['fac_kusunoki'] || currentFac;
+      }
+
+      document.getElementById('facilityNameInput').value = fac.name;
 
       document.getElementById('unitRateInput').value = 10;
 
@@ -21765,6 +22162,8 @@
               if (rbpInput) rbpInput.value = fac.shortRoomBurdenPrivate !== undefined ? fac.shortRoomBurdenPrivate : 0;
               const rbmInput = document.getElementById('costShortRoomBurdenMulti');
               if (rbmInput) rbmInput.value = fac.shortRoomBurdenMulti !== undefined ? fac.shortRoomBurdenMulti : 0;
+              const mealExcessInput = document.getElementById('costShortMealExcess');
+              if (mealExcessInput) mealExcessInput.value = fac.shortMealExcessRate !== undefined ? fac.shortMealExcessRate : 436;
             }
           } else {
             if (sectionTitle) sectionTitle.textContent = '自費項目設定（家賃・水光熱費・管理費・食事代等）';
@@ -21826,11 +22225,25 @@
     }
 
     function saveFacilityMasterConfig() {
-      const fac = AppState.facilities[AppState.currentFacilityId];
+      const typeSelect = document.getElementById('facilityTypeSelect');
+      const selectedType = typeSelect ? typeSelect.value : '有料ホーム';
+
+      let targetFacilityId = AppState.currentFacilityId;
+      if (selectedType === 'ショートステイ') {
+        targetFacilityId = 'fac_short_mirai';
+      } else if (selectedType === 'グループホーム') {
+        targetFacilityId = 'fac_sakura';
+      } else if (selectedType === 'デイサービス') {
+        targetFacilityId = 'fac_mirai_nakaoka';
+      } else if (selectedType === '有料ホーム') {
+        targetFacilityId = 'fac_kusunoki';
+      }
+
+      const fac = AppState.facilities[targetFacilityId];
       if (!fac) return;
 
       fac.name = document.getElementById('facilityNameInput').value;
-      fac.type = document.getElementById('facilityTypeSelect').value;
+      fac.type = selectedType;
       fac.unitRate = 10;
 
       fac.breakfast = Number(document.getElementById('costBreakfast').value);
@@ -21848,6 +22261,7 @@
         fac.shortStayMulti = Number(document.getElementById('costShortStayMulti')?.value || 915);
         fac.shortRoomBurdenPrivate = Number(document.getElementById('costShortRoomBurdenPrivate')?.value || 0);
         fac.shortRoomBurdenMulti = Number(document.getElementById('costShortRoomBurdenMulti')?.value || 0);
+        fac.shortMealExcessRate = Number(document.getElementById('costShortMealExcess')?.value || 436);
         fac.rent = fac.shortStayPrivateToilet;
         fac.utility = fac.shortStayMulti;
 
@@ -21870,7 +22284,6 @@
       });
       fac.additions = selectedAdditions;
 
-      const selectedType = fac.type;
       const additionList = AppState.additionMaster[selectedType] || [];
       document.querySelectorAll('.addition-val-input').forEach(input => {
         const addId = input.getAttribute('data-id');
@@ -21888,9 +22301,20 @@
         }
       });
 
+      // 【ショートステイ専用】独立バックアップ保存（不意のリセットを100%防止）
+      if (targetFacilityId === 'fac_short_mirai' || selectedType === 'ショートステイ') {
+        try {
+          localStorage.setItem('care_sys_short_stay_additions_backup', JSON.stringify(fac.additions));
+          localStorage.setItem('care_sys_short_stay_master_backup', JSON.stringify(AppState.additionMaster['ショートステイ']));
+          localStorage.setItem('care_sys_short_stay_facility_backup', JSON.stringify(fac));
+        } catch (backupErr) {
+          console.warn('ショートステイ専用バックアップ保存警告:', backupErr);
+        }
+      }
+
       saveStateToLocalStorage();
       updateFacilityDisplay();
-      showToast('施設マスタ＆加算単位数設定を保存しました', 'success');
+      showToast(`${fac.name} の加算マスタ＆設定を確実に保存しました`, 'success');
       renderAllViews();
     }
 
@@ -22012,6 +22436,12 @@
         const contractDays = (serviceType === '有料ホーム' || serviceType === 'グループホーム') ? (useDays + hospitalDays) : useDays;
         const vacantDays = daysInMonth - contractDays;
 
+        let shortLongTermDeductDays = 0;
+        if (serviceType === 'ショートステイ') {
+          const cInfo = calcShortStayConsecutiveDays(uId, targetM, userRec);
+          shortLongTermDeductDays = cInfo.deductDays;
+        }
+
         const extraAdditions = {
           linkageCount: (serviceType === '有料ホーム') ? linkageCount : 0,
           hospitalStayDays: (serviceType === 'グループホーム') ? ghHospitalStayDays : 0,
@@ -22020,6 +22450,7 @@
           transportDeductionUnits: transportDeductionUnits,
           shortTrainDays: shortTrainDays,
           shortTransportDays: shortTransportDays,
+          longTermDeductDays: shortLongTermDeductDays,
           oralTrainingCount: (serviceType === 'デイサービス') ? Number(userRec?.oralTrainingCount ?? (user?.oralTrainingCount || 0)) : 0
         };
 
@@ -22231,7 +22662,239 @@
       });
     }
 
+    // ==========================================
+    // 生年月日 和暦・西暦 相互変換＆自動連動エンジン
+    // ==========================================
+    const JAPANESE_ERAS = [
+      { name: '令和', short: '令', alpha: 'R', startYear: 2019, startMonth: 5, startDay: 1 },
+      { name: '平成', short: '平', alpha: 'H', startYear: 1989, startMonth: 1, startDay: 8 },
+      { name: '昭和', short: '昭', alpha: 'S', startYear: 1926, startMonth: 12, startDay: 25 },
+      { name: '大正', short: '大', alpha: 'T', startYear: 1912, startMonth: 7, startDay: 30 },
+      { name: '明治', short: '明', alpha: 'M', startYear: 1868, startMonth: 1, startDay: 25 }
+    ];
+
+    function getWarekiFromSeireki(y, m, d) {
+      y = Number(y); m = Number(m) || 1; d = Number(d) || 1;
+      for (const era of JAPANESE_ERAS) {
+        if (y > era.startYear || (y === era.startYear && (m > era.startMonth || (m === era.startMonth && d >= era.startDay)))) {
+          const eraYear = y - era.startYear + 1;
+          return {
+            eraName: era.name,
+            eraShort: era.short,
+            eraAlpha: era.alpha,
+            eraYear: eraYear,
+            eraYearStr: eraYear === 1 ? '元' : String(eraYear),
+            seirekiYear: y,
+            month: m,
+            day: d
+          };
+        }
+      }
+      return { eraName: '西暦', eraShort: '西暦', eraAlpha: '', eraYear: y, eraYearStr: String(y), seirekiYear: y, month: m, day: d };
+    }
+
+    function getSeirekiFromWareki(eraStr, eraYear) {
+      eraYear = Number(eraYear);
+      if (!eraYear) return null;
+      if (eraStr === '西暦' || eraStr === 'AD') return eraYear;
+      for (const era of JAPANESE_ERAS) {
+        if (eraStr === era.name || eraStr === era.short || eraStr.toUpperCase() === era.alpha) {
+          return era.startYear + eraYear - 1;
+        }
+      }
+      return null;
+    }
+
+    function parseBirthInputString(inputStr) {
+      if (!inputStr) return null;
+      let s = String(inputStr).trim();
+      if (s === '-' || !s) return null;
+
+      // 全角数字を半角に変換
+      s = s.replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
+
+      let eraStr = null, eraYear = null, month = null, day = null, seirekiYear = null;
+
+      // パターン1: 和暦記号 + 数字 (例: 昭15.2.4, S15.02.04, 昭和15年2月4日, 昭15/02/04, S15-02-04)
+      const mWareki = s.match(/^(令和|平成|昭和|大正|明治|令|平|昭|大|明|[RSHMT])\s*(\d{1,2}|元)\s*[-/年\.]\s*(\d{1,2})\s*[-/月\.]\s*(\d{1,2})/i);
+      if (mWareki) {
+        eraStr = mWareki[1];
+        eraYear = mWareki[2] === '元' ? 1 : Number(mWareki[2]);
+        month = Number(mWareki[3]);
+        day = Number(mWareki[4]);
+        seirekiYear = getSeirekiFromWareki(eraStr, eraYear);
+      }
+
+      // パターン2: 和暦連続数字 (例: S150204, 昭150204)
+      if (!seirekiYear) {
+        const mWarekiDigits = s.match(/^(令和|平成|昭和|大正|明治|令|平|昭|大|明|[RSHMT])\s*(\d{2})(\d{2})(\d{2})$/i);
+        if (mWarekiDigits) {
+          eraStr = mWarekiDigits[1];
+          eraYear = Number(mWarekiDigits[2]);
+          month = Number(mWarekiDigits[3]);
+          day = Number(mWarekiDigits[4]);
+          seirekiYear = getSeirekiFromWareki(eraStr, eraYear);
+        }
+      }
+
+      // パターン3: 西暦区切り (例: 1940/2/4, 1940-02-04, 1940.2.4, 1940年2月4日)
+      if (!seirekiYear) {
+        const mSeireki = s.match(/^((?:18|19|20)\d{2})\s*[-/年\.]\s*(\d{1,2})\s*[-/月\.]\s*(\d{1,2})/);
+        if (mSeireki) {
+          seirekiYear = Number(mSeireki[1]);
+          month = Number(mSeireki[2]);
+          day = Number(mSeireki[3]);
+        }
+      }
+
+      // パターン4: 西暦8桁数字 (例: 19400204)
+      if (!seirekiYear) {
+        const mSeirekiDigits = s.match(/^((?:18|19|20)\d{2})(\d{2})(\d{2})$/);
+        if (mSeirekiDigits) {
+          seirekiYear = Number(mSeirekiDigits[1]);
+          month = Number(mSeirekiDigits[2]);
+          day = Number(mSeirekiDigits[3]);
+        }
+      }
+
+      if (!seirekiYear || !month || !day || month < 1 || month > 12 || day < 1 || day > 31) {
+        return null;
+      }
+
+      const warekiInfo = getWarekiFromSeireki(seirekiYear, month, day);
+
+      const today = new Date();
+      let age = today.getFullYear() - seirekiYear;
+      const mDiff = today.getMonth() + 1 - month;
+      if (mDiff < 0 || (mDiff === 0 && today.getDate() < day)) {
+        age--;
+      }
+
+      const mm = String(month).padStart(2, '0');
+      const dd = String(day).padStart(2, '0');
+      const yy = String(warekiInfo.eraYear).padStart(2, '0');
+
+      return {
+        seirekiYear: seirekiYear,
+        month: month,
+        day: day,
+        eraName: warekiInfo.eraName,
+        eraShort: warekiInfo.eraShort,
+        eraAlpha: warekiInfo.eraAlpha,
+        eraYear: warekiInfo.eraYear,
+        age: Math.max(0, age),
+        formattedWareki: `${warekiInfo.eraShort}${yy}.${mm}.${dd}`,
+        formattedWarekiKanji: `${warekiInfo.eraName}${warekiInfo.eraYearStr}年${month}月${day}日`,
+        formattedSeireki: `${seirekiYear}/${mm}/${dd}`,
+        displaySummary: `${warekiInfo.eraName}${warekiInfo.eraYearStr}年${month}月${day}日 (${seirekiYear}/${mm}/${dd})`
+      };
+    }
+
+    function syncBirthInputsFromParts() {
+      const eraEl = document.getElementById('modalEditBirthEra');
+      const yEl = document.getElementById('modalEditBirthYear');
+      const mEl = document.getElementById('modalEditBirthMonth');
+      const dEl = document.getElementById('modalEditBirthDay');
+      const directEl = document.getElementById('modalEditBirth');
+      const convEl = document.getElementById('birthDisplayConverted');
+      const ageEl = document.getElementById('birthAgePreview');
+
+      if (!eraEl || !yEl || !mEl || !dEl || !directEl) return;
+
+      const eraVal = eraEl.value;
+      const yVal = yEl.value.trim();
+      const mVal = mEl.value.trim();
+      const dVal = dEl.value.trim();
+
+      if (!yVal || !mVal || !dVal) {
+        if (convEl) convEl.textContent = '';
+        if (ageEl) { ageEl.textContent = ''; ageEl.classList.add('hidden'); }
+        return;
+      }
+
+      const testStr = (eraVal === '西暦') ? `${yVal}/${mVal}/${dVal}` : `${eraVal}${yVal}.${mVal}.${dVal}`;
+      const parsed = parseBirthInputString(testStr);
+      if (parsed) {
+        directEl.value = parsed.formattedWareki;
+        if (convEl) {
+          convEl.innerHTML = `<span>🗓️ ${parsed.formattedWarekiKanji}</span> <span class="text-slate-400 font-mono">(${parsed.formattedSeireki})</span>`;
+        }
+        if (ageEl) {
+          ageEl.textContent = `満 ${parsed.age} 歳`;
+          ageEl.classList.remove('hidden');
+        }
+      } else {
+        if (convEl) convEl.textContent = '※日付を確認してください';
+        if (ageEl) { ageEl.textContent = ''; ageEl.classList.add('hidden'); }
+      }
+    }
+
+    function syncBirthInputsFromDirect() {
+      const directEl = document.getElementById('modalEditBirth');
+      const eraEl = document.getElementById('modalEditBirthEra');
+      const yEl = document.getElementById('modalEditBirthYear');
+      const mEl = document.getElementById('modalEditBirthMonth');
+      const dEl = document.getElementById('modalEditBirthDay');
+      const convEl = document.getElementById('birthDisplayConverted');
+      const ageEl = document.getElementById('birthAgePreview');
+
+      if (!directEl || !eraEl || !yEl || !mEl || !dEl) return;
+
+      const val = directEl.value.trim();
+      if (!val) {
+        yEl.value = '';
+        mEl.value = '';
+        dEl.value = '';
+        if (convEl) convEl.textContent = '';
+        if (ageEl) { ageEl.textContent = ''; ageEl.classList.add('hidden'); }
+        return;
+      }
+
+      const parsed = parseBirthInputString(val);
+      if (parsed) {
+        if (parsed.eraShort === '令') eraEl.value = '令';
+        else if (parsed.eraShort === '平') eraEl.value = '平';
+        else if (parsed.eraShort === '昭') eraEl.value = '昭';
+        else if (parsed.eraShort === '大') eraEl.value = '大';
+        else if (parsed.eraShort === '明') eraEl.value = '明';
+        else eraEl.value = '西暦';
+
+        yEl.value = parsed.eraYear;
+        mEl.value = parsed.month;
+        dEl.value = parsed.day;
+
+        if (convEl) {
+          convEl.innerHTML = `<span>🗓️ ${parsed.formattedWarekiKanji}</span> <span class="text-slate-400 font-mono">(${parsed.formattedSeireki})</span>`;
+        }
+        if (ageEl) {
+          ageEl.textContent = `満 ${parsed.age} 歳`;
+          ageEl.classList.remove('hidden');
+        }
+      } else {
+        if (convEl) convEl.textContent = '';
+        if (ageEl) { ageEl.textContent = ''; ageEl.classList.add('hidden'); }
+      }
+    }
+
+    function setupBirthInputListenersOnce() {
+      if (window._birthInputListenersAttached) return;
+      window._birthInputListenersAttached = true;
+      ['modalEditBirthEra', 'modalEditBirthYear', 'modalEditBirthMonth', 'modalEditBirthDay'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.addEventListener('input', syncBirthInputsFromParts);
+          el.addEventListener('change', syncBirthInputsFromParts);
+        }
+      });
+      const directEl = document.getElementById('modalEditBirth');
+      if (directEl) {
+        directEl.addEventListener('input', syncBirthInputsFromDirect);
+        directEl.addEventListener('change', syncBirthInputsFromDirect);
+      }
+    }
+
     function openAddNewUserModal() {
+      setupBirthInputListenersOnce();
       const currentFac = AppState.facilities[AppState.currentFacilityId] || {};
       const isDayService = (currentFac.type === 'デイサービス');
       const isShortStay = (currentFac.type === 'ショートステイ');
@@ -22252,7 +22915,19 @@
       document.getElementById('editModalHeaderTitle').textContent = `➕ 新規利用者の登録（${curFacName}）`;
       document.getElementById('modalEditId').value = '';
       document.getElementById('modalEditName').value = '';
+
+      // 生年月日UI初期化 (デフォルト: 昭和)
+      if (document.getElementById('modalEditBirthEra')) document.getElementById('modalEditBirthEra').value = '昭';
+      if (document.getElementById('modalEditBirthYear')) document.getElementById('modalEditBirthYear').value = '';
+      if (document.getElementById('modalEditBirthMonth')) document.getElementById('modalEditBirthMonth').value = '';
+      if (document.getElementById('modalEditBirthDay')) document.getElementById('modalEditBirthDay').value = '';
       document.getElementById('modalEditBirth').value = '';
+      if (document.getElementById('birthDisplayConverted')) document.getElementById('birthDisplayConverted').textContent = '';
+      if (document.getElementById('birthAgePreview')) {
+        document.getElementById('birthAgePreview').textContent = '';
+        document.getElementById('birthAgePreview').classList.add('hidden');
+      }
+
       document.getElementById('modalEditCareLevel').value = '要介護2';
       document.getElementById('modalEditPendingCareLevel').checked = false;
       document.getElementById('modalEditRatio').value = '1割';
@@ -22277,6 +22952,7 @@
     }
 
     function openEditUserModal(userId) {
+      setupBirthInputListenersOnce();
       const user = findUserById(userId);
       if (!user) return;
 
@@ -22303,7 +22979,11 @@
         document.getElementById('modalEditFacility').value = getUserFacilityId(user);
       }
       document.getElementById('modalEditName').value = user.name;
+
+      // 生年月日をセット＆和暦パーツへ即時反映
       document.getElementById('modalEditBirth').value = user.birth || '';
+      syncBirthInputsFromDirect();
+
       document.getElementById('modalEditCareLevel').value = user.careLevel;
       document.getElementById('modalEditPendingCareLevel').checked = !!user.isPendingCareLevel;
       if (document.getElementById('modalEditExempt')) document.getElementById('modalEditExempt').checked = !!user.isExempt;
@@ -22611,7 +23291,18 @@
       const id = format10DigitId(document.getElementById('modalEditId').value);
       const rawName = document.getElementById('modalEditName').value.trim();
       const name = ensureHonorific(rawName);
-      const birth = document.getElementById('modalEditBirth').value.trim();
+      let birth = document.getElementById('modalEditBirth').value.trim();
+      if (!birth) {
+        const yVal = document.getElementById('modalEditBirthYear')?.value.trim();
+        const mVal = document.getElementById('modalEditBirthMonth')?.value.trim();
+        const dVal = document.getElementById('modalEditBirthDay')?.value.trim();
+        const eraVal = document.getElementById('modalEditBirthEra')?.value || '昭';
+        if (yVal && mVal && dVal) {
+          const testStr = (eraVal === '西暦') ? `${yVal}/${mVal}/${dVal}` : `${eraVal}${yVal}.${mVal}.${dVal}`;
+          const parsed = parseBirthInputString(testStr);
+          if (parsed) birth = parsed.formattedWareki;
+        }
+      }
       const careLevel = document.getElementById('modalEditCareLevel').value;
       const isPendingCareLevel = document.getElementById('modalEditPendingCareLevel').checked;
       const ratio = document.getElementById('modalEditRatio').value;
