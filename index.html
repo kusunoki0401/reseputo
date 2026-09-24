@@ -1383,9 +1383,18 @@
               <option value="fac_short_mirai">ショートステイ未来月見台（短期入所生活介護）</option>
             </select>
           </div>
-          <div class="form-group">
-            <label>氏名:</label>
-            <input type="text" id="modalEditName" class="form-control" placeholder="例: 山田 太郎" required>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div class="form-group">
+              <label class="font-bold text-slate-800">氏名:</label>
+              <input type="text" id="modalEditName" class="form-control font-bold" placeholder="例: 山田 太郎" required>
+            </div>
+            <div class="form-group">
+              <label class="font-bold text-slate-800 flex items-center justify-between">
+                <span>フリガナ (カタカナ):</span>
+                <span class="text-[11px] font-normal text-slate-500">※名前順ソートに使用</span>
+              </label>
+              <input type="text" id="modalEditKana" class="form-control font-bold" placeholder="例: ヤマダ タロウ">
+            </div>
           </div>
           <div class="form-group bg-slate-50 p-3 rounded-lg border border-slate-200">
             <div class="flex justify-between items-center mb-1.5">
@@ -2879,6 +2888,7 @@
     // 全4施設 統合利用者マスタ (計236名)
     // ==========================================
     const INITIAL_MASTER_USERS = [
+
       {
             "id": "0002617765",
             "name": "青木　浩 様",
@@ -2886,7 +2896,8 @@
             "careLevel": "要介護2",
             "ratio": "1割",
             "facilityId": "fac_kusunoki",
-            "isExempt": false
+            "isExempt": false,
+            "kana": "アオキ ヒロシ"
       },
       {
             "id": "0000547310",
@@ -2895,7 +2906,8 @@
             "careLevel": "要介護3",
             "ratio": "1割",
             "facilityId": "fac_kusunoki",
-            "isExempt": false
+            "isExempt": false,
+            "kana": "アカツ カズコ"
       },
       {
             "id": "0000548600",
@@ -2907,7 +2919,8 @@
             "isExempt": false,
             "isPendingCareLevel": false,
             "foodLimitStage": "none",
-            "scheduleDays": []
+            "scheduleDays": [],
+            "kana": "アンザイ ヒサシ"
       },
       {
             "id": "0000793078",
@@ -2916,7 +2929,8 @@
             "careLevel": "要介護3",
             "ratio": "1割",
             "facilityId": "fac_kusunoki",
-            "isExempt": false
+            "isExempt": false,
+            "kana": "アンザイ ユミコ"
       },
       {
             "id": "0000039572",
@@ -2925,7 +2939,8 @@
             "careLevel": "要介護3",
             "ratio": "1割",
             "facilityId": "fac_kusunoki",
-            "isExempt": false
+            "isExempt": false,
+            "kana": "イワモト ノリコ"
       },
       {
             "id": "0000982334",
@@ -2934,7 +2949,8 @@
             "careLevel": "要支援1",
             "ratio": "1割",
             "facilityId": "fac_kusunoki",
-            "isExempt": false
+            "isExempt": false,
+            "kana": "ウエノ トシシゲ"
       },
       {
             "id": "0000559440",
@@ -2943,7 +2959,8 @@
             "careLevel": "要介護2",
             "ratio": "1割",
             "facilityId": "fac_kusunoki",
-            "isExempt": false
+            "isExempt": false,
+            "kana": "オカダ エイコ"
       },
       {
             "id": "0000638951",
@@ -2952,7 +2969,8 @@
             "careLevel": "要介護1",
             "ratio": "1割",
             "facilityId": "fac_kusunoki",
-            "isExempt": false
+            "isExempt": false,
+            "kana": "オノ マサ"
       },
       {
             "id": "0000013358",
@@ -2961,7 +2979,8 @@
             "careLevel": "要介護4",
             "ratio": "1割",
             "facilityId": "fac_kusunoki",
-            "isExempt": true
+            "isExempt": true,
+            "kana": "カトウ タクオ"
       },
       {
             "id": "0004277104",
@@ -2970,7 +2989,8 @@
             "careLevel": "要介護2",
             "ratio": "1割",
             "facilityId": "fac_kusunoki",
-            "isExempt": false
+            "isExempt": false,
+            "kana": "カドワキ エイコ"
       },
       {
             "id": "0000665410",
@@ -2979,7 +2999,8 @@
             "careLevel": "要介護1",
             "ratio": "1割",
             "facilityId": "fac_kusunoki",
-            "isExempt": false
+            "isExempt": false,
+            "kana": "キダ フミ"
       },
       {
             "id": "0003298248",
@@ -2988,7 +3009,8 @@
             "careLevel": "要介護2",
             "ratio": "1割",
             "facilityId": "fac_kusunoki",
-            "isExempt": false
+            "isExempt": false,
+            "kana": "コンノ ヒデオ"
       },
       {
             "id": "0002580233",
@@ -2997,7 +3019,8 @@
             "careLevel": "要介護4",
             "ratio": "1割",
             "facilityId": "fac_kusunoki",
-            "isExempt": false
+            "isExempt": false,
+            "kana": "サカモト セイコ"
       },
       {
             "id": "0000945803",
@@ -3009,7 +3032,8 @@
             "isExempt": false,
             "isPendingCareLevel": false,
             "foodLimitStage": "none",
-            "scheduleDays": []
+            "scheduleDays": [],
+            "kana": "サクマ サトコ"
       },
       {
             "id": "0001629328",
@@ -3018,7 +3042,8 @@
             "careLevel": "要介護3",
             "ratio": "1割",
             "facilityId": "fac_kusunoki",
-            "isExempt": false
+            "isExempt": false,
+            "kana": "サトウ ゴウ"
       },
       {
             "id": "0000023132",
@@ -3030,7 +3055,8 @@
             "isExempt": true,
             "isPendingCareLevel": false,
             "foodLimitStage": "none",
-            "scheduleDays": []
+            "scheduleDays": [],
+            "kana": "サトウ ダイスケ"
       },
       {
             "id": "0000584673",
@@ -3039,7 +3065,8 @@
             "careLevel": "要介護4",
             "ratio": "1割",
             "facilityId": "fac_kusunoki",
-            "isExempt": false
+            "isExempt": false,
+            "kana": "スズキ キクコ"
       },
       {
             "id": "0000883859",
@@ -3048,7 +3075,8 @@
             "careLevel": "要介護4",
             "ratio": "2割",
             "facilityId": "fac_kusunoki",
-            "isExempt": false
+            "isExempt": false,
+            "kana": "スズキ タケヨシ"
       },
       {
             "id": "0000595641",
@@ -3057,7 +3085,8 @@
             "careLevel": "要介護4",
             "ratio": "1割",
             "facilityId": "fac_kusunoki",
-            "isExempt": false
+            "isExempt": false,
+            "kana": "タカギ シュウ"
       },
       {
             "id": "0001466178",
@@ -3066,7 +3095,8 @@
             "careLevel": "要介護3",
             "ratio": "1割",
             "facilityId": "fac_kusunoki",
-            "isExempt": false
+            "isExempt": false,
+            "kana": "タカザワ ツネコ"
       },
       {
             "id": "0000557927",
@@ -3075,7 +3105,8 @@
             "careLevel": "要介護4",
             "ratio": "1割",
             "facilityId": "fac_kusunoki",
-            "isExempt": false
+            "isExempt": false,
+            "kana": "チヨズミ ハツエ"
       },
       {
             "id": "0008365164",
@@ -3084,7 +3115,8 @@
             "careLevel": "要介護5",
             "ratio": "1割",
             "facilityId": "fac_kusunoki",
-            "isExempt": false
+            "isExempt": false,
+            "kana": "ナガサワ エイコ"
       },
       {
             "id": "0000759236",
@@ -3093,7 +3125,8 @@
             "careLevel": "要支援2",
             "ratio": "1割",
             "facilityId": "fac_kusunoki",
-            "isExempt": false
+            "isExempt": false,
+            "kana": "ナカダイラ タケシ"
       },
       {
             "id": "0008512540",
@@ -3102,7 +3135,8 @@
             "careLevel": "要介護1",
             "ratio": "1割",
             "facilityId": "fac_kusunoki",
-            "isExempt": false
+            "isExempt": false,
+            "kana": "ニシキオリ トシコ"
       },
       {
             "id": "0008094560",
@@ -3111,7 +3145,8 @@
             "careLevel": "要介護1",
             "ratio": "1割",
             "facilityId": "fac_kusunoki",
-            "isExempt": false
+            "isExempt": false,
+            "kana": "ニシダ ノリコ"
       },
       {
             "id": "0000635804",
@@ -3120,7 +3155,8 @@
             "careLevel": "要介護1",
             "ratio": "1割",
             "facilityId": "fac_kusunoki",
-            "isExempt": false
+            "isExempt": false,
+            "kana": "ハヤシ ミツオ"
       },
       {
             "id": "0000047993",
@@ -3129,7 +3165,8 @@
             "careLevel": "要介護2",
             "ratio": "1割",
             "facilityId": "fac_kusunoki",
-            "isExempt": true
+            "isExempt": true,
+            "kana": "マスイ テル"
       },
       {
             "id": "0001739646",
@@ -3138,7 +3175,8 @@
             "careLevel": "要介護4",
             "ratio": "1割",
             "facilityId": "fac_kusunoki",
-            "isExempt": false
+            "isExempt": false,
+            "kana": "ミウラ ヨウコ"
       },
       {
             "id": "0000504173",
@@ -3147,7 +3185,8 @@
             "careLevel": "要介護1",
             "ratio": "1割",
             "facilityId": "fac_kusunoki",
-            "isExempt": false
+            "isExempt": false,
+            "kana": "ミドリカワ クニコ"
       },
       {
             "id": "0000658961",
@@ -3156,7 +3195,8 @@
             "careLevel": "要介護1",
             "ratio": "1割",
             "facilityId": "fac_kusunoki",
-            "isExempt": false
+            "isExempt": false,
+            "kana": "メグロ テルコ"
       },
       {
             "id": "0002135507",
@@ -3165,7 +3205,8 @@
             "careLevel": "要介護1",
             "ratio": "1割",
             "facilityId": "fac_kusunoki",
-            "isExempt": false
+            "isExempt": false,
+            "kana": "モリ ケイコ"
       },
       {
             "id": "0004520009",
@@ -3174,7 +3215,8 @@
             "careLevel": "要介護2",
             "ratio": "3割",
             "facilityId": "fac_kusunoki",
-            "isExempt": false
+            "isExempt": false,
+            "kana": "ヨコヤマ モトオ"
       },
       {
             "id": "0002583275",
@@ -3183,7 +3225,8 @@
             "careLevel": "要介護1",
             "ratio": "3割",
             "facilityId": "fac_kusunoki",
-            "isExempt": false
+            "isExempt": false,
+            "kana": "ヨシダ キョウコ"
       },
       {
             "id": "0000586102",
@@ -3192,7 +3235,8 @@
             "careLevel": "要介護2",
             "ratio": "3割",
             "facilityId": "fac_kusunoki",
-            "isExempt": false
+            "isExempt": false,
+            "kana": "ヨシダ タカコ"
       },
       {
             "id": "0002145821",
@@ -3204,7 +3248,8 @@
             "isExempt": false,
             "isPendingCareLevel": false,
             "foodLimitStage": "none",
-            "scheduleDays": []
+            "scheduleDays": [],
+            "kana": "ヨシダ トモコ"
       },
       {
             "id": "0001424751",
@@ -3213,7 +3258,8 @@
             "careLevel": "要介護1",
             "ratio": "1割",
             "facilityId": "fac_kusunoki",
-            "isExempt": false
+            "isExempt": false,
+            "kana": "ワタナベ キョウコ"
       },
       {
             "id": "0000772178",
@@ -3221,7 +3267,8 @@
             "birth": "1937/1/30",
             "careLevel": "要介護1",
             "ratio": "1割",
-            "facilityId": "fac_sakura"
+            "facilityId": "fac_sakura",
+            "kana": "アキモト ヨウコ"
       },
       {
             "id": "0000924458",
@@ -3229,7 +3276,8 @@
             "birth": "1926/7/6",
             "careLevel": "要介護3",
             "ratio": "1割",
-            "facilityId": "fac_sakura"
+            "facilityId": "fac_sakura",
+            "kana": "アシマ キミ"
       },
       {
             "id": "0001092146",
@@ -3237,7 +3285,8 @@
             "birth": "1931/9/2",
             "careLevel": "要介護5",
             "ratio": "1割",
-            "facilityId": "fac_sakura"
+            "facilityId": "fac_sakura",
+            "kana": "オオタキ フミコ"
       },
       {
             "id": "0000738620",
@@ -3245,7 +3294,8 @@
             "birth": "1941/2/4",
             "careLevel": "要介護3",
             "ratio": "1割",
-            "facilityId": "fac_sakura"
+            "facilityId": "fac_sakura",
+            "kana": "オノダ マサヨ"
       },
       {
             "id": "0000784991",
@@ -3253,7 +3303,8 @@
             "birth": "1940/4/19",
             "careLevel": "要介護3",
             "ratio": "1割",
-            "facilityId": "fac_sakura"
+            "facilityId": "fac_sakura",
+            "kana": "クボ ヒトコ"
       },
       {
             "id": "0000883492",
@@ -3261,7 +3312,8 @@
             "birth": "1932/2/20",
             "careLevel": "要介護5",
             "ratio": "1割",
-            "facilityId": "fac_sakura"
+            "facilityId": "fac_sakura",
+            "kana": "ササキ サチコ"
       },
       {
             "id": "0000808857",
@@ -3269,7 +3321,8 @@
             "birth": "1938/1/24",
             "careLevel": "要介護3",
             "ratio": "1割",
-            "facilityId": "fac_sakura"
+            "facilityId": "fac_sakura",
+            "kana": "サトウ セツコ"
       },
       {
             "id": "0000984591",
@@ -3277,7 +3330,8 @@
             "birth": "1943/5/5",
             "careLevel": "要介護3",
             "ratio": "1割",
-            "facilityId": "fac_sakura"
+            "facilityId": "fac_sakura",
+            "kana": "スズキ モトコ"
       },
       {
             "id": "0000679381",
@@ -3285,7 +3339,8 @@
             "birth": "1934/10/18",
             "careLevel": "要介護5",
             "ratio": "1割",
-            "facilityId": "fac_sakura"
+            "facilityId": "fac_sakura",
+            "kana": "トダ キミコ"
       },
       {
             "id": "0000791458",
@@ -3293,7 +3348,8 @@
             "birth": "1935/5/24",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_sakura"
+            "facilityId": "fac_sakura",
+            "kana": "ナカガワ チヨエ"
       },
       {
             "id": "0000733806",
@@ -3301,7 +3357,8 @@
             "birth": "1932/10/25",
             "careLevel": "要介護3",
             "ratio": "1割",
-            "facilityId": "fac_sakura"
+            "facilityId": "fac_sakura",
+            "kana": "ハガ トクコ"
       },
       {
             "id": "0000511668",
@@ -3309,7 +3366,8 @@
             "birth": "1935/2/1",
             "careLevel": "要介護4",
             "ratio": "1割",
-            "facilityId": "fac_sakura"
+            "facilityId": "fac_sakura",
+            "kana": "ヒルタ ヤスコ"
       },
       {
             "id": "0000483907",
@@ -3317,7 +3375,8 @@
             "birth": "1938/6/23",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_sakura"
+            "facilityId": "fac_sakura",
+            "kana": "ミドリカワ シヅコ"
       },
       {
             "id": "0001514636",
@@ -3325,7 +3384,8 @@
             "birth": "1934/1/12",
             "careLevel": "要介護4",
             "ratio": "1割",
-            "facilityId": "fac_sakura"
+            "facilityId": "fac_sakura",
+            "kana": "モリシマ トキコ"
       },
       {
             "id": "0002147351",
@@ -3333,7 +3393,8 @@
             "birth": "1942/2/25",
             "careLevel": "要介護5",
             "ratio": "1割",
-            "facilityId": "fac_sakura"
+            "facilityId": "fac_sakura",
+            "kana": "ヤマグチ キクコ"
       },
       {
             "id": "0002093341",
@@ -3341,7 +3402,8 @@
             "birth": "1940/8/19",
             "careLevel": "要介護4",
             "ratio": "1割",
-            "facilityId": "fac_sakura"
+            "facilityId": "fac_sakura",
+            "kana": "ヨシダ スミ"
       },
       {
             "id": "0000689254",
@@ -3349,7 +3411,8 @@
             "birth": "1941/1/15",
             "careLevel": "要介護3",
             "ratio": "1割",
-            "facilityId": "fac_sakura"
+            "facilityId": "fac_sakura",
+            "kana": "ワタナベ ミツコ"
       },
       {
             "id": "0003327507",
@@ -3357,7 +3420,8 @@
             "birth": "1931/2/19",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "アイダ ツコ"
       },
       {
             "id": "0000866598",
@@ -3365,7 +3429,8 @@
             "birth": "1930/5/21",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "アオキ ナオ"
       },
       {
             "id": "0000967319",
@@ -3373,7 +3438,8 @@
             "birth": "1937/8/3",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "アサオ エイコ"
       },
       {
             "id": "0000809560",
@@ -3381,7 +3447,8 @@
             "birth": "1933/9/9",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "アシナ キヨコ"
       },
       {
             "id": "0000748447",
@@ -3389,7 +3456,8 @@
             "birth": "1936/3/10",
             "careLevel": "要支援1",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "アジマ チヨ"
       },
       {
             "id": "0002179237",
@@ -3397,7 +3465,8 @@
             "birth": "1940/1/3",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "アビコ カツヤ"
       },
       {
             "id": "0000838870",
@@ -3405,7 +3474,8 @@
             "birth": "1930/4/15",
             "careLevel": "要介護4",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "アベ ミサコ"
       },
       {
             "id": "0000042482",
@@ -3413,7 +3483,8 @@
             "birth": "1941/3/11",
             "careLevel": "要介護4",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "アラカワ アキコ"
       },
       {
             "id": "0005191891",
@@ -3421,7 +3492,8 @@
             "birth": "1935/9/6",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "イサカ トヨコ"
       },
       {
             "id": "0000798983",
@@ -3429,7 +3501,8 @@
             "birth": "1943/6/10",
             "careLevel": "要介護4",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "イシイ トシオ"
       },
       {
             "id": "0002077841",
@@ -3437,7 +3510,8 @@
             "birth": "1938/2/18",
             "careLevel": "要介護1",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "イシカワ ミキオ"
       },
       {
             "id": "0003055302",
@@ -3445,7 +3519,8 @@
             "birth": "1929/10/24",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "イソノ シゲコ"
       },
       {
             "id": "0002120682",
@@ -3453,7 +3528,8 @@
             "birth": "1939/12/1",
             "careLevel": "要介護1",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "イワマ ヨシエ"
       },
       {
             "id": "0002393905",
@@ -3461,7 +3537,8 @@
             "birth": "1949/1/21",
             "careLevel": "要介護3",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "ウエノダイ ヒサオ"
       },
       {
             "id": "0008092877",
@@ -3469,7 +3546,8 @@
             "birth": "1933/7/7",
             "careLevel": "要介護1",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "ウサガミ トモコ"
       },
       {
             "id": "0003640396",
@@ -3477,7 +3555,8 @@
             "birth": "1943/7/28",
             "careLevel": "要介護5",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "オカダ タケヒコ"
       },
       {
             "id": "0001718045",
@@ -3485,7 +3564,8 @@
             "birth": "1950/8/23",
             "careLevel": "要介護3",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "オカベ エミコ"
       },
       {
             "id": "0000510599",
@@ -3493,7 +3573,8 @@
             "birth": "1925/12/29",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "オノ ミサオ"
       },
       {
             "id": "0000712906",
@@ -3501,7 +3582,8 @@
             "birth": "1939/5/4",
             "careLevel": "要介護5",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "オヤケ トウイチ"
       },
       {
             "id": "0000572110",
@@ -3509,7 +3591,8 @@
             "birth": "1935/6/18",
             "careLevel": "要介護3",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "カンナリ キヨコ"
       },
       {
             "id": "0000957216",
@@ -3517,7 +3600,8 @@
             "birth": "1939/7/17",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "カワムラ ハツエ"
       },
       {
             "id": "0002554721",
@@ -3525,7 +3609,8 @@
             "birth": "1938/2/21",
             "careLevel": "要介護4",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "キダ タカコ"
       },
       {
             "id": "0000708691",
@@ -3533,7 +3618,8 @@
             "birth": "1924/1/17",
             "careLevel": "要介護4",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "キムラ タカ"
       },
       {
             "id": "0000732524",
@@ -3541,7 +3627,8 @@
             "birth": "1939/10/1",
             "careLevel": "要介護4",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "クサノ アサコ"
       },
       {
             "id": "0001020765",
@@ -3549,7 +3636,8 @@
             "birth": "1936/6/2",
             "careLevel": "要介護3",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "クニサダ ミエコ"
       },
       {
             "id": "0001354515",
@@ -3557,7 +3645,8 @@
             "birth": "1935/3/17",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "クマダ エサヨ"
       },
       {
             "id": "0000822612",
@@ -3565,7 +3654,8 @@
             "birth": "1937/3/18",
             "careLevel": "要介護3",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "コイケ ヒデヒロ"
       },
       {
             "id": "0000968935",
@@ -3573,7 +3663,8 @@
             "birth": "1932/1/28",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "コトウ タケシ"
       },
       {
             "id": "0000735183",
@@ -3581,7 +3672,8 @@
             "birth": "1950/4/14",
             "careLevel": "要介護4",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "コンノ キイチ"
       },
       {
             "id": "0000699349",
@@ -3589,7 +3681,8 @@
             "birth": "1942/5/13",
             "careLevel": "要介護3",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "サイトウ ジュンコ"
       },
       {
             "id": "0004510666",
@@ -3597,7 +3690,8 @@
             "birth": "1947/5/30",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "サイトウ ツネオ"
       },
       {
             "id": "0002182734",
@@ -3605,7 +3699,8 @@
             "birth": "1939/7/20",
             "careLevel": "要介護1",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "サガワ モモエ"
       },
       {
             "id": "0001548859",
@@ -3613,7 +3708,8 @@
             "birth": "1932/12/31",
             "careLevel": "要介護5",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "サトウ ミツコ"
       },
       {
             "id": "0003412202",
@@ -3621,7 +3717,8 @@
             "birth": "1937/7/12",
             "careLevel": "要介護4",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "シバタ コウイチ"
       },
       {
             "id": "0003160424",
@@ -3629,7 +3726,8 @@
             "birth": "1941/6/4",
             "careLevel": "要介護1",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "シマダ キヌコ"
       },
       {
             "id": "0004154274",
@@ -3637,7 +3735,8 @@
             "birth": "1940/11/7",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "シミズ エツコ"
       },
       {
             "id": "0001040057",
@@ -3645,7 +3744,8 @@
             "birth": "1937/11/30",
             "careLevel": "要介護1",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "シミズ マサル"
       },
       {
             "id": "0002435241",
@@ -3653,7 +3753,8 @@
             "birth": "1942/3/20",
             "careLevel": "要介護3",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "シモヤマダ モリヤス"
       },
       {
             "id": "0002725452",
@@ -3661,7 +3762,8 @@
             "birth": "1958/10/3",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "スエヒロ ハルヒサ"
       },
       {
             "id": "0000733121",
@@ -3669,7 +3771,8 @@
             "birth": "1949/10/11",
             "careLevel": "要介護5",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "スケガワ アキコ"
       },
       {
             "id": "0001036351",
@@ -3677,7 +3780,8 @@
             "birth": "1934/3/24",
             "careLevel": "要介護4",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "スケガワ ハツコ"
       },
       {
             "id": "0007569246",
@@ -3685,7 +3789,8 @@
             "birth": "1932/4/5",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "スズキ センゾウ"
       },
       {
             "id": "0001464957",
@@ -3693,7 +3798,8 @@
             "birth": "1948/3/3",
             "careLevel": "要介護1",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "スズキ タケオ"
       },
       {
             "id": "0000895211",
@@ -3701,7 +3807,8 @@
             "birth": "1931/2/2",
             "careLevel": "要介護1",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "スズキ マサコ"
       },
       {
             "id": "0002055171",
@@ -3709,7 +3816,8 @@
             "birth": "1934/2/13",
             "careLevel": "要介護3",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "スズキ ミチコ"
       },
       {
             "id": "0003630099",
@@ -3717,7 +3825,8 @@
             "birth": "1931/2/10",
             "careLevel": "要介護5",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "スズキ ミヨコ"
       },
       {
             "id": "0000662607",
@@ -3725,7 +3834,8 @@
             "birth": "1935/4/20",
             "careLevel": "要介護4",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "スズムラ マサハル"
       },
       {
             "id": "0002190346",
@@ -3733,7 +3843,8 @@
             "birth": "1954/9/3",
             "careLevel": "要介護5",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "タカギ シズカ"
       },
       {
             "id": "0002064995",
@@ -3741,7 +3852,8 @@
             "birth": "1941/6/24",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "タカギ トシオ"
       },
       {
             "id": "0007190182",
@@ -3749,7 +3861,8 @@
             "birth": "1951/1/18",
             "careLevel": "要介護4",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "タカハシ スミコ"
       },
       {
             "id": "0000656755",
@@ -3757,7 +3870,8 @@
             "birth": "1933/9/9",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "タカハシ ヒロコ"
       },
       {
             "id": "0000642991",
@@ -3765,7 +3879,8 @@
             "birth": "1933/3/4",
             "careLevel": "要介護4",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "タゴヤ セツコ"
       },
       {
             "id": "0000650803",
@@ -3773,7 +3888,8 @@
             "birth": "1938/10/28",
             "careLevel": "要介護3",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "タチ ノブコ"
       },
       {
             "id": "0001025287",
@@ -3781,7 +3897,8 @@
             "birth": "1942/10/18",
             "careLevel": "要介護1",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "タナベ ヨシミチ"
       },
       {
             "id": "0000644285",
@@ -3789,7 +3906,8 @@
             "birth": "1941/8/24",
             "careLevel": "要介護4",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "ニシダ サタコ"
       },
       {
             "id": "0000699993",
@@ -3797,7 +3915,8 @@
             "birth": "1936/10/8",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "ニシダ スミコ"
       },
       {
             "id": "0001078682",
@@ -3805,7 +3924,8 @@
             "birth": "1940/5/5",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "ニシマキ ヒロコ"
       },
       {
             "id": "0002503638",
@@ -3813,7 +3933,8 @@
             "birth": "1931/12/4",
             "careLevel": "要介護4",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "ハシモト ゼンザブロウ"
       },
       {
             "id": "0003048624",
@@ -3821,7 +3942,8 @@
             "birth": "1936/1/15",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "ヒグチ フミコ"
       },
       {
             "id": "0000670731",
@@ -3829,7 +3951,8 @@
             "birth": "1938/9/20",
             "careLevel": "要介護3",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "ヒルタ ミツオ"
       },
       {
             "id": "0000477931",
@@ -3837,7 +3960,8 @@
             "birth": "1925/12/7",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "フジサワ サダコ"
       },
       {
             "id": "0002853906",
@@ -3845,7 +3969,8 @@
             "birth": "1944/3/23",
             "careLevel": "要介護3",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "マツザキ エイコ"
       },
       {
             "id": "0007168055",
@@ -3853,7 +3978,8 @@
             "birth": "1968/12/1",
             "careLevel": "要介護4",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "ミドリカワ タダカズ"
       },
       {
             "id": "0002606046",
@@ -3861,7 +3987,8 @@
             "birth": "1939/7/15",
             "careLevel": "要介護3",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "ミナト シゲオ"
       },
       {
             "id": "0003683028",
@@ -3869,7 +3996,8 @@
             "birth": "1963/2/28",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "ムラコシ ヤスノリ"
       },
       {
             "id": "0000664642",
@@ -3877,7 +4005,8 @@
             "birth": "1951/11/29",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "ムラタ クミコ"
       },
       {
             "id": "0006735487",
@@ -3885,7 +4014,8 @@
             "birth": "1935/7/8",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "モリ シゲル"
       },
       {
             "id": "0000607771",
@@ -3893,7 +4023,8 @@
             "birth": "1941/4/16",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "ヤエガシ キョウコ"
       },
       {
             "id": "0000702161",
@@ -3901,7 +4032,8 @@
             "birth": "1931/12/6",
             "careLevel": "要介護3",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "ヤエガシ シツエ"
       },
       {
             "id": "0001492586",
@@ -3909,7 +4041,8 @@
             "birth": "1940/4/9",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "ヤマグチ サチコ"
       },
       {
             "id": "0008116997",
@@ -3917,7 +4050,8 @@
             "birth": "1942/1/15",
             "careLevel": "要介護5",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "ヤマグチ ユミコ"
       },
       {
             "id": "0000653179",
@@ -3925,7 +4059,8 @@
             "birth": "1942/10/28",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "ヤマザキ フミ"
       },
       {
             "id": "0003355829",
@@ -3933,7 +4068,8 @@
             "birth": "1942/10/8",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "ヤマノベ キミコ"
       },
       {
             "id": "0001627112",
@@ -3941,7 +4077,8 @@
             "birth": "1935/3/8",
             "careLevel": "要介護4",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "ヨシダ マサコ"
       },
       {
             "id": "0000966851",
@@ -3949,7 +4086,8 @@
             "birth": "1942/9/25",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "ワタナベ カツミ"
       },
       {
             "id": "0006719171",
@@ -3957,7 +4095,8 @@
             "birth": "1940/8/28",
             "careLevel": "要介護4",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "ワタナベ タミオ"
       },
       {
             "id": "0000124591",
@@ -3965,7 +4104,8 @@
             "birth": "1939/2/1",
             "careLevel": "要介護2",
             "ratio": "1割",
-            "facilityId": "fac_short_mirai"
+            "facilityId": "fac_short_mirai",
+            "kana": "ワタナベ ヨウイチ"
       },
       {
             "id": "0000722588",
@@ -3973,7 +4113,8 @@
             "birth": "昭17.11.09",
             "careLevel": "要1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "アジマ マサト"
       },
       {
             "id": "0000965511",
@@ -3981,7 +4122,8 @@
             "birth": "昭12.12.22",
             "careLevel": "要2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "イガラシ セツコ"
       },
       {
             "id": "0000723231",
@@ -3989,7 +4131,8 @@
             "birth": "昭17.04.21",
             "careLevel": "要1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "イシイ アキコ"
       },
       {
             "id": "0001056042",
@@ -3997,7 +4140,8 @@
             "birth": "昭05.01.20",
             "careLevel": "要1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ウエスギ トモコ"
       },
       {
             "id": "0004406699",
@@ -4005,7 +4149,8 @@
             "birth": "昭12.08.10",
             "careLevel": "要2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "オイカワ シゲキ"
       },
       {
             "id": "0000950033",
@@ -4013,7 +4158,8 @@
             "birth": "昭33.08.12",
             "careLevel": "要1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "オオイガワ マサヒロ"
       },
       {
             "id": "0000938149",
@@ -4021,7 +4167,8 @@
             "birth": "昭27.11.01",
             "careLevel": "要1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "カンナリ キョウコ"
       },
       {
             "id": "0000001940",
@@ -4029,7 +4176,8 @@
             "birth": "昭10.07.07",
             "careLevel": "要2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "カマダ トシコ"
       },
       {
             "id": "0000720356",
@@ -4037,7 +4185,8 @@
             "birth": "昭17.03.20",
             "careLevel": "要4",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "カンノ セイコ"
       },
       {
             "id": "0000790079",
@@ -4045,7 +4194,8 @@
             "birth": "昭09.03.05",
             "careLevel": "要1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "キクチ キエコ"
       },
       {
             "id": "0000756181",
@@ -4053,7 +4203,8 @@
             "birth": "昭18.11.05",
             "careLevel": "要3",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "キムラ セイジ"
       },
       {
             "id": "0000896098",
@@ -4061,7 +4212,8 @@
             "birth": "昭03.07.05",
             "careLevel": "要1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "グンジ ケイ"
       },
       {
             "id": "0000613207",
@@ -4069,7 +4221,8 @@
             "birth": "昭11.07.03",
             "careLevel": "要1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "コマツ ケイコ"
       },
       {
             "id": "0000004784",
@@ -4077,7 +4230,8 @@
             "birth": "昭09.01.10",
             "careLevel": "要4",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ゴライ テルオ"
       },
       {
             "id": "0000692301",
@@ -4085,7 +4239,8 @@
             "birth": "昭32.04.30",
             "careLevel": "要1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "サカモト ミノル"
       },
       {
             "id": "0000024635",
@@ -4093,7 +4248,8 @@
             "birth": "昭18.08.03",
             "careLevel": "要1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "サンペイ ミチノリ"
       },
       {
             "id": "0000699462",
@@ -4101,7 +4257,8 @@
             "birth": "昭16.10.10",
             "careLevel": "要2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "シマダ タミコ"
       },
       {
             "id": "0000687235",
@@ -4109,7 +4266,8 @@
             "birth": "昭18.11.06",
             "careLevel": "要1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "スズキ ケンゾウ"
       },
       {
             "id": "0000029459",
@@ -4117,7 +4275,8 @@
             "birth": "昭23.04.20",
             "careLevel": "要3",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "スズキ ヒロコ"
       },
       {
             "id": "0000590983",
@@ -4125,7 +4284,8 @@
             "birth": "昭13.01.01",
             "careLevel": "要2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "タカギ タカコ"
       },
       {
             "id": "0000002588",
@@ -4133,7 +4293,8 @@
             "birth": "昭16.12.11",
             "careLevel": "要1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "タニヒラ ミキ"
       },
       {
             "id": "0000714003",
@@ -4141,7 +4302,8 @@
             "birth": "昭24.11.19",
             "careLevel": "要2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "タムラ タダシ"
       },
       {
             "id": "0060003718",
@@ -4149,7 +4311,8 @@
             "birth": "昭03.08.07",
             "careLevel": "要2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "デン サチコ"
       },
       {
             "id": "0000552941",
@@ -4157,7 +4320,8 @@
             "birth": "昭12.12.18",
             "careLevel": "要1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "トヨダ ノブコ"
       },
       {
             "id": "0005182433",
@@ -4165,7 +4329,8 @@
             "birth": "昭16.03.22",
             "careLevel": "要1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ナカツカ ケイ"
       },
       {
             "id": "0005558581",
@@ -4173,7 +4338,8 @@
             "birth": "昭19.03.30",
             "careLevel": "要4",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ナエシロ ヨシノ"
       },
       {
             "id": "0001009451",
@@ -4181,7 +4347,8 @@
             "birth": "昭10.09.22",
             "careLevel": "要1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ニイツマ ツトム"
       },
       {
             "id": "0001017144",
@@ -4189,7 +4356,8 @@
             "birth": "昭19.07.10",
             "careLevel": "要2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ニイツマ ノリオ"
       },
       {
             "id": "0002321041",
@@ -4197,7 +4365,8 @@
             "birth": "昭26.03.14",
             "careLevel": "要1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ヌマタ リュウキチ"
       },
       {
             "id": "0000063479",
@@ -4205,7 +4374,8 @@
             "birth": "昭20.06.05",
             "careLevel": "要1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ネモト サダアキ"
       },
       {
             "id": "0000956074",
@@ -4213,7 +4383,8 @@
             "birth": "昭25.06.29",
             "careLevel": "要1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ハガ ヤエコ"
       },
       {
             "id": "0000670448",
@@ -4221,7 +4392,8 @@
             "birth": "昭16.05.27",
             "careLevel": "要2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ハガ ユキオ"
       },
       {
             "id": "0000974790",
@@ -4229,7 +4401,8 @@
             "birth": "昭07.09.07",
             "careLevel": "要2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "バンナイ チエ"
       },
       {
             "id": "0003138348",
@@ -4237,7 +4410,8 @@
             "birth": "昭29.12.17",
             "careLevel": "要1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ヒルタ マサヒロ"
       },
       {
             "id": "0000730424",
@@ -4245,7 +4419,8 @@
             "birth": "昭24.05.12",
             "careLevel": "要2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ミウラ ハルオ"
       },
       {
             "id": "0001071718",
@@ -4253,7 +4428,8 @@
             "birth": "昭06.06.30",
             "careLevel": "要1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ミナガワ タイモン"
       },
       {
             "id": "0006402429",
@@ -4261,7 +4437,8 @@
             "birth": "昭09.01.08",
             "careLevel": "要2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ムラカミ シュンイチ"
       },
       {
             "id": "0000002064",
@@ -4269,7 +4446,8 @@
             "birth": "昭11.11.14",
             "careLevel": "要1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "モリヤマ ジュンコ"
       },
       {
             "id": "0000586285",
@@ -4277,7 +4455,8 @@
             "birth": "昭11.04.10",
             "careLevel": "要1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ワタナベ テツコ"
       },
       {
             "id": "0000856665",
@@ -4285,7 +4464,8 @@
             "birth": "昭27.10.25",
             "careLevel": "要2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ワタナベ ミツオ"
       },
       {
             "id": "0003534235",
@@ -4293,7 +4473,8 @@
             "birth": "昭17.12.02",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "アカツ イツコ"
       },
       {
             "id": "0000888451",
@@ -4301,7 +4482,8 @@
             "birth": "昭20.09.08",
             "careLevel": "支2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "アカツ トシエ"
       },
       {
             "id": "0000616702",
@@ -4309,7 +4491,8 @@
             "birth": "昭17.03.20",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "アカツ フミコ"
       },
       {
             "id": "0000834891",
@@ -4317,7 +4500,8 @@
             "birth": "昭18.03.08",
             "careLevel": "事業",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "イシハラ ケイコ"
       },
       {
             "id": "0000909319",
@@ -4325,7 +4509,8 @@
             "birth": "昭09.06.13",
             "careLevel": "支2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "イチムラ サタ"
       },
       {
             "id": "0001021974",
@@ -4333,7 +4518,8 @@
             "birth": "昭07.06.04",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "イトウ アキラ"
       },
       {
             "id": "0001021982",
@@ -4341,7 +4527,8 @@
             "birth": "昭15.01.22",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "イトウ マサミ"
       },
       {
             "id": "0000920045",
@@ -4349,7 +4536,8 @@
             "birth": "昭12.09.01",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "イノムラ タケシ"
       },
       {
             "id": "0000942138",
@@ -4357,7 +4545,8 @@
             "birth": "昭31.10.01",
             "careLevel": "事業",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "エガワ スエコ"
       },
       {
             "id": "0002515229",
@@ -4365,7 +4554,8 @@
             "birth": "昭16.11.06",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "エンドウ ミチコ"
       },
       {
             "id": "0001044320",
@@ -4373,7 +4563,8 @@
             "birth": "昭24.04.25",
             "careLevel": "支2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "オオガイ ツギコ"
       },
       {
             "id": "0001046250",
@@ -4381,7 +4572,8 @@
             "birth": "昭16.11.23",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "オオコウチ サチコ"
       },
       {
             "id": "0006310231",
@@ -4389,7 +4581,8 @@
             "birth": "昭18.01.26",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "オオトモ トモコ"
       },
       {
             "id": "0006380255",
@@ -4397,7 +4590,8 @@
             "birth": "昭19.03.16",
             "careLevel": "支2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "オオヒラ サダエ"
       },
       {
             "id": "0006380263",
@@ -4405,7 +4599,8 @@
             "birth": "昭24.03.31",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "オオヒラ ミヨコ"
       },
       {
             "id": "0002399091",
@@ -4413,7 +4608,8 @@
             "birth": "昭16.07.17",
             "careLevel": "事業",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "オノ カズコ"
       },
       {
             "id": "0000720062",
@@ -4421,7 +4617,8 @@
             "birth": "昭09.03.20",
             "careLevel": "支2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "オ野 ヒメコ"
       },
       {
             "id": "0000898911",
@@ -4429,7 +4626,8 @@
             "birth": "昭14.08.07",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "カトウ ヨウコ"
       },
       {
             "id": "0001028723",
@@ -4437,7 +4635,8 @@
             "birth": "昭13.08.23",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "クシダ フミコ"
       },
       {
             "id": "0000657981",
@@ -4445,7 +4644,8 @@
             "birth": "昭14.04.17",
             "careLevel": "支2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "クノ ヤスコ"
       },
       {
             "id": "0005128501",
@@ -4453,7 +4653,8 @@
             "birth": "昭11.09.27",
             "careLevel": "支2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "コバヤカワ ヨシエ"
       },
       {
             "id": "0006350534",
@@ -4461,7 +4662,8 @@
             "birth": "昭56.05.02",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "コンドウ ヒロアキ"
       },
       {
             "id": "0000973807",
@@ -4469,7 +4671,8 @@
             "birth": "昭16.03.30",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "コンノ トヨ"
       },
       {
             "id": "0005207061",
@@ -4477,7 +4680,8 @@
             "birth": "昭12.07.27",
             "careLevel": "支2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "サイタ チヨミ"
       },
       {
             "id": "0000914983",
@@ -4485,7 +4689,8 @@
             "birth": "昭16.12.10",
             "careLevel": "支2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "サイトウ エイコ"
       },
       {
             "id": "0006228305",
@@ -4493,7 +4698,8 @@
             "birth": "昭24.04.10",
             "careLevel": "支2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "サトウ ケンジ"
       },
       {
             "id": "0000946001",
@@ -4501,7 +4707,8 @@
             "birth": "昭08.05.30",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "サトウ サト"
       },
       {
             "id": "0001327976",
@@ -4509,7 +4716,8 @@
             "birth": "昭18.08.01",
             "careLevel": "事業",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "サトウ フクコ"
       },
       {
             "id": "0000606286",
@@ -4517,7 +4725,8 @@
             "birth": "昭26.05.03",
             "careLevel": "支2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "スガハシ ノリコ"
       },
       {
             "id": "0000536946",
@@ -4525,7 +4734,8 @@
             "birth": "昭22.01.13",
             "careLevel": "事業",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "スズキ キョウコ"
       },
       {
             "id": "0000595462",
@@ -4533,7 +4743,8 @@
             "birth": "昭13.12.19",
             "careLevel": "支2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "スズキ ケイコ"
       },
       {
             "id": "0000908126",
@@ -4541,7 +4752,8 @@
             "birth": "昭17.01.11",
             "careLevel": "支2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "スズキ ケサ"
       },
       {
             "id": "0000619779",
@@ -4549,7 +4761,8 @@
             "birth": "昭15.08.02",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "スズキ トヨコ"
       },
       {
             "id": "0000912794",
@@ -4557,7 +4770,8 @@
             "birth": "昭09.02.27",
             "careLevel": "支2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "スズキ フミオ"
       },
       {
             "id": "0000912808",
@@ -4565,7 +4779,8 @@
             "birth": "昭14.11.26",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "スズキ ヨシコ"
       },
       {
             "id": "0000669369",
@@ -4573,7 +4788,8 @@
             "birth": "昭19.04.27",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "スズキ リョウ"
       },
       {
             "id": "0000537055",
@@ -4581,7 +4797,8 @@
             "birth": "昭15.09.06",
             "careLevel": "支2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "スダ ミチコ"
       },
       {
             "id": "0000782947",
@@ -4589,7 +4806,8 @@
             "birth": "昭22.04.24",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "タケウチ マサコ"
       },
       {
             "id": "0000595896",
@@ -4597,7 +4815,8 @@
             "birth": "昭18.01.22",
             "careLevel": "事業",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "タケダ ケイコ"
       },
       {
             "id": "0001025821",
@@ -4605,7 +4824,8 @@
             "birth": "昭09.10.07",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "タケダ トシエ"
       },
       {
             "id": "0000844063",
@@ -4613,7 +4833,8 @@
             "birth": "昭05.04.01",
             "careLevel": "支2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "トミヤマ サダコ"
       },
       {
             "id": "0000855464",
@@ -4621,7 +4842,8 @@
             "birth": "昭22.12.02",
             "careLevel": "支2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ナカマル ヒロコ"
       },
       {
             "id": "0000836842",
@@ -4629,7 +4851,8 @@
             "birth": "昭12.02.11",
             "careLevel": "支2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ナバタメ ケイコ"
       },
       {
             "id": "0000620416",
@@ -4637,7 +4860,8 @@
             "birth": "昭12.03.19",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ネモト カズコ"
       },
       {
             "id": "0000979686",
@@ -4645,7 +4869,8 @@
             "birth": "昭10.12.23",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ハシモト ヨシ"
       },
       {
             "id": "0007481616",
@@ -4653,7 +4878,8 @@
             "birth": "昭15.12.14",
             "careLevel": "支2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ヒラヤマ ヨシマサ"
       },
       {
             "id": "0000753467",
@@ -4661,7 +4887,8 @@
             "birth": "昭18.11.28",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ヒルタ カズコ"
       },
       {
             "id": "0001031856",
@@ -4669,7 +4896,8 @@
             "birth": "昭24.03.09",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ヒルタ ミエコ"
       },
       {
             "id": "0000556246",
@@ -4677,7 +4905,8 @@
             "birth": "昭23.10.15",
             "careLevel": "支2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ヒロセ トオル"
       },
       {
             "id": "0000777897",
@@ -4685,7 +4914,8 @@
             "birth": "昭21.05.11",
             "careLevel": "支2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "フジタ シゲシチ"
       },
       {
             "id": "0000577472",
@@ -4693,7 +4923,8 @@
             "birth": "昭16.06.20",
             "careLevel": "事業",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "フジワラ サダキチ"
       },
       {
             "id": "0005926297",
@@ -4701,7 +4932,8 @@
             "birth": "昭07.06.02",
             "careLevel": "支2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "マツヌマ タマコ"
       },
       {
             "id": "0000546330",
@@ -4709,7 +4941,8 @@
             "birth": "昭12.07.04",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ミドリカワ レイコ"
       },
       {
             "id": "0000578631",
@@ -4717,7 +4950,8 @@
             "birth": "昭17.01.05",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "モウエ テルコ"
       },
       {
             "id": "0000553930",
@@ -4725,7 +4959,8 @@
             "birth": "昭16.09.18",
             "careLevel": "支2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "モリ ヒロコ"
       },
       {
             "id": "0000645869",
@@ -4733,7 +4968,8 @@
             "birth": "昭15.07.22",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ヤナギハラ マサコ"
       },
       {
             "id": "0000722324",
@@ -4741,7 +4977,8 @@
             "birth": "昭26.03.18",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ヤマグチ アイコ"
       },
       {
             "id": "0000959502",
@@ -4749,7 +4986,8 @@
             "birth": "昭15.10.27",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ヤマダ チヨコ"
       },
       {
             "id": "0001046837",
@@ -4757,7 +4995,8 @@
             "birth": "昭15.02.04",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ヨシダ ユキコ"
       },
       {
             "id": "0000734462",
@@ -4765,7 +5004,8 @@
             "birth": "昭11.07.15",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ワカバヤシ キョウ"
       },
       {
             "id": "0001052250",
@@ -4773,7 +5013,8 @@
             "birth": "昭23.08.08",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ワシダケ カンドウ"
       },
       {
             "id": "0000916391",
@@ -4781,7 +5022,8 @@
             "birth": "昭19.12.23",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ワタナベ イツコ"
       },
       {
             "id": "0000846481",
@@ -4789,7 +5031,8 @@
             "birth": "昭25.09.05",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ワタナベ コウゾウ"
       },
       {
             "id": "0000031950",
@@ -4797,7 +5040,8 @@
             "birth": "昭26.05.15",
             "careLevel": "支1",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "タケウチ サチコ"
       },
       {
             "id": "0100004050",
@@ -4805,7 +5049,8 @@
             "birth": "昭13.03.02",
             "careLevel": "支2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "イトウ ハルエ"
       },
       {
             "id": "0000054254",
@@ -4813,9 +5058,10 @@
             "birth": "昭21.04.05",
             "careLevel": "支2",
             "ratio": "1割",
-            "facilityId": "fac_mirai_nakaoka"
+            "facilityId": "fac_mirai_nakaoka",
+            "kana": "ハマダ クニコ"
       }
-];
+    ];
     const INITIAL_ACTIVE_USERS = {
       "fac_kusunoki": [
             "0002617765",
@@ -22943,6 +23189,7 @@
           <td class="font-bold font-mono">${format10DigitId(u.id)}</td>
           <td class="font-bold text-slate-900">
             <div>${u.name}</div>
+            ${u.kana ? `<div class="text-xs text-slate-500 font-normal">(${escapeHtml(u.kana)})</div>` : ''}
             ${schedTag}
           </td>
           <td>${u.birth || '-'}</td>
@@ -23187,6 +23434,24 @@
         directEl.addEventListener('input', syncBirthInputsFromDirect);
         directEl.addEventListener('change', syncBirthInputsFromDirect);
       }
+
+      // 氏名入力時にフリガナが未入力なら名字辞書から自動補完
+      const nameEl = document.getElementById('modalEditName');
+      const kanaEl = document.getElementById('modalEditKana');
+      if (nameEl && kanaEl) {
+        nameEl.addEventListener('input', () => {
+          if (!kanaEl.value || kanaEl.dataset.autoFilled === 'true') {
+            const guessed = guessKanaFromName(nameEl.value);
+            if (guessed) {
+              kanaEl.value = guessed;
+              kanaEl.dataset.autoFilled = 'true';
+            }
+          }
+        });
+        kanaEl.addEventListener('input', () => {
+          kanaEl.dataset.autoFilled = 'false';
+        });
+      }
     }
 
     function openAddNewUserModal() {
@@ -23211,6 +23476,11 @@
       document.getElementById('editModalHeaderTitle').textContent = `➕ 新規利用者の登録（${curFacName}）`;
       document.getElementById('modalEditId').value = '';
       document.getElementById('modalEditName').value = '';
+      const kanaAddEl = document.getElementById('modalEditKana');
+      if (kanaAddEl) {
+        kanaAddEl.value = '';
+        kanaAddEl.dataset.autoFilled = 'true';
+      }
 
       // 生年月日UI初期化 (デフォルト: 昭和)
       if (document.getElementById('modalEditBirthEra')) document.getElementById('modalEditBirthEra').value = '昭';
@@ -23275,6 +23545,11 @@
         document.getElementById('modalEditFacility').value = getUserFacilityId(user);
       }
       document.getElementById('modalEditName').value = user.name;
+      const kanaEditEl = document.getElementById('modalEditKana');
+      if (kanaEditEl) {
+        kanaEditEl.value = user.kana || '';
+        kanaEditEl.dataset.autoFilled = user.kana ? 'false' : 'true';
+      }
 
       // 生年月日をセット＆和暦パーツへ即時反映
       document.getElementById('modalEditBirth').value = user.birth || '';
@@ -23321,7 +23596,7 @@
       }
 
       // 1. ヘッダー行の解析（月次請求一覧CSVまたは一般名簿CSV/Excel）
-      let nameIdx = -1, careIdx = -1, benefitIdx = -1, insSelfIdx = -1, idIdx = -1, ratioIdx = -1, birthIdx = -1;
+      let nameIdx = -1, kanaIdx = -1, careIdx = -1, benefitIdx = -1, insSelfIdx = -1, idIdx = -1, ratioIdx = -1, birthIdx = -1;
       const sampleLimit = Math.min(rows.length, 15);
       let headerRow = -1;
 
@@ -23330,6 +23605,7 @@
         row.forEach((cell, cIdx) => {
           const txt = String(cell || '').trim().replace(/[\r\n\s　]/g, '');
           if (/(利用者名|氏名|利用者氏名|契約者名|氏　名)/.test(txt) && nameIdx === -1) { nameIdx = cIdx; }
+          if (/(フリガナ|ふりがな|カナ|氏名カナ|利用者カナ|氏名フリガナ)/.test(txt) && kanaIdx === -1) { kanaIdx = cIdx; }
           if (/(介護度|要介護度|認定介護度)/.test(txt) && careIdx === -1) { careIdx = cIdx; }
           if (/(保険請求額|給付請求|保険給付|保険給付額)/.test(txt) && benefitIdx === -1) { benefitIdx = cIdx; }
           if (/(一部負担額|一部負担金|保険負担|自己負担額)/.test(txt) && insSelfIdx === -1) { insSelfIdx = cIdx; }
@@ -23377,6 +23653,7 @@
           candidates.push({
             id: idVal,
             name: ensureHonorific(rawName),
+            kana: kanaIdx !== -1 && row[kanaIdx] ? normalizeToKatakana(row[kanaIdx]) : guessKanaFromName(rawName),
             careLevel: care,
             ratio: ratio,
             birth: birthIdx !== -1 && row[birthIdx] ? cleanBirthString(row[birthIdx]) : '-',
@@ -23590,6 +23867,8 @@
       const id = format10DigitId(document.getElementById('modalEditId').value);
       const rawName = document.getElementById('modalEditName').value.trim();
       const name = ensureHonorific(rawName);
+      const rawKana = document.getElementById('modalEditKana')?.value.trim() || '';
+      const kana = normalizeToKatakana(rawKana) || guessKanaFromName(rawName);
       let birth = document.getElementById('modalEditBirth').value.trim();
       if (!birth) {
         const yVal = document.getElementById('modalEditBirthYear')?.value.trim();
@@ -23628,6 +23907,7 @@
         AppState.userMaster[existingIndex] = {
           ...AppState.userMaster[existingIndex],
           name: name,
+          kana: kana,
           birth: birth,
           careLevel: careLevel,
           isPendingCareLevel: isPendingCareLevel,
@@ -23643,6 +23923,7 @@
         AppState.userMaster.push({
           id: id,
           name: name,
+          kana: kana,
           birth: birth,
           careLevel: careLevel,
           isPendingCareLevel: isPendingCareLevel,
@@ -23669,10 +23950,27 @@
     }
 
     function deleteUserMaster(userId) {
+      const user = findUserById(userId);
+      const userName = user ? user.name : 'この利用者';
+      const confirmed = window.confirm(`⚠️【利用者の削除確認】\n\n利用者「${userName}」を本当にマスタから削除しますか？\n\n※誤って削除ボタンを押した場合は「キャンセル」を押してください。\n※「OK」を押した場合でも、直前の自動バックアップから復元可能です。`);
+      if (!confirmed) return;
+
+      saveUserMasterBackup(); // 削除直前の自動バックアップ
       AppState.userMaster = AppState.userMaster.filter(u => format10DigitId(u.id) !== format10DigitId(userId));
+
+      // 各施設の所属利用者IDリストも同期
+      if (AppState.facilities && typeof AppState.facilities === 'object') {
+        Object.keys(AppState.facilities).forEach(fId => {
+          const fUsers = AppState.userMaster.filter(usr => getUserFacilityId(usr) === fId);
+          if (AppState.activeUsersPerFacility) {
+            AppState.activeUsersPerFacility[fId] = fUsers.map(usr => usr.id);
+          }
+        });
+      }
+
       saveStateToLocalStorage();
       renderAllViews();
-      showToast('利用者を削除しました', 'info');
+      showToast(`利用者「${userName}」を削除しました（直前バックアップ保存済）`, 'info');
     }
 
     // --- 全施設データ点検・所属変更機能 ---
@@ -23828,6 +24126,577 @@
       }
     }
 
+
+    // ==========================================
+    // フリガナ正規化・姓名辞書・自動推測・五十音順ソートエンジン
+    // ==========================================
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // 既存236名の完全一致フルネーム辞書（100%完全フリガナ）
+    const KNOWN_EXACT_NAME_KANA_MAP = {
+      "青木浩": "アオキ ヒロシ",
+      "赤津和子": "アカツ カズコ",
+      "安西久": "アンザイ ヒサシ",
+      "安西優美子": "アンザイ ユミコ",
+      "岩本紀子": "イワモト ノリコ",
+      "上野利茂": "ウエノ トシシゲ",
+      "岡田英子": "オカダ エイコ",
+      "小野マサ": "オノ マサ",
+      "加藤拓男": "カトウ タクオ",
+      "門脇詠子": "カドワキ エイコ",
+      "木田フミ": "キダ フミ",
+      "紺野秀夫": "コンノ ヒデオ",
+      "坂本セイ子": "サカモト セイコ",
+      "佐久間サト子": "サクマ サトコ",
+      "佐藤郷": "サトウ ゴウ",
+      "佐藤大右": "サトウ ダイスケ",
+      "鈴木喜久子": "スズキ キクコ",
+      "鈴木武義": "スズキ タケヨシ",
+      "髙木周": "タカギ シュウ",
+      "高木周": "タカギ シュウ",
+      "髙澤ツネ子": "タカザワ ツネコ",
+      "千代住初枝": "チヨズミ ハツエ",
+      "長澤映子": "ナガサワ エイコ",
+      "長沢映子": "ナガサワ エイコ",
+      "中平武志": "ナカダイラ タケシ",
+      "錦織壽子": "ニシキオリ トシコ",
+      "錦織寿子": "ニシキオリ トシコ",
+      "西田紀子": "ニシダ ノリコ",
+      "林光夫": "ハヤシ ミツオ",
+      "桝井てる": "マスイ テル",
+      "三浦洋子": "ミウラ ヨウコ",
+      "緑川邦子": "ミドリカワ クニコ",
+      "目黒輝子": "メグロ テルコ",
+      "森惠子": "モリ ケイコ",
+      "森恵子": "モリ ケイコ",
+      "横山元雄": "ヨコヤマ モトオ",
+      "吉田恭子": "ヨシダ キョウコ",
+      "吉田孝子": "ヨシダ タカコ",
+      "吉田友子": "ヨシダ トモコ",
+      "渡邉恊子": "ワタナベ キョウコ",
+      "渡辺恊子": "ワタナベ キョウコ",
+      "秋元洋子": "アキモト ヨウコ",
+      "芦間キミ": "アシマ キミ",
+      "大瀧フミ子": "オオタキ フミコ",
+      "大滝フミ子": "オオタキ フミコ",
+      "小野田昌代": "オノダ マサヨ",
+      "久保仁子": "クボ ヒトコ",
+      "佐々木幸子": "ササキ サチコ",
+      "佐藤節子": "サトウ セツコ",
+      "鈴木茂登子": "スズキ モトコ",
+      "戸田キミ子": "トダ キミコ",
+      "中川千代枝": "ナカガワ チヨエ",
+      "芳賀徳子": "ハガ トクコ",
+      "蛭田ヤス子": "ヒルタ ヤスコ",
+      "緑川志津子": "ミドリカワ シヅコ",
+      "森島とき子": "モリシマ トキコ",
+      "山口喜久子": "ヤマグチ キクコ",
+      "吉田スミ": "ヨシダ スミ",
+      "渡邉満子": "ワタナベ ミツコ",
+      "渡辺満子": "ワタナベ ミツコ",
+      "會田津子": "アイダ ツコ",
+      "会田津子": "アイダ ツコ",
+      "青木ナヲ": "アオキ ナオ",
+      "浅尾英子": "アサオ エイコ",
+      "芦名キヨ子": "アシナ キヨコ",
+      "安島千代": "アジマ チヨ",
+      "安彦勝弥": "アビコ カツヤ",
+      "阿部ミサ子": "アベ ミサコ",
+      "荒川昭子": "アラカワ アキコ",
+      "井坂豊子": "イサカ トヨコ",
+      "石井敏男": "イシイ トシオ",
+      "石川幹雄": "イシカワ ミキオ",
+      "磯野成子": "イソノ シゲコ",
+      "岩間嘉江": "イワマ ヨシエ",
+      "上野代久夫": "ウエノダイ ヒサオ",
+      "宇佐神陪子": "ウサガミ トモコ",
+      "岡田武彦": "オカダ タケヒコ",
+      "岡部恵美子": "オカベ エミコ",
+      "小野ミサヲ": "オノ ミサオ",
+      "小宅東一": "オヤケ トウイチ",
+      "金成記代子": "カンナリ キヨコ",
+      "川村ハツエ": "カワムラ ハツエ",
+      "木田タカ子": "キダ タカコ",
+      "木村タカ": "キムラ タカ",
+      "草野アサ子": "クサノ アサコ",
+      "國定美惠子": "クニサダ ミエコ",
+      "国定美恵子": "クニサダ ミエコ",
+      "熊田えさよ": "クマダ エサヨ",
+      "小池英弘": "コイケ ヒデヒロ",
+      "古頭武": "コトウ タケシ",
+      "近野喜一": "コンノ キイチ",
+      "斎藤順子": "サイトウ ジュンコ",
+      "齋藤常夫": "サイトウ ツネオ",
+      "斉藤常夫": "サイトウ ツネオ",
+      "佐川百枝": "サガワ モモエ",
+      "佐藤光子": "サトウ ミツコ",
+      "柴田幸一": "シバタ コウイチ",
+      "島田キヌ子": "シマダ キヌコ",
+      "清水悦子": "シミズ エツコ",
+      "清水勝": "シミズ マサル",
+      "下山田孟安": "シモヤマダ モリヤス",
+      "末廣治久": "スエヒロ ハルヒサ",
+      "末広治久": "スエヒロ ハルヒサ",
+      "助川明子": "スケガワ アキコ",
+      "助川初子": "スケガワ ハツコ",
+      "鈴木仙藏": "スズキ センゾウ",
+      "鈴木仙蔵": "スズキ センゾウ",
+      "鈴木武雄": "スズキ タケオ",
+      "鈴木政子": "スズキ マサコ",
+      "鈴木迪子": "スズキ ミチコ",
+      "鈴木三代子": "スズキ ミヨコ",
+      "鈴村正春": "スズムラ マサハル",
+      "高木静香": "タカギ シズカ",
+      "髙木俊雄": "タカギ トシオ",
+      "高木俊雄": "タカギ トシオ",
+      "高橋すみ子": "タカハシ スミコ",
+      "髙橋弘子": "タカハシ ヒロコ",
+      "高橋弘子": "タカハシ ヒロコ",
+      "田子谷節子": "タゴヤ セツコ",
+      "舘信子": "タチ ノブコ",
+      "田邊喜通": "タナベ ヨシミチ",
+      "田辺喜通": "タナベ ヨシミチ",
+      "西田サタ子": "ニシダ サタコ",
+      "西田澄子": "ニシダ スミコ",
+      "西牧弘子": "ニシマキ ヒロコ",
+      "橋本全三郎": "ハシモト ゼンザブロウ",
+      "樋口ふみ子": "ヒグチ フミコ",
+      "蛭田光雄": "ヒルタ ミツオ",
+      "藤沢定子": "フジサワ サダコ",
+      "松﨑英子": "マツザキ エイコ",
+      "松崎英子": "マツザキ エイコ",
+      "緑川任和": "ミドリカワ タダカズ",
+      "港繁夫": "ミナト シゲオ",
+      "村越保典": "ムラコシ ヤスノリ",
+      "村田久美子": "ムラタ クミコ",
+      "森シゲル": "モリ シゲル",
+      "八重樫京子": "ヤエガシ キョウコ",
+      "八重樫シツエ": "ヤエガシ シツエ",
+      "山口幸子": "ヤマグチ サチコ",
+      "山口由美子": "ヤマグチ ユミコ",
+      "山崎富美": "ヤマザキ フミ",
+      "山野辺君子": "ヤマノベ キミコ",
+      "吉田正子": "ヨシダ マサコ",
+      "渡邉勝美": "ワタナベ カツミ",
+      "渡辺勝美": "ワタナベ カツミ",
+      "渡邉民夫": "ワタナベ タミオ",
+      "渡辺民夫": "ワタナベ タミオ",
+      "渡邉要一": "ワタナベ ヨウイチ",
+      "渡辺要一": "ワタナベ ヨウイチ",
+      "安島正人": "アジマ マサト",
+      "五十嵐節子": "イガラシ セツコ",
+      "石井昭子": "イシイ アキコ",
+      "上杉友子": "ウエスギ トモコ",
+      "及川茂樹": "オイカワ シゲキ",
+      "大井川正弘": "オオイガワ マサヒロ",
+      "金成京子": "カンナリ キョウコ",
+      "鎌田トシ子": "カマダ トシコ",
+      "菅野征子": "カンノ セイコ",
+      "菊地喜惠子": "キクチ キエコ",
+      "菊池喜恵子": "キクチ キエコ",
+      "木村清治": "キムラ セイジ",
+      "郡司圭": "グンジ ケイ",
+      "小松敬子": "コマツ ケイコ",
+      "牛来照雄": "ゴライ テルオ",
+      "坂本実": "サカモト ミノル",
+      "三瓶道教": "サンペイ ミチノリ",
+      "島田民子": "シマダ タミコ",
+      "鈴木健三": "スズキ ケンゾウ",
+      "鈴木ひろ子": "スズキ ヒロコ",
+      "高木タカ子": "タカギ タカコ",
+      "谷平みき": "タニヒラ ミキ",
+      "田村正": "タムラ タダシ",
+      "田幸子": "デン サチコ",
+      "樋田信子": "トヨダ ノブコ",
+      "中塚ケイ": "ナカツカ ケイ",
+      "苗代ヨシノ": "ナエシロ ヨシノ",
+      "新妻力": "ニイツマ ツトム",
+      "新妻徳男": "ニイツマ ノリオ",
+      "沼田隆吉": "ヌマタ リュウキチ",
+      "根本定昭": "ネモト サダアキ",
+      "芳賀八恵子": "ハガ ヤエコ",
+      "芳賀幸男": "ハガ ユキオ",
+      "坂内チヱ": "バンナイ チエ",
+      "蛭田正廣": "ヒルタ マサヒロ",
+      "蛭田正広": "ヒルタ マサヒロ",
+      "三浦春男": "ミウラ ハルオ",
+      "皆川太門": "ミナガワ タイモン",
+      "村上俊一": "ムラカミ シュンイチ",
+      "森山淳子": "モリヤマ ジュンコ",
+      "渡部テツ子": "ワタナベ テツコ",
+      "渡部光男": "ワタナベ ミツオ",
+      "赤津イツ子": "アカツ イツコ",
+      "赤津トシヱ": "アカツ トシエ",
+      "赤津文子": "アカツ フミコ",
+      "石原惠子": "イシハラ ケイコ",
+      "石原恵子": "イシハラ ケイコ",
+      "市村サタ": "イチムラ サタ",
+      "伊藤明": "イトウ アキラ",
+      "伊藤雅水": "イトウ マサミ",
+      "猪村武": "イノムラ タケシ",
+      "江川末子": "エガワ スエコ",
+      "遠藤美智子": "エンドウ ミチコ",
+      "大貝ツギ子": "オオガイ ツギコ",
+      "大河内幸子": "オオコウチ サチコ",
+      "大友友子": "オオトモ トモコ",
+      "大平定枝": "オオヒラ サダエ",
+      "大平美代子": "オオヒラ ミヨコ",
+      "小野和子": "オノ カズコ",
+      "小野ヒメ子": "オ野 ヒメコ",
+      "加藤陽子": "カトウ ヨウコ",
+      "櫛田文子": "クシダ フミコ",
+      "久野康子": "クノ ヤスコ",
+      "小早川芳江": "コバヤカワ ヨシエ",
+      "近藤宏昭": "コンドウ ヒロアキ",
+      "今野トヨ": "コンノ トヨ",
+      "財田千代美": "サイタ チヨミ",
+      "斉藤榮子": "サイトウ エイコ",
+      "斎藤栄子": "サイトウ エイコ",
+      "佐藤健壽": "サトウ ケンジ",
+      "佐藤健寿": "サトウ ケンジ",
+      "佐藤サト": "サトウ サト",
+      "佐藤フク子": "サトウ フクコ",
+      "菅橋のり子": "スガハシ ノリコ",
+      "鈴木恭子": "スズキ キョウコ",
+      "鈴木敬子": "スズキ ケイコ",
+      "鈴木袈裟": "スズキ ケサ",
+      "鈴木豊子": "スズキ トヨコ",
+      "鈴木文男": "スズキ フミオ",
+      "鈴木吉子": "スズキ ヨシコ",
+      "鈴木亮": "スズキ リョウ",
+      "須田ミチ子": "スダ ミチコ",
+      "竹内正子": "タケウチ マサコ",
+      "武田桂子": "タケダ ケイコ",
+      "竹田利枝": "タケダ トシエ",
+      "冨山サダ子": "トミヤマ サダコ",
+      "富山サダ子": "トミヤマ サダコ",
+      "中丸弘子": "ナカマル ヒロコ",
+      "青天目慶子": "ナバタメ ケイコ",
+      "根本和子": "ネモト カズコ",
+      "橋本ヨシ": "ハシモト ヨシ",
+      "平山義昌": "ヒラヤマ ヨシマサ",
+      "蛭田和子": "ヒルタ カズコ",
+      "蛭田實惠子": "ヒルタ ミエコ",
+      "蛭田実恵子": "ヒルタ ミエコ",
+      "廣瀬透": "ヒロセ トオル",
+      "広瀬透": "ヒロセ トオル",
+      "藤田繁七": "フジタ シゲシチ",
+      "藤原貞吉": "フジワラ サダキチ",
+      "松沼玉子": "マツヌマ タマコ",
+      "緑川禮子": "ミドリカワ レイコ",
+      "緑川礼子": "ミドリカワ レイコ",
+      "馬上輝子": "モウエ テルコ",
+      "森弘子": "モリ ヒロコ",
+      "柳原眞佐子": "ヤナギハラ マサコ",
+      "柳原真佐子": "ヤナギハラ マサコ",
+      "山口愛子": "ヤマグチ アイコ",
+      "山田千代子": "ヤマダ チヨコ",
+      "吉田ユキ子": "ヨシダ ユキコ",
+      "若林京": "ワカバヤシ キョウ",
+      "鷲嶽寛道": "ワシダケ カンドウ",
+      "渡邊イツ子": "ワタナベ イツコ",
+      "渡辺イツ子": "ワタナベ イツコ",
+      "渡邊浩三": "ワタナベ コウゾウ",
+      "渡辺浩三": "ワタナベ コウゾウ",
+      "武内幸子": "タケウチ サチコ",
+      "伊東春江": "イトウ ハルエ",
+      "濱田邦子": "ハマダ クニコ",
+      "浜田邦子": "ハマダ クニコ"
+};
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function normalizeToKatakana(str) {
+      if (!str) return '';
+      let s = String(str).trim();
+      const halfMap = {
+        'ｶﾞ': 'ガ', 'ｷﾞ': 'ギ', 'ｸﾞ': 'グ', 'ｹﾞ': 'ゲ', 'ｺﾞ': 'ゴ',
+        'ｻﾞ': 'ザ', 'ｼﾞ': 'ジ', 'ｽﾞ': 'ズ', 'ｾﾞ': 'ゼ', 'ｿﾞ': 'ゾ',
+        'ﾀﾞ': 'ダ', 'ﾁﾞ': 'ヂ', 'ﾂﾞ': 'ヅ', 'ﾃﾞ': 'デ', 'ﾄﾞ': 'ド',
+        'ﾊﾞ': 'バ', 'ﾋﾞ': 'ビ', 'ﾌﾞ': 'ブ', 'ﾍﾞ': 'ベ', 'ﾎﾞ': 'ボ',
+        'ﾊﾟ': 'パ', 'ﾋﾟ': 'ピ', 'ﾌﾟ': 'プ', 'ﾍﾟ': 'ペ', 'ﾎﾟ': 'ポ',
+        'ｳﾞ': 'ヴ',
+        'ｱ': 'ア', 'ｲ': 'イ', 'ｳ': 'ウ', 'ｴ': 'エ', 'ｵ': 'オ',
+        'ｶ': 'カ', 'ｷ': 'キ', 'ｸ': 'ク', 'ｹ': 'ケ', 'ｺ': 'コ',
+        'ｻ': 'サ', 'ｼ': 'シ', 'ｽ': 'ス', 'ｾ': 'セ', 'ｿ': 'ソ',
+        'ﾀ': 'タ', 'ﾁ': 'チ', 'ﾂ': 'ツ', 'ﾃ': 'テ', 'ﾄ': 'ト',
+        'ﾅ': 'ナ', 'ﾆ': 'ニ', 'ﾇ': 'ヌ', 'ﾈ': 'ネ', 'ﾉ': 'ノ',
+        'ﾊ': 'ハ', 'ﾋ': 'ヒ', 'ﾌ': 'フ', 'ﾍ': 'ヘ', 'ﾎ': 'ホ',
+        'ﾏ': 'マ', 'ﾐ': 'ミ', 'ﾑ': 'ム', 'ﾒ': 'メ', 'ﾓ': 'モ',
+        'ﾔ': 'ヤ', 'ﾕ': 'ユ', 'ﾖ': 'ヨ',
+        'ﾗ': 'ラ', 'ﾘ': 'リ', 'ﾙ': 'ル', 'ﾚ': 'レ', 'ﾛ': 'ロ',
+        'ﾜ': 'ワ', 'ｦ': 'ヲ', 'ﾝ': 'ン',
+        'ｧ': 'ァ', 'ｨ': 'ィ', 'ｩ': 'ゥ', 'ｪ': 'ェ', 'ｫ': 'ォ',
+        'ｯ': 'ッ', 'ｬ': 'ャ', 'ｭ': 'ュ', 'ｮ': 'ョ',
+        'ｰ': 'ー', '･': '・'
+      };
+      for (const [k, v] of Object.entries(halfMap)) {
+        s = s.split(k).join(v);
+      }
+      s = s.replace(/[ぁ-ゖ]/g, ch => String.fromCharCode(ch.charCodeAt(0) + 0x60));
+      s = s.replace(/[\s　]+/g, ' ').replace(/様+$/g, '').trim();
+      return s;
+    }
+
+    const COMMON_SURNAME_KANA_MAP = {
+      '佐藤': 'サトウ', '鈴木': 'スズキ', '高橋': 'タカハシ', '田中': 'タナカ', '渡辺': 'ワタナベ',
+      '渡部': 'ワタナベ', '伊藤': 'イトウ', '山本': 'ヤマモト', '中村': 'ナカムラ', '小林': 'コバヤシ',
+      '加藤': 'カトウ', '吉田': 'ヨシダ', '山田': 'ヤマダ', '佐々木': 'ササキ', '山口': 'ヤマグチ',
+      '松本': 'マツモト', '井上': 'イノウエ', '木村': 'キムラ', '林': 'ハヤシ', '斎藤': 'サイトウ',
+      '斉藤': 'サイトウ', '清水': 'シミズ', '山崎': 'ヤマザキ', '森': 'モリ', '池田': 'イケダ',
+      '橋本': 'ハシモト', '阿部': 'アベ', '安倍': 'アベ', '石川': 'イシカワ', '山下': 'ヤマシタ',
+      '中島': 'ナカジマ', '石井': 'イシイ', '小川': 'オガワ', '前田': 'マエダ', '岡田': 'オカダ',
+      '長谷川': 'ハセガワ', '藤田': 'フジタ', '後藤': 'ゴトウ', '近藤': 'コンドウ', '村上': 'ムラカミ',
+      '遠藤': 'エンドウ', '青木': 'アオキ', '坂本': 'サカモト', '福田': 'フクダ', '西村': 'ニシムラ',
+      '藤井': 'フジイ', '太田': 'オオタ', '三浦': 'ミウラ', '藤原': 'フジワラ', '岡本': 'オカモト',
+      '松田': 'マツダ', '中川': 'ナカガワ', '中野': 'ナカ野', '原田': 'ハラダ', '小野': 'オノ',
+      '田村': 'タムラ', '竹内': 'タケウチ', '金子': 'カネコ', '和田': 'ワダ', '中山': 'ナカヤマ',
+      '石田': 'イシダ', '上田': 'ウエダ', '森田': 'モリタ', '原': 'ハラ', '柴田': 'シバタ',
+      '酒井': 'サカイ', '工藤': 'クドウ', '横山': 'ヨコヤマ', '宮崎': 'ミヤザキ', '宮本': 'ミヤモト',
+      '内田': 'ウチダ', '高木': 'タカギ', '安藤': 'アンドウ', '島田': 'シマダ', '谷口': 'タニグチ',
+      '大野': 'オオノ', '高田': 'タカダ', '丸山': 'マルヤマ', '今井': 'イマイ', '河野': 'コウノ',
+      '藤本': 'フジモト', '村田': 'ムラタ', '武田': 'タケダ', '上野': 'ウエノ', '杉山': 'スギヤマ',
+      '千葉': 'チバ', '菅原': 'スガワラ', '久保': 'クボ', '松井': 'マツイ', '小池': 'コイケ',
+      '岩崎': 'イワサキ', '桜井': 'サクライ', '木下': 'キノシタ', '野口': 'ノグチ', '野村': 'ノムラ',
+      '菊地': 'キクチ', '菊池': 'キクチ', '佐野': 'サノ', '大西': 'オオニシ', '杉本': 'スギモト',
+      '新井': 'アライ', '浜田': 'ハマダ', '市川': 'イチカワ', '水野': 'ミズノ', '古川': 'フルカワ',
+      '辻': 'ツジ', '馬場': 'ババ', '土屋': 'ツチヤ', '関': 'セキ', '郡司': 'グンジ',
+      '関根': 'セキネ', '荒井': 'アライ', '荒木': 'アラキ', '増田': 'マスダ', '矢野': 'ヤノ',
+      '松岡': 'マツオカ', '片山': 'カタヤマ', '平野': 'ヒラノ', '望月': 'モチヅキ', '小島': 'コジマ',
+      '吉川': 'ヨシカワ', '平井': 'ヒライ', '本田': 'ホンダ', '栗原': 'クリハラ', '飯塚': 'イイヅカ',
+      '小野寺': 'オノデラ', '吉村': 'ヨシムラ', '白石': 'シライシ', '今泉': 'イマイズミ', '大島': 'オオシマ',
+      '永井': 'ナガイ', '星野': 'ホシノ', '角田': 'ツノダ', '松尾': 'マツオ', '大久保': 'オオクボ',
+      '服部': 'ハットリ', '田口': 'タグチ', '川崎': 'カワサキ', '飯田': 'イイダ', '西田': 'ニシダ',
+      '久保田': 'クボタ', '石原': 'イシハラ', '川上': 'カワカミ', '樋口': 'ヒグチ', '松下': 'マツシタ',
+      '福島': 'フクシマ', '安田': 'ヤスダ', '秋山': 'アキヤマ', '南': 'ミナミ', '森本': 'モリモト',
+      '吉岡': 'ヨシオカ', '小山': 'オヤマ', '堀': 'ホリ', '奥村': 'オクムラ', '岩田': 'イワタ',
+      '菅野': 'カンノ', '成田': 'ナリタ', '宮田': 'ミヤタ', '平田': 'ヒラタ', '川口': 'カワグチ',
+      '関口': 'セキグチ', '神谷': 'カミヤ', '大塚': 'オオツカ', '西山': 'ニシヤマ', '長野': 'ナガノ',
+      '広瀬': 'ヒロセ', '浅野': 'アサノ', '矢島': 'ヤジマ', '小泉': 'コイズミ', '鎌田': 'カマダ',
+      '岩本': 'イワモト', '大石': 'オオイシ', '熊谷': 'クマガイ', '川村': 'カワムラ', '大森': 'オオモリ',
+      '小松': 'コマツ', '吉野': 'ヨシノ', '矢吹': 'ヤブキ', '須藤': 'スドウ', '田代': 'タシロ',
+      '三好': 'ミヨシ', '植田': 'ウエダ', '大橋': 'オオハシ', '堀内': 'ホリウチ', '白井': 'シライ',
+      '向井': 'ムカイ', '永田': 'ナガタ', '庄司': 'ショウジ', '内山': 'ウチヤマ', '西川': 'ニシカワ',
+      '福井': 'フクイ', '早川': 'ハヤカワ', '富田': 'トミタ', '高山': 'タカヤマ', '中沢': 'ナカザワ',
+      '相沢': 'アイザワ', '相澤': 'アイザワ', '豊田': 'トヨダ', '米田': 'ヨネダ', '大谷': 'オオタニ',
+      '戸田': 'トダ', '平山': 'ヒラヤマ', '黒田': 'クロダ', '尾崎': 'オザキ', '武藤': 'ムトウ',
+      '山根': 'ヤマネ', '江口': 'エグチ', '三宅': 'ミヤケ', '吉原': 'ヨシハラ', '三木': 'ミキ',
+      '手塚': 'テヅカ', '篠原': 'シノハラ', '北川': 'キタガワ', '北野': 'キタノ', '小森': 'コモリ',
+      '本間': 'ホンマ', '長尾': 'ナガオ', '細川': 'ホソカワ', '土井': 'ドイ', '安部': 'アベ',
+      '宮下': 'ミヤシタ', '亀井': 'カメイ', '多田': 'タダ', '中井': 'ナカイ', '金井': 'カナイ',
+      '及川': 'オイカワ', '塚本': 'ツカモト', '三上': 'ミカミ', '奥田': 'オクダ', '野中': 'ノナカ',
+      '高野': 'タカ野', '細野': 'ホソノ', '大城': 'オオシロ', '金城': 'キンジョウ', '比嘉': 'ヒガ',
+      '島袋': 'シマブクロ', '萩原': 'ハギワラ', '津田': 'ツダ', '沼田': 'ヌマタ', '横田': 'ヨコタ',
+      '野沢': 'ノザワ', '岡崎': 'オカザキ', '河合': 'カワイ', '小西': 'コニシ', '古賀': 'コガ',
+      '牧野': 'マキノ', '日高': 'ヒダカ', '塩田': 'シオダ', '深沢': 'フカザワ', '深澤': 'フカザワ',
+      '大沢': 'オオサワ', '大澤': 'オオサワ', '立花': 'タチバナ', '笠原': 'カサハラ', '笠井': 'カサイ',
+      '関谷': 'セキヤ', '小出': 'コイデ', '柳沢': 'ヤナギサワ', '柳澤': 'ヤナギサワ', '飯野': 'イイノ',
+      '村松': 'ムラマツ', '大平': 'オオヒラ', '金山': 'カナヤマ', '岩瀬': 'イワセ', '堀口': 'ホリグチ',
+      '平林': 'ヒラバヤシ', '川端': 'カワバタ', '高瀬': 'タカセ', '町田': 'マチダ', '赤松': 'アカマツ',
+      '赤木': 'アカギ', '足立': 'アダチ', '天野': 'アマノ', '有田': 'アリタ', '安西': 'アンザイ',
+      '飯島': 'イイジマ', '生田': 'イクタ', '石黒': 'イシグロ', '石崎': 'イシザキ', '石橋': 'イシバシ',
+      '磯野': 'イソノ', '一ノ瀬': 'イチノセ', '稲垣': 'イナガキ', '稲田': 'イナダ', '稲葉': 'イナバ',
+      '井口': 'イグチ', '入江': 'イリエ', '岩下': 'イワシタ', '岩野': 'イワノ', '植木': 'ウエキ',
+      '植松': 'ウエマツ', '植村': 'ウエムラ', '宇野': 'ウノ', '梅田': 'ウメダ', '江崎': 'エザキ',
+      '遠山': 'トオヤマ', '大内': 'オオウチ', '大木': 'オオキ', '大滝': 'オオタキ', '大竹': 'オオタケ',
+      '大友': 'オオトモ', '大沼': 'オオヌマ', '大畑': 'オオハタ', '大原': 'オオハラ', '大町': 'オオマチ',
+      '大矢': 'オオヤ', '大和田': 'オオワダ', '荻野': 'オギノ', '奥山': 'オクヤマ', '越智': 'オチ',
+      '落合': 'オチアイ', '尾高': 'オダカ', '小野田': 'オノダ', '甲斐': 'カイ', '風間': 'カザマ',
+      '笠松': 'カサマツ', '梶原': 'カジワラ', '柏木': 'カシワギ', '春日': 'カスガ', '片岡': 'カタオカ',
+      '勝田': 'カツタ', '加納': 'カノウ', '上原': 'ウエハラ', '上村': 'カミムラ', '神尾': 'カミオ',
+      '狩野': 'カノウ', '川合': 'カワイ', '川島': 'カワシマ', '川名': 'カワナ', '川原': 'カワハラ',
+      '川本': 'カワモト', '菅': 'スガ', '木内': 'キウチ', '北原': 'キタハラ', '北見': 'キタミ',
+      '草野': 'クサノ', '久野': 'クノ', '熊沢': 'クマザワ', '栗田': 'クリタ', '黒川': 'クロカワ',
+      '黒木': 'クロキ', '小暮': 'コグレ', '小坂': 'コサカ', '児玉': 'コダマ', '小堀': 'コボリ',
+      '小宮': 'コミヤ', '斎木': 'サイキ', '坂井': 'サカイ', '坂口': 'サカグチ', '坂田': 'サカタ',
+      '坂野': 'サカノ', '鷺': 'サギ', '笹井': 'ササイ', '佐竹': 'サタケ', '里見': 'サトミ',
+      '沢田': 'サワダ', '塩野': 'シオノ', '宍戸': 'シシド', '信田': 'シダ', '篠崎': 'シノザキ',
+      '嶋田': 'シマダ', '下川': 'シモカワ', '下田': 'シモダ', '白鳥': 'シラトリ', '神保': 'ジンボ',
+      '末吉': 'スエヨシ', '杉浦': 'スギウラ', '杉田': 'スギタ', '杉原': 'スギハラ', '杉村': 'スギムラ',
+      '角': 'スミ', '住吉': 'スミヨシ', '諏訪': 'スワ', '瀬川': 'セガワ', '瀬戸': 'セト',
+      '芹沢': 'セリザワ', '園田': 'ソノダ', '平': 'タイラ', '高石': 'タカイシ', '高井': 'タカイ',
+      '高岡': 'タカオカ', '高島': 'タカシマ', '高津': 'タカツ', '高村': 'タカムラ', '滝口': 'タキグチ',
+      '滝沢': 'タキザワ', '滝本': 'タキモト', '竹井': 'タケイ', '竹下': 'タケシタ', '竹田': 'タケダ',
+      '武井': 'タケイ', '立石': 'タテイシ', '谷': 'タニ', '谷川': 'タニガワ', '谷本': 'タニモト',
+      '田原': 'タハラ', '田辺': 'タナベ', '玉井': 'タマイ', '玉木': 'タマキ', '千代': 'チヨ',
+      '塚原': 'ツカハラ', '津島': 'ツシマ', '土田': 'ツチダ', '坪井': 'ツボイ', '鶴田': 'ツルタ',
+      '寺田': 'テラダ', '寺本': 'テラモト', '土居': 'ドイ', '戸塚': 'トツカ', '富樫': 'トガシ',
+      '戸部': 'トベ', '友田': 'トモダ', '鳥居': 'トリイ', '直井': 'ナオイ', '永島': 'ナガシマ',
+      '永野': 'ナガノ', '中西': 'ナカニシ', '中根': 'ナカネ', '長岡': 'ナガオカ', '長坂': 'ナガサカ',
+      '長沼': 'ナガヌマ', '長峰': 'ナガミネ', '名取': 'ナトリ', '並木': 'ナミキ', '楢崎': 'ナラザキ',
+      '新田': 'ニッタ', '二宮': 'ニノミヤ', '根本': 'ネモト', '野末': 'ノズエ', '野原': 'ノハラ',
+      '萩野': 'ハギノ', '羽柴': 'ハシバ', '橋爪': 'ハシヅメ', '蓮見': 'ハスミ', '長谷': 'ハセ',
+      '畑': 'ハタ', '畠山': 'ハタケヤマ', '花井': 'ハナイ', '花岡': 'ハナオカ', '早坂': 'ハヤサカ',
+      '林田': 'ハヤシダ', '原島': 'ハラシマ', '伴': 'バン', '日野': 'ヒノ', '平塚': 'ヒラツカ',
+      '平松': 'ヒラマツ', '広田': 'ヒロタ', '深井': 'フカイ', '福原': 'フクハラ', '福本': 'フクモト',
+      '藤': 'フジ', '藤江': 'フジエ', '藤川': 'フジカワ', '藤木': 'フジキ', '藤野': 'フジノ',
+      '藤村': 'フジムラ', '船木': 'フナキ', '古市': 'フルイチ', '古田': 'フルタ', '保坂': 'ホサカ',
+      '星': 'ホシ', '細井': 'ホソイ', '細田': 'ホソダ', '堀江': 'ホリエ', '本多': 'ホンダ',
+      '前川': 'マエカワ', '前島': 'マエジマ', '前原': 'マエハラ', '真木': 'マキ', '益田': 'マスダ',
+      '松木': 'マツキ', '松沢': 'マツザワ', '松島': 'マツシマ', '松野': 'マツノ', '松原': 'マツバラ',
+      '松村': 'マツムラ', '丸井': 'マルイ', '三島': 'ミシマ', '水谷': 'ミズタニ', '水原': 'ミズハラ',
+      '水町': 'ミズマチ', '皆川': 'ミナガワ', '三橋': 'ミツハシ', '宮川': 'ミヤカワ', '宮坂': 'ミヤサカ',
+      '宮沢': 'ミヤザワ', '宮原': 'ミヤハラ', '深山': 'ミヤマ', '三輪': 'ミワ', '武蔵': 'ムサシ',
+      '村山': 'ムラヤマ', '毛利': 'モウリ', '茂木': 'モテギ', '森川': 'モリカワ', '森下': 'モリシタ',
+      '森山': 'モリヤマ', '諸岡': 'モロオカ', '八木': 'ヤギ', '八代': 'ヤシロ', '安井': 'ヤスイ',
+      '安原': 'ヤスハラ', '柳': 'ヤナギ', '矢部': 'ヤベ', '山内': 'ヤマウチ', '山岡': 'ヤマオカ',
+      '山岸': 'ヤマギシ', '山中': 'ヤマナカ', '湯浅': 'ユアサ', '弓削': 'ユゲ', '横井': 'ヨコイ',
+      '横川': 'ヨコカワ', '吉井': 'ヨシイ', '吉成': 'ヨシナリ', '吉本': 'ヨシモト', '米山': 'ヨネヤマ',
+      '若林': 'ワカバヤシ', '若松': 'ワカマツ', '脇田': 'ワキタ', '和久井': 'ワクイ', '鷲見': 'スミ',
+      // いわき地域・特徴的名字および異体字追加
+      '赤津': 'アカツ', '門脇': 'カドワキ', '紺野': 'コンノ', '佐久間': 'サクマ',
+      '髙木': 'タカギ', '髙澤': 'タカザワ', '千代住': 'チヨズミ', '長澤': 'ナガサワ',
+      '中平': 'ナカダイラ', '錦織': 'ニシキオリ', '桝井': 'マスイ', '緑川': 'ミドリカワ',
+      '目黒': 'メグロ', '渡邉': 'ワタナベ', '秋元': 'アキモト', '芦間': 'アシマ',
+      '大瀧': 'オオタキ', '小野田': 'オノダ', '芳賀': 'ハガ', '蛭田': 'ヒルタ',
+      '森島': 'モリシマ', '會田': 'アイダ', '会田': 'アイダ', '浅尾': 'アサオ',
+      '芦名': 'アシナ', '安島': 'アジマ', '安彦': 'アビコ', '荒川': 'アラカワ',
+      '井坂': 'イサカ', '岩間': 'イワマ', '上野代': 'ウエノダイ', '宇佐神': 'ウサガミ',
+      '岡部': 'オカベ', '小宅': 'オヤケ', '金成': 'カンナリ', '國定': 'クニサダ',
+      '熊田': 'クマダ', '古頭': 'コトウ', '近野': 'コンノ', '佐川': 'サガワ',
+      '下山田': 'シモヤマダ', '末廣': 'スエヒロ', '助川': 'スケガワ', '鈴木': 'スズキ',
+      '鈴村': 'スズムラ', '田子谷': 'タゴヤ', '舘': 'タチ', '田邊': 'タナベ',
+      '西牧': 'ニシマキ', '松﨑': 'マツザキ', '港': 'ミナト', '村越': 'ムラコシ',
+      '八重樫': 'ヤエガシ', '山野辺': 'ヤマノベ', '五十嵐': 'イガラシ', '上杉': 'ウエスギ',
+      '大井川': 'オオイガワ', '牛来': 'ゴライ', '三瓶': 'サンペイ', '谷平': 'タニヒラ',
+      '田': 'デン', '樋田': 'トヨダ', '中塚': 'ナカツカ', '苗代': 'ナエシロ',
+      '新妻': 'ニイツマ', '坂内': 'バンナイ', '森山': 'モリヤマ', '市村': 'イチムラ',
+      '猪村': 'イノムラ', '江川': 'エガワ', '大貝': 'オオガイ', '大河内': 'オオコウチ',
+      '櫛田': 'クシダ', '小早川': 'コバヤカワ', '財田': 'サイタ', '菅橋': 'スガハシ',
+      '須田': 'スダ', '冨山': 'トミヤマ', '中丸': 'ナカマル', '青天目': 'ナバタメ',
+      '廣瀬': 'ヒロセ', '松沼': 'マツヌマ', '馬上': 'モウエ', '柳原': 'ヤナギハラ',
+      '若林': 'ワカバヤシ', '鷲嶽': 'ワシダケ', '武内': 'タケウチ', '伊東': 'イトウ',
+      '濱田': 'ハマダ',
+    };
+
+    // 主要なお名前（下の名前）辞書
+    const COMMON_GIVEN_NAME_KANA_MAP = {
+      '浩': 'ヒロシ', '和子': 'カズコ', '久': 'ヒサシ', '優美子': 'ユミコ', '紀子': 'ノリコ',
+      '利茂': 'トシシゲ', '英子': 'エイコ', 'マサ': 'マサ', '拓男': 'タクオ', '詠子': 'エイコ',
+      'フミ': 'フミ', '秀夫': 'ヒデオ', 'セイ子': 'セイコ', 'サト子': 'サトコ', '郷': 'ゴウ',
+      '大右': 'ダイスケ', '喜久子': 'キクコ', '武義': 'タケヨシ', '周': 'シュウ', 'ツネ子': 'ツネコ',
+      '初枝': 'ハツエ', '映子': 'エイコ', '武志': 'タケシ', '壽子': 'トシコ', '寿子': 'トシコ',
+      '光夫': 'ミツオ', 'てる': 'テル', '洋子': 'ヨウコ', '邦子': 'クニコ', '輝子': 'テルコ',
+      '惠子': 'ケイコ', '恵子': 'ケイコ', '元雄': 'モトオ', '恭子': 'キョウコ', '孝子': 'タカコ',
+      '友子': 'トモコ', '恊子': 'キョウコ', 'キミ': 'キミ', 'フミ子': 'フミコ', '昌代': 'マサヨ',
+      '仁子': 'ヒトコ', '幸子': 'サチコ', '節子': 'セツコ', '茂登子': 'モトコ', 'キミ子': 'キミコ',
+      '千代枝': 'チヨエ', '徳子': 'トクコ', 'ヤス子': 'ヤスコ', '志津子': 'シヅコ', 'とき子': 'トキコ',
+      'スミ': 'スミ', '満子': 'ミツコ', '津子': 'ツコ', 'ナヲ': 'ナオ', 'キヨ子': 'キヨコ',
+      '千代': 'チヨ', '勝弥': 'カツヤ', 'ミサ子': 'ミサコ', '昭子': 'アキコ', '豊子': 'トヨコ',
+      '敏男': 'トシオ', '幹雄': 'ミキオ', '成子': 'シゲコ', '嘉江': 'ヨシエ', '久夫': 'ヒサオ',
+      '陪子': 'トモコ', '武彦': 'タケヒコ', '恵美子': 'エミコ', 'ミサヲ': 'ミサオ', '東一': 'トウイチ',
+      '記代子': 'キヨコ', 'ハツエ': 'ハツエ', 'タカ子': 'タカコ', 'タカ': 'タカ', 'アサ子': 'アサコ',
+      '美惠子': 'ミエコ', '美恵子': 'ミエコ', 'えさよ': 'エサヨ', '英弘': 'ヒデヒロ', '武': 'タケシ',
+      '喜一': 'キイチ', '順子': 'ジュンコ', '常夫': 'ツネオ', '百枝': 'モモエ', '光子': 'ミツコ',
+      '幸一': 'コウイチ', 'キヌ子': 'キヌコ', '悦子': 'エツコ', '勝': 'マサル', '孟安': 'モリヤス',
+      '治久': 'ハルヒサ', '明子': 'アキコ', '初子': 'ハツコ', '仙藏': 'センゾウ', '仙蔵': 'センゾウ',
+      '武雄': 'タケオ', '政子': 'マサコ', '迪子': 'ミチコ', '三代子': 'ミヨコ', '正春': 'マサハル',
+      '静香': 'シズカ', '俊雄': 'トシオ', 'すみ子': 'スミコ', '弘子': 'ヒロコ', '信子': 'ノブコ',
+      '喜通': 'ヨシミチ', 'サタ子': 'サタコ', '澄子': 'スミコ', '全三郎': 'ゼンザブロウ', '定子': 'サダコ',
+      '任和': 'タダカズ', '繁夫': 'シゲオ', '保典': 'ヤスノリ', '久美子': 'クミコ', 'シゲル': 'シゲル',
+      '京子': 'キョウコ', 'シツエ': 'シツエ', '由美子': 'ユミコ', '富美': 'フミ', '君子': 'キミコ',
+      '正子': 'マサコ', '勝美': 'カツミ', '民夫': 'タミオ', '要一': 'ヨウイチ', '正人': 'マサト',
+      '茂樹': 'シゲキ', '正弘': 'マサヒロ', 'トシ子': 'トシコ', '征子': 'セイコ', '喜惠子': 'キエコ',
+      '清治': 'セイジ', '圭': 'ケイ', '敬子': 'ケイコ', '照雄': 'テルオ', '実': 'ミノル',
+      '道教': 'ミチノリ', '民子': 'タミコ', '健三': 'ケンゾウ', 'ひろ子': 'ヒロコ', 'みき': 'ミキ',
+      '正': 'タダシ', 'ケイ': 'ケイ', 'ヨシノ': 'ヨシノ', '力': 'ツトム', '徳男': 'ノリオ',
+      '隆吉': 'リュウキチ', '定昭': 'サダアキ', '八恵子': 'ヤエコ', '幸男': 'ユキオ', 'チヱ': 'チエ',
+      '正廣': 'マサヒロ', '正広': 'マサヒロ', '春男': 'ハルオ', '太門': 'タイモン', '俊一': 'シュンイチ',
+      '淳子': 'ジュンコ', 'テツ子': 'テツコ', 'イツ子': 'イツコ', 'トシヱ': 'トシエ', '文子': 'フミコ',
+      'サタ': 'サタ', '明': 'アキラ', '雅水': 'マサミ', '末子': 'スエコ', '美智子': 'ミチコ',
+      'ツギ子': 'ツギコ', '定枝': 'サダエ', 'ヒメ子': 'ヒメコ', '陽子': 'ヨウコ', '康子': 'ヤスコ',
+      '芳江': 'ヨシエ', '宏昭': 'ヒロアキ', 'トヨ': 'トヨ', '千代美': 'チヨミ', '榮子': 'エイコ',
+      '榮': 'サカエ', '健壽': 'ケンジ', 'サト': 'サト', 'フク子': 'フクコ', 'のり子': 'ノリコ',
+      '袈裟': 'ケサ', '文男': 'フミオ', '吉子': 'ヨシコ', '亮': 'リョウ', 'ミチ子': 'ミチコ',
+      '桂子': 'ケイコ', '利枝': 'トシエ', 'サダ子': 'サダコ', '慶子': 'ケイコ', 'ヨシ': 'ヨシ',
+      '義昌': 'ヨシマサ', '實惠子': 'ミエコ', '透': 'トオル', '繁七': 'シゲシチ', '貞吉': 'サダキチ',
+      '玉子': 'タマコ', '禮子': 'レイコ', '礼子': 'レイコ', '眞佐子': 'マサコ', '真佐子': 'マサコ',
+      '愛子': 'アイコ', '千代子': 'チヨコ', 'ユキ子': 'ユキコ', '京': 'キョウ', '寛道': 'カンドウ',
+      '浩三': 'コウゾウ', '春江': 'ハルエ', '太郎': 'タロウ', '次郎': 'ジロウ', '三郎': 'サブロウ',
+      '四郎': 'シロウ', '五郎': 'ゴロウ', '一郎': 'イチロウ', '花子': 'ハナコ', '健': 'ケン',
+      '誠': 'マコト', '勇': 'イサム', '進': 'ススム', '博': 'ヒロシ', '清': 'キヨシ',
+      '操': 'ミサオ', '豊': 'トヨシ'
+    };
+    const SORTED_GIVEN_NAME_KEYS = Object.keys(COMMON_GIVEN_NAME_KANA_MAP).sort((a, b) => b.length - a.length);
+
+    const SORTED_SURNAME_KEYS = Object.keys(COMMON_SURNAME_KANA_MAP).sort((a, b) => b.length - a.length);
+
+    function guessKanaFromName(name) {
+      if (!name) return '';
+      let raw = String(name).trim().replace(/様+$/g, '').trim();
+      if (!raw) return '';
+
+      // 空白除去したクリーンキー
+      const cleanKey = raw.replace(/[\s　]+/g, '');
+      if (!cleanKey) return '';
+
+      // 1. カタカナ・ひらがなのみの場合は正規化して返却
+      if (/^[\u3040-\u309F\u30A0-\u30FF\s　]+$/.test(cleanKey)) {
+        return normalizeToKatakana(raw);
+      }
+
+      // 2. 既知名簿の完全一致フルネーム辞書を最優先
+      if (KNOWN_EXACT_NAME_KANA_MAP[cleanKey]) {
+        return KNOWN_EXACT_NAME_KANA_MAP[cleanKey];
+      }
+
+      // 3. 空白（スペース）で姓と名が分かれている場合の解析
+      const parts = raw.split(/[\s　]+/).filter(Boolean);
+      if (parts.length >= 2) {
+        const surPart = parts[0];
+        const givenPart = parts.slice(1).join('');
+        const surKana = COMMON_SURNAME_KANA_MAP[surPart] || '';
+        const givenKana = COMMON_GIVEN_NAME_KANA_MAP[givenPart] || (
+          /^[\u3040-\u309F\u30A0-\u30FF]+$/.test(givenPart) ? normalizeToKatakana(givenPart) : ''
+        );
+        if (surKana && givenKana) return `${surKana} ${givenKana}`;
+        if (surKana) return surKana;
+      }
+
+      // 4. 空白なしの場合の最長一致（名字 ＋ 名前）
+      for (const surname of SORTED_SURNAME_KEYS) {
+        if (cleanKey.startsWith(surname)) {
+          const surKana = COMMON_SURNAME_KANA_MAP[surname];
+          const rest = cleanKey.slice(surname.length);
+          if (!rest) return surKana;
+
+          // 残り部分がカナなら直接結合
+          if (/^[\u3040-\u309F\u30A0-\u30FF]+$/.test(rest)) {
+            return `${surKana} ${normalizeToKatakana(rest)}`;
+          }
+
+          // 名前辞書との照合
+          if (COMMON_GIVEN_NAME_KANA_MAP[rest]) {
+            return `${surKana} ${COMMON_GIVEN_NAME_KANA_MAP[rest]}`;
+          }
+          for (const gn of SORTED_GIVEN_NAME_KEYS) {
+            if (rest.startsWith(gn)) {
+              return `${surKana} ${COMMON_GIVEN_NAME_KANA_MAP[gn]}`;
+            }
+          }
+
+          return surKana;
+        }
+      }
+
+      return '';
+    }
+
     function sortUserMasterByName(users = AppState.userMaster) {
       if (!Array.isArray(users)) return users;
       const cleanStr = (s) => String(s || '').replace(/[\s　]+/g, '').replace(/様+$/g, '').trim();
@@ -23837,22 +24706,25 @@
         if (!a) return 1;
         if (!b) return -1;
 
-        const kanaA = cleanStr(a.kana || a.furigana);
-        const kanaB = cleanStr(b.kana || b.furigana);
+        // 1. フリガナ最優先。なければ名字辞書推測カタカナ
+        const rawKanaA = cleanStr(a.kana || a.furigana);
+        const rawKanaB = cleanStr(b.kana || b.furigana);
+        const kanaA = normalizeToKatakana(rawKanaA) || guessKanaFromName(a.name);
+        const kanaB = normalizeToKatakana(rawKanaB) || guessKanaFromName(b.name);
+
         const nameA = cleanStr(a.name);
         const nameB = cleanStr(b.name);
 
-        // 優先照合キー（フリガナがあればフリガナ、なければ氏名）
         const compKeyA = kanaA || nameA;
         const compKeyB = kanaB || nameB;
         const res = compKeyA.localeCompare(compKeyB, 'ja');
         if (res !== 0) return res;
 
-        // 氏名自体での比較
+        // 2. 氏名自体での比較
         const nameRes = nameA.localeCompare(nameB, 'ja');
         if (nameRes !== 0) return nameRes;
 
-        // 同名の場合は被保険者番号順（安定ソート）
+        // 3. 同名の場合は被保険者番号順（安定ソート）
         const idA = String(a.id || '').trim();
         const idB = String(b.id || '').trim();
         return idA.localeCompare(idB, 'ja');
@@ -23876,7 +24748,7 @@
           map.set(id, {
             id: id,
             name: formattedName || existing.name,
-            kana: u.kana || existing.kana || '',
+            kana: u.kana || existing.kana || guessKanaFromName(formattedName || existing.name) || '',
             birth: u.birth || existing.birth,
             careLevel: u.careLevel || existing.careLevel,
             isPendingCareLevel: (u.isPendingCareLevel !== undefined) ? u.isPendingCareLevel : existing.isPendingCareLevel,
@@ -24194,6 +25066,14 @@
         u.ratio = cleanRatioString(u.ratio);
         u.name = ensureHonorific(u.name);
         u.id = format10DigitId(u.id);
+        // フリガナが未設定、または名字のみ（半角スペースなし等）でフルネーム推測が可能な場合に自動強化
+        if (u.name) {
+          const betterKana = guessKanaFromName(u.name);
+          if (betterKana && (!u.kana || (betterKana.includes(' ') && !u.kana.includes(' ')))) {
+            u.kana = betterKana;
+            changed = true;
+          }
+        }
 
         if (!u.facilityId) {
           u.facilityId = getUserFacilityId(u);
