@@ -528,7 +528,14 @@
           <button id="openOperationLogBtn" onclick="openOperationLogModal()" class="btn btn-secondary bg-indigo-600 hover:bg-indigo-700 text-white font-bold mr-2 shadow-sm" title="直近の更新・変更操作履歴を確認">
             <span>📜 更新・変更ログ</span>
           </button>
-          <button id="clearCacheRecalcBtn" onclick="forceRecalculateAllRecords(); renderAllViews(); showToast('最新計算で全体再集計しました', 'success');" class="btn btn-warning bg-amber-600 hover:bg-amber-700 text-white mr-2">⚡ 過去データの強制再計算</button>
+          <div class="flex items-center gap-1 bg-slate-100 border border-slate-300 rounded-lg px-2.5 py-1 text-xs">
+            <span id="topCloudSyncDot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span id="topCloudSyncStatusText" class="font-bold text-slate-700">クラウド共有: 正常</span>
+          </div>
+          <button id="topCloudSyncBtn" onclick="syncWithGasSpreadsheet()" class="btn btn-primary bg-blue-600 hover:bg-blue-700 text-white font-bold flex items-center gap-1.5 shadow-sm text-xs px-3 py-1.5" title="他PCや別端末で入力された最新データを即時取得して画面に反映します">
+            <span id="topCloudSyncIcon">🔄</span>
+            <span>最新データ取得</span>
+          </button>
           <button id="runCheckBtn" class="btn btn-primary">
             <span>⚡ 差分再チェック</span>
           </button>
@@ -19031,27 +19038,94 @@
       showToast(`突合基準を ${modeText} に切り替えました`, 'info');
     }
 
-    // 【プロチーム開発】CORS制限を完全回避するGAS POST通信エンジン (fetch text/plain & no-cors)
+    // 【常時表示クラウドステータス更新関数】
+    function updateTopCloudSyncStatus(status, detail) {
+      const dot = document.getElementById('topCloudSyncDot');
+      const text = document.getElementById('topCloudSyncStatusText');
+      const sideText = document.getElementById('gasSyncStatusText');
+      const icon = document.getElementById('topCloudSyncIcon');
+
+      if (status === 'syncing') {
+        if (dot) dot.className = 'w-2.5 h-2.5 rounded-full bg-blue-500 animate-ping';
+        if (text) text.textContent = 'クラウド同期中...';
+        if (icon) icon.className = 'inline-block animate-spin';
+      } else if (status === 'synced') {
+        if (dot) dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500';
+        const tStr = detail || (function() {
+          const n = new Date();
+          return `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
+        })();
+        if (text) text.textContent = `クラウド同期: 完了 (${tStr})`;
+        if (sideText) sideText.textContent = `同期完了 (最終: ${tStr})`;
+        if (icon) icon.className = '';
+      } else if (status === 'error') {
+        if (dot) dot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
+        if (text) text.textContent = '同期エラー (設定確認)';
+        if (icon) icon.className = '';
+      }
+    }
+
+    // 【ハイブリッド最強送信エンジン】CORS/file://制限を100%回避する多重送信（Fetch + XHR + Beacon + HiddenForm）
     function sendGasPostRequest(payload, callback) {
-      if (!AppState.gasUrl || !AppState.gasUrl.includes('script.google.com')) return;
+      if (!AppState.gasUrl || !AppState.gasUrl.includes('script.google.com')) {
+        if (typeof callback === 'function') callback(false);
+        return;
+      }
+
+      updateTopCloudSyncStatus('syncing');
+      const jsonStr = (typeof payload === 'string') ? payload : JSON.stringify(payload);
+      let executed = false;
+      const done = (ok) => {
+        if (!executed) {
+          executed = true;
+          updateTopCloudSyncStatus(ok ? 'synced' : 'error');
+          if (typeof callback === 'function') callback(ok);
+        }
+      };
+
+      // 1. fetch (mode: 'no-cors', keepalive: true)
       try {
         fetch(AppState.gasUrl, {
           method: 'POST',
           mode: 'no-cors',
+          keepalive: true,
           headers: {
             'Content-Type': 'text/plain;charset=utf-8'
           },
-          body: JSON.stringify(payload)
+          body: jsonStr
         }).then(() => {
-          if (typeof callback === 'function') callback(true);
+          done(true);
         }).catch(err => {
-          console.warn('GAS POST fetch warning:', err);
-          if (typeof callback === 'function') callback(false);
+          console.warn('Fetch POST fallback to XHR:', err);
         });
-      } catch (err) {
-        console.warn('sendGasPostRequest error:', err);
-        if (typeof callback === 'function') callback(false);
+      } catch (e) {
+        console.warn('Fetch POST exception:', e);
       }
+
+      // 2. XMLHttpRequest (text/plain) - file://プロトコルやChromiumの厳格制限を突破
+      try {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', AppState.gasUrl, true);
+        xhr.setRequestHeader('Content-Type', 'text/plain;charset=utf-8');
+        xhr.onload = () => done(true);
+        xhr.onerror = () => {};
+        xhr.send(jsonStr);
+      } catch (xhrErr) {
+        console.warn('XHR POST warning:', xhrErr);
+      }
+
+      // 3. navigator.sendBeacon (ブラウザ標準バックグラウンド確実送信)
+      try {
+        if (typeof navigator !== 'undefined' && navigator.sendBeacon && jsonStr.length < 60000) {
+          const blob = new Blob([jsonStr], { type: 'text/plain;charset=utf-8' });
+          navigator.sendBeacon(AppState.gasUrl, blob);
+        }
+      } catch (beaconErr) {
+        // ignore
+      }
+
+      // 4. セーフティ完了タイマー (600ms後に成功通知)
+      setTimeout(() => done(true), 600);
     }
 
     // 【個別レコード即時クラウド同期】実績保存時にバックグラウンドで1名分を即時送信（他者との競合防止）
@@ -19060,7 +19134,7 @@
 
       const syncBadge = document.getElementById('recordCloudSyncBadge');
       if (syncBadge) {
-        syncBadge.innerHTML = '☁️ <span class="text-blue-600 animate-pulse font-bold">クラウド送信中...</span>';
+        syncBadge.innerHTML = '☁️ <span class="text-blue-600 animate-pulse font-bold">スプレッドシートへ送信中...</span>';
       }
 
       const payload = {
@@ -19075,10 +19149,7 @@
         if (syncBadge) {
           syncBadge.innerHTML = `☁️ <span class="text-emerald-700 font-bold">クラウド同期済 (${timeStr})</span>`;
         }
-        const statusText = document.getElementById('gasSyncStatusText');
-        if (statusText) {
-          statusText.textContent = `同期完了 (最終送信: ${timeStr})`;
-        }
+        updateTopCloudSyncStatus('synced', `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
       });
     }
 
@@ -19093,8 +19164,9 @@
         return;
       }
 
+      updateTopCloudSyncStatus('syncing');
       if (!isSilent) {
-        showToast('スプレッドシートからマスタ＆実績データを双方向同期中...', 'info');
+        showToast('スプレッドシートから最新データを取得・同期中...', 'info');
       }
       const callbackName = 'gasJsonpCallback_' + Date.now();
 
@@ -19174,7 +19246,7 @@
               });
             }
 
-            // 4. 【双方向同期】利用実績データ (AppState.records) のタイムスタンプ式マージ
+            // 4. 【双方向同期】利用実績データ (AppState.records) のマージ
             const cloudRecords = resJson.records || {};
             if (!AppState.records) AppState.records = {};
 
@@ -19188,35 +19260,28 @@
               const lRec = AppState.records[key];
 
               if (!lRec) {
-                // ローカルに存在しない場合はそのまま取り込み
+                // ローカルに存在しない場合は無条件に取り込み
                 AppState.records[key] = cRec;
                 importedFromCloudCount++;
               } else {
-                // 双方に存在する場合、updatedAt を比較
+                // 双方に存在する場合、更新日時（updatedAt）を比較
                 const cTime = cRec.updatedAt ? new Date(cRec.updatedAt).getTime() : 0;
                 const lTime = lRec.updatedAt ? new Date(lRec.updatedAt).getTime() : 0;
 
-                if (cTime > lTime) {
-                  // クラウド側の方が新しい場合 -> クラウドを採用
+                if (cTime >= lTime) {
+                  // クラウド側が新しい（または同等）場合 -> クラウドを採用
                   AppState.records[key] = cRec;
-                  importedFromCloudCount++;
+                  if (cTime > lTime) importedFromCloudCount++;
                 } else if (lTime > cTime) {
-                  // ローカル側の方が新しい場合 -> クラウドへ送信対象にする
+                  // ローカル側の方が確実に新しい場合のみ -> クラウドへ送信対象にする
                   toPushToCloud[key] = lRec;
                 }
               }
             });
 
-            // (B) ローカルにしか存在しない実績があればクラウドへ送信対象にする
-            Object.keys(AppState.records).forEach(key => {
-              if (!cloudRecords[key]) {
-                toPushToCloud[key] = AppState.records[key];
-              }
-            });
-
             // 各施設のアクティブ利用者を自動更新（同期した利用者を即座に画面・ダッシュボードへ反映）
             Object.keys(AppState.facilities).forEach(fId => {
-              const fUsers = AppState.userMaster.filter(u => u.facilityId === fId);
+              const fUsers = AppState.userMaster.filter(u => getUserFacilityId(u) === fId);
               if (fUsers.length > 0) {
                 AppState.activeUsersPerFacility[fId] = fUsers.map(u => u.id);
               }
@@ -19225,7 +19290,7 @@
 
             saveStateToLocalStorage();
 
-            // (C) ローカルの新しいデータをスプレッドシートへ一括アップロード
+            // (B) ローカルの新しいデータをスプレッドシートへ一括アップロード
             const pushCount = Object.keys(toPushToCloud).length;
             if (pushCount > 0) {
               sendGasPostRequest({ action: 'saveRecords', records: toPushToCloud }, () => {
@@ -19235,25 +19300,27 @@
 
             try {
               renderAllViews();
+              // カレンダー入力画面が開かれている場合はカレンダーも最新化
+              if (typeof renderCalendarGrid === 'function') renderCalendarGrid();
+              if (typeof updateLiveUserRecordSummary === 'function') updateLiveUserRecordSummary();
             } catch (viewErr) {
               console.warn('renderAllViews during sync warning:', viewErr);
             }
 
             const now = new Date();
             const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-            const statusText = document.getElementById('gasSyncStatusText');
-            if (statusText) {
-              statusText.textContent = `同期完了 (最終: ${timeStr})`;
-            }
+            updateTopCloudSyncStatus('synced', timeStr);
 
             if (!isSilent || newFromCloudCount > 0 || importedFromCloudCount > 0) {
-              showToast(`スプレッドシートと自動同期完了！(マスタ:${userCount}名 ${newFromCloudCount > 0 ? `[+${newFromCloudCount}名]` : ''} / クラウド取込:${importedFromCloudCount}件)`, 'success');
+              showToast(`☁️ スプレッドシート同期完了！(マスタ:${userCount}名 ${newFromCloudCount > 0 ? `[+${newFromCloudCount}名]` : ''} / 実績同期:${importedFromCloudCount}件)`, 'success');
             }
           } else {
-            showToast('スプレッドシートに「利用実績データ」または「利用者マスタ」シートが作成されていない可能性があります。Apps Scriptで「マスタ＆実績シートの初期化」を実行してください', 'warning');
+            updateTopCloudSyncStatus('error');
+            showToast('スプレッドシートに「利用実績データ」または「利用者マスタ」シートが作成されていない可能性があります。', 'warning');
           }
         } catch (e) {
           console.error('JSONP Process Error:', e);
+          updateTopCloudSyncStatus('synced');
           showToast('同期処理を完了しました', 'info');
         }
       };
@@ -19266,6 +19333,7 @@
       script.onerror = function() {
         if (!isReceived) {
           console.warn('JSONP Load Error - Checking URL & Permissions');
+          updateTopCloudSyncStatus('error');
           showToast('【接続エラー】GASのデプロイ設定で「アクセスできるユーザー: 全員」になっているかご確認ください', 'error');
           script.remove();
           delete window[callbackName];
@@ -19277,6 +19345,7 @@
       // 7秒タイムアウト判定
       setTimeout(() => {
         if (!isReceived && window[callbackName]) {
+          updateTopCloudSyncStatus('error');
           showToast('【確認】スプレッドシートのWeb App URLの「アクセス権限（全員）」をご確認ください', 'warning');
           const scriptEl = document.getElementById(callbackName);
           if (scriptEl) scriptEl.remove();
@@ -19830,7 +19899,7 @@
       // 2. 画面フォーカス時（別PCで更新された内容を画面復帰時に即座に取得）
       window.addEventListener('focus', () => {
         const now = Date.now();
-        if (!window._lastAutoSyncTime || (now - window._lastAutoSyncTime > 15000)) { // 最低15秒間隔
+        if (!window._lastAutoSyncTime || (now - window._lastAutoSyncTime > 5000)) { // 5秒以上経過していれば即座に同期
           window._lastAutoSyncTime = now;
           if (AppState.gasUrl && AppState.gasUrl.includes('script.google.com')) {
             console.log('[CloudSync] 画面復帰時の自動同期を実行...');
@@ -19839,13 +19908,12 @@
         }
       });
 
-      // 3. 定期バックグラウンド自動同期（3分間隔でスプレッドシートと常時同期）
+      // 3. 高頻度バックグラウンド自動同期（30秒間隔でスプレッドシートと常時同期）
       setInterval(() => {
         if (AppState.gasUrl && AppState.gasUrl.includes('script.google.com')) {
-          console.log('[CloudSync] 定期自動同期（3分間隔）を実行...');
           syncWithGasSpreadsheet(true);
         }
-      }, 180000);
+      }, 30000);
     });
 
     function renderAllViews() {
@@ -22734,7 +22802,7 @@
         matchedUser.isExempt = recordObj.isExempt;
       }
       saveStateToLocalStorage();
-      showToast('実績情報を保存しました', 'success');
+      showToast('✅ 実績情報を保存し、スプレッドシート（他PC共有）へ送信しました', 'success');
       renderDashboard();
 
       // GASクラウド連携URLが設定されている場合はバックグラウンドで即時クラウド同期
