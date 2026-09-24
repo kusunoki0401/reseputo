@@ -2036,12 +2036,26 @@
           targetContent.classList.add('active');
         }
         
-        if (targetId === 'dashboard') renderDashboard();
-        if (targetId === 'input-records') renderUserRecordForm();
-        if (targetId === 'master-config') renderMasterConfig();
-        if (targetId === 'user-master-mgmt') renderUserMasterTable();
-        if (targetId === 'report-export') renderReportPaper();
-        if (targetId === 'import-csv') renderImportPreview();
+        try {
+          if (targetId === 'dashboard') renderDashboard();
+          else if (targetId === 'input-records') renderUserRecordForm();
+          else if (targetId === 'master-config') renderMasterConfig();
+          else if (targetId === 'user-master-mgmt') renderUserMasterTable();
+          else if (targetId === 'report-export') renderReportPaper();
+          else if (targetId === 'import-csv') renderImportPreview();
+        } catch (renderErr) {
+          console.warn('Tab render error:', renderErr);
+        }
+
+        // 【ユーザー要望】左側メニュー切り替え時にスプレッドシートと自動同期（他PCの最新入力を即時反映）
+        const now = Date.now();
+        if (!window._lastNavSyncTime || (now - window._lastNavSyncTime > 1500)) { // 1.5秒以内の連打はスロットル
+          window._lastNavSyncTime = now;
+          if (typeof syncWithGasSpreadsheet === 'function' && AppState && AppState.gasUrl && AppState.gasUrl.includes('script.google.com')) {
+            console.log('[CloudSync] メニュー切り替え（' + targetId + '）に伴う最新データ自動同期を実行...');
+            syncWithGasSpreadsheet(true);
+          }
+        }
       } catch (err) {
         console.error('Tab switch error:', err);
       }
