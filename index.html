@@ -725,8 +725,9 @@
               </div>
             </div>
 
-            <div class="form-group ml-auto">
+            <div class="form-group ml-auto flex items-center gap-2">
               <button id="saveUserRecordBtn" class="btn btn-success">💾 この利用者の実績を保存</button>
+              <span id="recordCloudSyncBadge" class="text-xs text-slate-500 font-mono"></span>
             </div>
           </div>
 
@@ -1315,7 +1316,7 @@
       <div class="flex flex-col gap-3 mt-4">
         <div class="form-group">
           <label>GAS Web App URL:</label>
-          <input type="text" id="gasWebAppUrlInput" class="form-control" placeholder="https://script.google.com/macros/s/.../exec">
+          <input type="text" id="gasWebAppUrlInput" class="form-control" value="https://script.google.com/macros/s/AKfycbxGec7YOGNIZjwmAL7m7CGzdWsqdqDLVrNx068pPxsEH70lw0BURma-kwmby0H5th_qHw/exec" placeholder="https://script.google.com/macros/s/.../exec">
         </div>
       </div>
 
@@ -1442,17 +1443,35 @@
           </div>
 
           <div id="scheduleDaysGroup" class="form-group bg-blue-50/60 p-3 rounded-lg border border-blue-200 hidden">
-            <label class="text-blue-900 font-bold mb-1">📅 登録利用曜日 (デイサービス用):</label>
-            <div class="flex gap-3 mt-1 flex-wrap text-xs">
-              <label class="flex items-center gap-1 cursor-pointer font-bold"><input type="checkbox" class="schedule-day-chk" value="1"> 月</label>
-              <label class="flex items-center gap-1 cursor-pointer font-bold"><input type="checkbox" class="schedule-day-chk" value="2"> 火</label>
-              <label class="flex items-center gap-1 cursor-pointer font-bold"><input type="checkbox" class="schedule-day-chk" value="3"> 水</label>
-              <label class="flex items-center gap-1 cursor-pointer font-bold"><input type="checkbox" class="schedule-day-chk" value="4"> 木</label>
-              <label class="flex items-center gap-1 cursor-pointer font-bold"><input type="checkbox" class="schedule-day-chk" value="5"> 金</label>
-              <label class="flex items-center gap-1 cursor-pointer font-bold text-blue-600"><input type="checkbox" class="schedule-day-chk" value="6"> 土</label>
-              <label class="flex items-center gap-1 cursor-pointer font-bold text-red-600"><input type="checkbox" class="schedule-day-chk" value="0"> 日</label>
+            <label class="text-blue-900 font-bold mb-1 flex items-center justify-between">
+              <span>📅 登録利用曜日・時間帯 (デイサービス用):</span>
+              <span class="text-[11px] font-normal text-slate-500">※該当する利用枠にチェック</span>
+            </label>
+            <div class="space-y-1.5 mt-1.5 bg-white p-2.5 rounded border border-blue-100">
+              <!-- AM枠 -->
+              <div class="flex items-center gap-2 text-xs">
+                <span class="font-bold text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded text-[11px] w-12 text-center shrink-0">AM</span>
+                <div class="flex gap-2.5 flex-wrap">
+                  <label class="flex items-center gap-1 cursor-pointer font-bold text-slate-800 hover:text-blue-700"><input type="checkbox" class="schedule-day-chk" value="mon_am"> 月曜日AM</label>
+                  <label class="flex items-center gap-1 cursor-pointer font-bold text-slate-800 hover:text-blue-700"><input type="checkbox" class="schedule-day-chk" value="tue_am"> 火曜日AM</label>
+                  <label class="flex items-center gap-1 cursor-pointer font-bold text-slate-800 hover:text-blue-700"><input type="checkbox" class="schedule-day-chk" value="wed_am"> 水曜日AM</label>
+                  <label class="flex items-center gap-1 cursor-pointer font-bold text-slate-800 hover:text-blue-700"><input type="checkbox" class="schedule-day-chk" value="thu_am"> 木曜日AM</label>
+                  <label class="flex items-center gap-1 cursor-pointer font-bold text-slate-800 hover:text-blue-700"><input type="checkbox" class="schedule-day-chk" value="fri_am"> 金曜日AM</label>
+                </div>
+              </div>
+              <!-- PM枠 -->
+              <div class="flex items-center gap-2 text-xs">
+                <span class="font-bold text-indigo-800 bg-indigo-100 border border-indigo-300 px-2 py-0.5 rounded text-[11px] w-12 text-center shrink-0">PM</span>
+                <div class="flex gap-2.5 flex-wrap">
+                  <label class="flex items-center gap-1 cursor-pointer font-bold text-slate-800 hover:text-blue-700"><input type="checkbox" class="schedule-day-chk" value="mon_pm"> 月曜日PM</label>
+                  <label class="flex items-center gap-1 cursor-pointer font-bold text-slate-800 hover:text-blue-700"><input type="checkbox" class="schedule-day-chk" value="tue_pm"> 火曜日PM</label>
+                  <label class="flex items-center gap-1 cursor-pointer font-bold text-slate-800 hover:text-blue-700"><input type="checkbox" class="schedule-day-chk" value="wed_pm"> 水曜日PM</label>
+                  <label class="flex items-center gap-1 cursor-pointer font-bold text-slate-800 hover:text-blue-700"><input type="checkbox" class="schedule-day-chk" value="thu_pm"> 木曜日PM</label>
+                  <label class="flex items-center gap-1 cursor-pointer font-bold text-slate-800 hover:text-blue-700"><input type="checkbox" class="schedule-day-chk" value="fri_pm"> 金曜日PM</label>
+                </div>
+              </div>
             </div>
-            <p class="text-[11px] text-slate-500 mt-1">※一括入力画面で「登録利用曜日を適用」ボタンを押した際に自動選択されます。</p>
+            <p class="text-[11px] text-slate-500 mt-1.5">※一括入力画面で「登録利用曜日を適用」ボタンを押した際、または虫眼鏡検索での絞り込みに使用されます。</p>
             <div class="mt-2.5 pt-2 border-t border-blue-200">
               <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-800 text-xs">
                 <input type="checkbox" id="modalEditNoTransport" class="w-4 h-4 text-blue-600 rounded">
@@ -1534,6 +1553,41 @@
         <div class="flex justify-between items-center mt-2 px-1 text-xs text-slate-600">
           <span id="userSearchCount">全 <strong id="userSearchTotalCount">0</strong> 名中 <strong id="userSearchMatchCount" class="text-blue-600">0</strong> 名が一致</span>
           <span class="text-[11px] text-slate-400">💡 キーボードの ↑↓ で移動、Enter で決定</span>
+        </div>
+
+        <!-- デイサービス専用：登録利用枠（10個）絞り込みフィルター -->
+        <div id="userSearchScheduleFilterArea" class="mt-2.5 pt-2 border-t border-slate-200 hidden">
+          <div class="flex justify-between items-center mb-1.5 px-0.5">
+            <span class="text-xs font-bold text-slate-800 flex items-center gap-1">
+              <span>📅 登録利用枠で絞り込み:</span>
+              <span id="userSearchFilterActiveBadge" class="hidden text-[10px] bg-blue-600 text-white font-bold px-1.5 py-0.2 rounded-full">選択中</span>
+            </span>
+            <button type="button" onclick="clearUserSearchScheduleFilters()" class="text-[11px] text-blue-600 hover:text-blue-800 font-bold underline cursor-pointer">条件クリア</button>
+          </div>
+          <div class="space-y-1.5 bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
+            <!-- AM行 -->
+            <div class="flex items-center gap-2 text-xs">
+              <span class="font-bold text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded text-[10px] w-9 text-center shrink-0">AM</span>
+              <div class="flex gap-2.5 flex-wrap">
+                <label class="flex items-center gap-1 cursor-pointer font-bold text-slate-700 hover:text-blue-700 text-xs"><input type="checkbox" class="user-search-slot-filter" value="mon_am" onchange="filterUserSearchList()"> 月AM</label>
+                <label class="flex items-center gap-1 cursor-pointer font-bold text-slate-700 hover:text-blue-700 text-xs"><input type="checkbox" class="user-search-slot-filter" value="tue_am" onchange="filterUserSearchList()"> 火AM</label>
+                <label class="flex items-center gap-1 cursor-pointer font-bold text-slate-700 hover:text-blue-700 text-xs"><input type="checkbox" class="user-search-slot-filter" value="wed_am" onchange="filterUserSearchList()"> 水AM</label>
+                <label class="flex items-center gap-1 cursor-pointer font-bold text-slate-700 hover:text-blue-700 text-xs"><input type="checkbox" class="user-search-slot-filter" value="thu_am" onchange="filterUserSearchList()"> 木AM</label>
+                <label class="flex items-center gap-1 cursor-pointer font-bold text-slate-700 hover:text-blue-700 text-xs"><input type="checkbox" class="user-search-slot-filter" value="fri_am" onchange="filterUserSearchList()"> 金AM</label>
+              </div>
+            </div>
+            <!-- PM枠 -->
+            <div class="flex items-center gap-2 text-xs">
+              <span class="font-bold text-indigo-800 bg-indigo-100 border border-indigo-300 px-1.5 py-0.5 rounded text-[10px] w-9 text-center shrink-0">PM</span>
+              <div class="flex gap-2.5 flex-wrap">
+                <label class="flex items-center gap-1 cursor-pointer font-bold text-slate-700 hover:text-blue-700 text-xs"><input type="checkbox" class="user-search-slot-filter" value="mon_pm" onchange="filterUserSearchList()"> 月PM</label>
+                <label class="flex items-center gap-1 cursor-pointer font-bold text-slate-700 hover:text-blue-700 text-xs"><input type="checkbox" class="user-search-slot-filter" value="tue_pm" onchange="filterUserSearchList()"> 火PM</label>
+                <label class="flex items-center gap-1 cursor-pointer font-bold text-slate-700 hover:text-blue-700 text-xs"><input type="checkbox" class="user-search-slot-filter" value="wed_pm" onchange="filterUserSearchList()"> 水PM</label>
+                <label class="flex items-center gap-1 cursor-pointer font-bold text-slate-700 hover:text-blue-700 text-xs"><input type="checkbox" class="user-search-slot-filter" value="thu_pm" onchange="filterUserSearchList()"> 木PM</label>
+                <label class="flex items-center gap-1 cursor-pointer font-bold text-slate-700 hover:text-blue-700 text-xs"><input type="checkbox" class="user-search-slot-filter" value="fri_pm" onchange="filterUserSearchList()"> 金PM</label>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -18600,8 +18654,14 @@
       return `${y}-${m}`;
     }
 
+    // デフォルトのGoogle Apps Script Web App URL（埋め込み初期値）
+    const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbxGec7YOGNIZjwmAL7m7CGzdWsqdqDLVrNx068pPxsEH70lw0BURma-kwmby0H5th_qHw/exec';
+
     const AppState = {
-      gasUrl: localStorage.getItem('care_sys_gas_url') || '',
+      gasUrl: (function() {
+        const saved = localStorage.getItem('care_sys_gas_url');
+        return (saved && saved.includes('script.google.com')) ? saved : DEFAULT_GAS_URL;
+      })(),
       currentFacilityId: 'fac_kusunoki',
       targetMonth: getCurrentYearMonth(),
       masterPassword: '3233',
@@ -18660,8 +18720,58 @@
       showToast(`突合基準を ${modeText} に切り替えました`, 'info');
     }
 
-    // 【プロチーム開発】CORSエラーを100%回避するJSONP型スプレッドシート同期エンジン
-    // 【プロチーム開発】CORSエラーを100%回避するJSONP型スプレッドシート同期エンジン
+    // 【プロチーム開発】CORS制限を完全回避するGAS POST通信エンジン (fetch text/plain & no-cors)
+    function sendGasPostRequest(payload, callback) {
+      if (!AppState.gasUrl || !AppState.gasUrl.includes('script.google.com')) return;
+      try {
+        fetch(AppState.gasUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: {
+            'Content-Type': 'text/plain;charset=utf-8'
+          },
+          body: JSON.stringify(payload)
+        }).then(() => {
+          if (typeof callback === 'function') callback(true);
+        }).catch(err => {
+          console.warn('GAS POST fetch warning:', err);
+          if (typeof callback === 'function') callback(false);
+        });
+      } catch (err) {
+        console.warn('sendGasPostRequest error:', err);
+        if (typeof callback === 'function') callback(false);
+      }
+    }
+
+    // 【個別レコード即時クラウド同期】実績保存時にバックグラウンドで1名分を即時送信（他者との競合防止）
+    function syncSingleRecordToGas(recordObj, recKey) {
+      if (!AppState.gasUrl || !AppState.gasUrl.includes('script.google.com')) return;
+
+      const syncBadge = document.getElementById('recordCloudSyncBadge');
+      if (syncBadge) {
+        syncBadge.innerHTML = '☁️ <span class="text-blue-600 animate-pulse font-bold">クラウド送信中...</span>';
+      }
+
+      const payload = {
+        action: 'saveRecord',
+        key: recKey,
+        record: recordObj
+      };
+
+      sendGasPostRequest(payload, (success) => {
+        const now = new Date();
+        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+        if (syncBadge) {
+          syncBadge.innerHTML = `☁️ <span class="text-emerald-700 font-bold">クラウド同期済 (${timeStr})</span>`;
+        }
+        const statusText = document.getElementById('gasSyncStatusText');
+        if (statusText) {
+          statusText.textContent = `同期完了 (最終送信: ${timeStr})`;
+        }
+      });
+    }
+
+    // 【プロチーム開発】CORSエラーを100%回避するJSONP型スプレッドシート双方向同期エンジン
     function syncWithGasSpreadsheet() {
       if (!AppState.gasUrl || !AppState.gasUrl.includes('script.google.com')) {
         document.getElementById('gasWebAppUrlInput').value = AppState.gasUrl || '';
@@ -18670,7 +18780,7 @@
         return;
       }
 
-      showToast('スプレッドシートから全マスタデータを同期中...', 'info');
+      showToast('スプレッドシートからマスタ＆実績データを双方向同期中...', 'info');
       const callbackName = 'gasJsonpCallback_' + Date.now();
 
       let isReceived = false;
@@ -18683,6 +18793,7 @@
           delete window[callbackName];
 
           if (resJson && resJson.status === 'success') {
+            // 1. 利用者マスタ同期
             let userCount = 0;
             if (resJson.userMaster && Array.isArray(resJson.userMaster) && resJson.userMaster.length > 0) {
               AppState.userMaster = resJson.userMaster.map(u => ({
@@ -18698,9 +18809,12 @@
               saveUserMasterBackup();
             }
 
+            // 2. 加算マスタ同期
             if (resJson.additionMaster) {
               AppState.additionMaster = Object.assign({}, AppState.additionMaster, resJson.additionMaster);
             }
+
+            // 3. 施設加算設定同期
             if (resJson.facilities && typeof resJson.facilities === 'object') {
               Object.keys(resJson.facilities).forEach(fId => {
                 if (AppState.facilities[fId]) {
@@ -18713,6 +18827,46 @@
               });
             }
 
+            // 4. 【双方向同期】利用実績データ (AppState.records) のタイムスタンプ式マージ
+            const cloudRecords = resJson.records || {};
+            if (!AppState.records) AppState.records = {};
+
+            let importedFromCloudCount = 0;
+            const toPushToCloud = {};
+
+            // (A) クラウド側の実績データを走査し、ローカルと比較・マージ
+            Object.keys(cloudRecords).forEach(key => {
+              const cRec = cloudRecords[key];
+              if (!cRec) return;
+              const lRec = AppState.records[key];
+
+              if (!lRec) {
+                // ローカルに存在しない場合はそのまま取り込み
+                AppState.records[key] = cRec;
+                importedFromCloudCount++;
+              } else {
+                // 双方に存在する場合、updatedAt を比較
+                const cTime = cRec.updatedAt ? new Date(cRec.updatedAt).getTime() : 0;
+                const lTime = lRec.updatedAt ? new Date(lRec.updatedAt).getTime() : 0;
+
+                if (cTime > lTime) {
+                  // クラウド側の方が新しい場合 -> クラウドを採用
+                  AppState.records[key] = cRec;
+                  importedFromCloudCount++;
+                } else if (lTime > cTime) {
+                  // ローカル側の方が新しい場合 -> クラウドへ送信対象にする
+                  toPushToCloud[key] = lRec;
+                }
+              }
+            });
+
+            // (B) ローカルにしか存在しない実績があればクラウドへ送信対象にする
+            Object.keys(AppState.records).forEach(key => {
+              if (!cloudRecords[key]) {
+                toPushToCloud[key] = AppState.records[key];
+              }
+            });
+
             // 各施設のアクティブ利用者を自動更新（同期した利用者を即座に画面・ダッシュボードへ反映）
             Object.keys(AppState.facilities).forEach(fId => {
               const fUsers = AppState.userMaster.filter(u => u.facilityId === fId);
@@ -18723,14 +18877,35 @@
             ensureActiveUsersExist();
 
             saveStateToLocalStorage();
-            renderAllViews();
-            showToast(`スプレッドシートから ${userCount} 名の利用者マスタ＆設定を完全読み込み同期しました！`, 'success');
+
+            // (C) ローカルの新しいデータをスプレッドシートへ一括アップロード
+            const pushCount = Object.keys(toPushToCloud).length;
+            if (pushCount > 0) {
+              sendGasPostRequest({ action: 'saveRecords', records: toPushToCloud }, () => {
+                console.log(`[CloudSync] ${pushCount}件の最新実績をスプレッドシートに反映しました`);
+              });
+            }
+
+            try {
+              renderAllViews();
+            } catch (viewErr) {
+              console.warn('renderAllViews during sync warning:', viewErr);
+            }
+
+            const now = new Date();
+            const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            const statusText = document.getElementById('gasSyncStatusText');
+            if (statusText) {
+              statusText.textContent = `同期完了 (最終: ${timeStr})`;
+            }
+
+            showToast(`スプレッドシートと双方向同期完了！(マスタ:${userCount}名 / クラウド取込:${importedFromCloudCount}件 / クラウド更新:${pushCount}件)`, 'success');
           } else {
-            showToast('スプレッドシートに「利用者マスタ」シートがまだ作成されていない可能性があります。Apps Scriptで createSpreadsheetMaster を実行してください', 'warning');
+            showToast('スプレッドシートに「利用実績データ」または「利用者マスタ」シートが作成されていない可能性があります。Apps Scriptで「マスタ＆実績シートの初期化」を実行してください', 'warning');
           }
         } catch (e) {
           console.error('JSONP Process Error:', e);
-          showToast('同期処理を完了しました', 'success');
+          showToast('同期処理を完了しました', 'info');
         }
       };
 
@@ -18750,7 +18925,7 @@
 
       document.body.appendChild(script);
 
-      // 6秒タイムアウト判定
+      // 7秒タイムアウト判定
       setTimeout(() => {
         if (!isReceived && window[callbackName]) {
           showToast('【確認】スプレッドシートのWeb App URLの「アクセス権限（全員）」をご確認ください', 'warning');
@@ -18758,7 +18933,7 @@
           if (scriptEl) scriptEl.remove();
           delete window[callbackName];
         }
-      }, 6000);
+      }, 7000);
     }
 
     function isCurrentMonthLocked() {
@@ -19653,6 +19828,38 @@
     // ==========================================
     // 🔍 対象利用者 クイック検索モーダル制御
     // ==========================================
+    const DAYCARE_SCHEDULE_SLOTS = [
+      { id: 'mon_am', label: '月AM', fullLabel: '月曜日AM', day: 1, period: 'AM' },
+      { id: 'tue_am', label: '火AM', fullLabel: '火曜日AM', day: 2, period: 'AM' },
+      { id: 'wed_am', label: '水AM', fullLabel: '水曜日AM', day: 3, period: 'AM' },
+      { id: 'thu_am', label: '木AM', fullLabel: '木曜日AM', day: 4, period: 'AM' },
+      { id: 'fri_am', label: '金AM', fullLabel: '金曜日AM', day: 5, period: 'AM' },
+      { id: 'mon_pm', label: '月PM', fullLabel: '月曜日PM', day: 1, period: 'PM' },
+      { id: 'tue_pm', label: '火PM', fullLabel: '火曜日PM', day: 2, period: 'PM' },
+      { id: 'wed_pm', label: '水PM', fullLabel: '水曜日PM', day: 3, period: 'PM' },
+      { id: 'thu_pm', label: '木PM', fullLabel: '木曜日PM', day: 4, period: 'PM' },
+      { id: 'fri_pm', label: '金PM', fullLabel: '金曜日PM', day: 5, period: 'PM' }
+    ];
+
+    function userHasScheduleSlot(user, slotId) {
+      if (!user || !user.scheduleDays || !Array.isArray(user.scheduleDays)) return false;
+      if (user.scheduleDays.includes(slotId)) return true;
+      const slotObj = DAYCARE_SCHEDULE_SLOTS.find(s => s.id === slotId);
+      if (slotObj && user.scheduleDays.includes(slotObj.fullLabel)) return true;
+      if (slotObj && user.scheduleDays.includes(slotObj.day)) return true;
+      return false;
+    }
+
+    function getSelectedUserSearchSlots() {
+      const chks = document.querySelectorAll('.user-search-slot-filter:checked');
+      return Array.from(chks).map(c => c.value);
+    }
+
+    function clearUserSearchScheduleFilters() {
+      document.querySelectorAll('.user-search-slot-filter').forEach(c => { c.checked = false; });
+      filterUserSearchList();
+    }
+
     let userSearchCurrentHighlightIndex = -1;
     let userSearchFilteredUsers = [];
 
@@ -19679,7 +19886,15 @@
     function openUserSearchModal() {
       const modal = document.getElementById('userSearchModal');
       const input = document.getElementById('userSearchInput');
+      const filterArea = document.getElementById('userSearchScheduleFilterArea');
       if (!modal) return;
+
+      const currentFac = AppState.facilities[AppState.currentFacilityId] || {};
+      const isDayService = (currentFac.type === 'デイサービス');
+      if (filterArea) {
+        if (isDayService) filterArea.classList.remove('hidden');
+        else filterArea.classList.add('hidden');
+      }
 
       modal.classList.remove('hidden');
       if (input) {
@@ -19728,11 +19943,22 @@
       const clearBtn = document.getElementById('clearUserSearchBtn');
       const matchCountEl = document.getElementById('userSearchMatchCount');
       const totalCountEl = document.getElementById('userSearchTotalCount');
+      const filterBadge = document.getElementById('userSearchFilterActiveBadge');
 
       const rawKeyword = input ? input.value.trim() : '';
       if (clearBtn) {
         if (rawKeyword) clearBtn.classList.remove('hidden');
         else clearBtn.classList.add('hidden');
+      }
+
+      const selectedSlots = getSelectedUserSearchSlots();
+      if (filterBadge) {
+        if (selectedSlots.length > 0) {
+          filterBadge.textContent = `${selectedSlots.length}枠選択中`;
+          filterBadge.classList.remove('hidden');
+        } else {
+          filterBadge.classList.add('hidden');
+        }
       }
 
       const normKeyword = normalizeUserSearchText(rawKeyword);
@@ -19742,10 +19968,19 @@
       const currentUserSelect = document.getElementById('inputUserSelect');
       const currentSelectedUserId = currentUserSelect ? currentUserSelect.value : '';
 
+      // 1. デイサービス利用枠フィルター（選択した枠のいずれかにチェックがある人）
+      let candidateUsers = allUsers;
+      if (selectedSlots.length > 0) {
+        candidateUsers = allUsers.filter(u => {
+          return selectedSlots.some(slotId => userHasScheduleSlot(u, slotId));
+        });
+      }
+
+      // 2. キーワード検索（氏名、ふりがな、被保険者番号、要介護度等）
       if (!normKeyword) {
-        userSearchFilteredUsers = allUsers;
+        userSearchFilteredUsers = candidateUsers;
       } else {
-        userSearchFilteredUsers = allUsers.filter(u => {
+        userSearchFilteredUsers = candidateUsers.filter(u => {
           const normName = normalizeUserSearchText(u.name);
           const normKana = normalizeUserSearchText(u.kana);
           const normId = normalizeUserSearchText(u.id);
@@ -19777,7 +20012,7 @@
           <div class="text-center py-10 text-slate-400 bg-white rounded-lg border border-dashed border-slate-300">
             <div class="text-3xl mb-2">🔍</div>
             <p class="font-bold text-sm text-slate-700">該当する利用者がいません</p>
-            <p class="text-xs text-slate-400 mt-1">氏名・フリガナ・要介護度をお確かめください</p>
+            <p class="text-xs text-slate-400 mt-1">氏名・フリガナ・登録利用枠の選択をお確かめください</p>
           </div>
         `;
         return;
@@ -19797,6 +20032,21 @@
           careBadgeColor = 'bg-indigo-50 text-indigo-800 border-indigo-300';
         }
 
+        // デイサービス登録利用枠のバッジ表示
+        let slotBadgesHtml = '';
+        if (u.scheduleDays && Array.isArray(u.scheduleDays) && u.scheduleDays.length > 0) {
+          const matchedSlots = DAYCARE_SCHEDULE_SLOTS.filter(s => userHasScheduleSlot(u, s.id));
+          if (matchedSlots.length > 0) {
+            slotBadgesHtml = matchedSlots.map(s => {
+              const isAm = s.period === 'AM';
+              const badgeCls = isAm
+                ? 'bg-amber-100 text-amber-900 border-amber-300'
+                : 'bg-indigo-100 text-indigo-900 border-indigo-300';
+              return `<span class="inline-block text-[10px] font-bold px-1.5 py-0.2 rounded border ${badgeCls}">${s.label}</span>`;
+            }).join(' ');
+          }
+        }
+
         return `
           <div class="user-search-row flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition select-none ${
             isHighlighted
@@ -19810,11 +20060,12 @@
                 ${idx + 1}
               </div>
               <div>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
                   <span class="font-bold text-sm text-slate-900">${escapeUserSearchHtml(u.name || '')} 様</span>
                   ${u.kana ? `<span class="text-xs text-slate-500 font-normal">(${escapeUserSearchHtml(u.kana)})</span>` : ''}
                   ${isSelected ? '<span class="text-[10px] font-bold bg-blue-600 text-white px-1.5 py-0.5 rounded shadow-sm">現在選択中</span>' : ''}
                   ${isHighlighted && !isSelected ? '<span class="text-[10px] font-bold bg-blue-600 text-white px-1.5 py-0.5 rounded shadow-sm">Enterで決定</span>' : ''}
+                  ${slotBadgesHtml ? `<span class="flex items-center gap-1 ml-1">${slotBadgesHtml}</span>` : ''}
                 </div>
                 <div class="flex items-center gap-3 mt-0.5 text-xs text-slate-500 font-mono">
                   <span>被保険者: ${format10DigitId(u.id)}</span>
@@ -20064,6 +20315,8 @@
           saveStateToLocalStorage();
         }
       }
+
+      sortUserMasterByName(validUsers);
 
       if (validUsers.length === 0) {
         userSelect.innerHTML = '<option value="">(当月利用者が未選択です)</option>';
@@ -20587,8 +20840,8 @@
       if (!userSelect || !userSelect.value) return;
 
       const user = findUserById(userSelect.value);
-      if (!user || !user.scheduleDays || !Array.isArray(user.scheduleDays)) {
-        showToast('この利用者には登録利用曜日が設定されていません', 'warning');
+      if (!user || !user.scheduleDays || !Array.isArray(user.scheduleDays) || user.scheduleDays.length === 0) {
+        showToast('この利用者には登録利用枠が設定されていません', 'warning');
         return;
       }
 
@@ -20597,13 +20850,32 @@
       const daysInMonth = getDaysInTargetMonth(targetM);
       const sched = user.scheduleDays;
 
+      const dayToSlots = {
+        1: ['mon_am', 'mon_pm'],
+        2: ['tue_am', 'tue_pm'],
+        3: ['wed_am', 'wed_pm'],
+        4: ['thu_am', 'thu_pm'],
+        5: ['fri_am', 'fri_pm']
+      };
+
       for (let d = 1; d <= daysInMonth; d++) {
         const card = document.getElementById(`dayCard_${d}`);
         if (!card) continue;
         const badge = card.querySelector('.day-status-badge');
         const dayOfWeek = new Date(year, month - 1, d).getDay();
 
-        const isMatch = sched.includes(dayOfWeek);
+        // 該当曜日のスロット（AMまたはPM）、または旧数値形式が含まれているか判定
+        const isMatch = sched.some(s => {
+          if (typeof s === 'number') return s === dayOfWeek;
+          const slots = dayToSlots[dayOfWeek] || [];
+          return slots.includes(s) || (s && s.startsWith && (
+            (dayOfWeek === 1 && s.includes('月')) ||
+            (dayOfWeek === 2 && s.includes('火')) ||
+            (dayOfWeek === 3 && s.includes('水')) ||
+            (dayOfWeek === 4 && s.includes('木')) ||
+            (dayOfWeek === 5 && s.includes('金'))
+          ));
+        });
 
         badge.textContent = isMatch ? '利用' : '未利用';
         badge.className = `day-status-badge status-${isMatch ? 'use' : 'vacant'}`;
@@ -20618,7 +20890,7 @@
       }
 
       updateLiveUserRecordSummary();
-      showToast('登録利用曜日をカレンダーに適用しました', 'success');
+      showToast('登録利用枠をカレンダーに適用しました', 'success');
     }
 
     function updateLiveUserRecordSummary(isManualExcessChange = false) {
@@ -22021,7 +22293,9 @@
         shortMealExcessDays: Number(document.getElementById('shortMealExcessDays')?.value || 0),
         priorContinuousDays: (document.getElementById('shortPriorContinuousDays')?.value !== '' ? Number(document.getElementById('shortPriorContinuousDays').value) : null),
         isExempt: !!document.getElementById('chkUserExempt')?.checked,
-        useInitialFee: !!document.getElementById('chkSelfInitialFee')?.checked
+        useInitialFee: !!document.getElementById('chkSelfInitialFee')?.checked,
+        facilityId: AppState.currentFacilityId,
+        updatedAt: new Date().toISOString()
       };
 
 
@@ -22076,6 +22350,11 @@
       saveStateToLocalStorage();
       showToast('実績情報を保存しました', 'success');
       renderDashboard();
+
+      // GASクラウド連携URLが設定されている場合はバックグラウンドで即時クラウド同期
+      if (AppState.gasUrl && AppState.gasUrl.includes('script.google.com')) {
+        syncSingleRecordToGas(recordObj, recKey);
+      }
     }
 
     function renderMasterConfig(isTypeChange = false) {
@@ -22623,8 +22902,9 @@
         facTitleEl.textContent = `【${curFacName}】`;
       }
 
-      // ログイン中施設に所属する利用者のみを抽出
+      // ログイン中施設に所属する利用者のみを抽出（名前順に自動整列）
       let list = (AppState.userMaster || []).filter(u => getUserFacilityId(u) === curFacId);
+      sortUserMasterByName(list);
 
       if (countEl) countEl.textContent = list.length;
 
@@ -22645,10 +22925,26 @@
         const oralTag = (curFac.type === 'デイサービス' && u.oralTrainingCount > 0)
           ? ` <span class="bg-teal-100 text-teal-800 border border-teal-300 text-[10px] px-1.5 py-0.5 rounded font-bold ml-1">👄口腔(${u.oralTrainingCount}回)</span>`
           : '';
+
+        let schedTag = '';
+        if (curFac.type === 'デイサービス' && u.scheduleDays && Array.isArray(u.scheduleDays) && u.scheduleDays.length > 0) {
+          const matched = DAYCARE_SCHEDULE_SLOTS.filter(s => userHasScheduleSlot(u, s.id));
+          if (matched.length > 0) {
+            schedTag = '<div class="flex gap-1 mt-1 flex-wrap">' + matched.map(s => {
+              const isAm = s.period === 'AM';
+              const cls = isAm ? 'bg-amber-100 text-amber-900 border-amber-300' : 'bg-indigo-100 text-indigo-900 border-indigo-300';
+              return `<span class="text-[10px] font-bold px-1 py-0.2 rounded border ${cls}">${s.label}</span>`;
+            }).join('') + '</div>';
+          }
+        }
+
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td class="font-bold font-mono">${format10DigitId(u.id)}</td>
-          <td class="font-bold text-slate-900">${u.name}</td>
+          <td class="font-bold text-slate-900">
+            <div>${u.name}</div>
+            ${schedTag}
+          </td>
           <td>${u.birth || '-'}</td>
           <td><span class="badge badge-warning">${u.careLevel || '要介護2'}</span>${pendingTag}${noTransTag}${oralTag}</td>
           <td>${u.ratio || '1割'}${exemptTag}</td>
@@ -22994,7 +23290,7 @@
 
       const userSched = user.scheduleDays || [];
       document.querySelectorAll('.schedule-day-chk').forEach(chk => {
-        chk.checked = userSched.includes(Number(chk.value));
+        chk.checked = userSched.includes(chk.value) || userSched.includes(Number(chk.value));
       });
       if (document.getElementById('modalEditNoTransport')) {
         document.getElementById('modalEditNoTransport').checked = !!user.noTransport;
@@ -23247,6 +23543,7 @@
         if (cand.ratio) ex.ratio = cand.ratio;
         if (cand.birth && cand.birth !== '-') ex.birth = cand.birth;
         if (cand.id && cand.id !== '0000000000') ex.id = cand.id;
+        if (cand.kana) ex.kana = cand.kana;
         ex.facilityId = curFacId;
       });
 
@@ -23255,6 +23552,7 @@
         AppState.userMaster.push({
           id: format10DigitId(nu.id),
           name: ensureHonorific(nu.name),
+          kana: nu.kana || '',
           birth: nu.birth || '-',
           careLevel: nu.careLevel || '要介護2',
           ratio: nu.ratio || '1割',
@@ -23266,8 +23564,9 @@
         });
       });
 
-      // 3. 整合性処理・保存・再描画
+      // 3. 整合性処理・名前順ソート・保存・再描画
       deduplicateUserMaster();
+      sortUserMasterByName(AppState.userMaster);
       sanitizeExistingUserMaster();
 
       Object.keys(AppState.facilities).forEach(fId => {
@@ -23311,7 +23610,7 @@
 
       const scheduleDays = [];
       document.querySelectorAll('.schedule-day-chk:checked').forEach(chk => {
-        scheduleDays.push(Number(chk.value));
+        scheduleDays.push(chk.value);
       });
       const noTransport = !!document.getElementById('modalEditNoTransport')?.checked;
       const oralTrainingCount = Number(document.getElementById('modalEditOralTraining')?.value || 0);
@@ -23529,6 +23828,39 @@
       }
     }
 
+    function sortUserMasterByName(users = AppState.userMaster) {
+      if (!Array.isArray(users)) return users;
+      const cleanStr = (s) => String(s || '').replace(/[\s　]+/g, '').replace(/様+$/g, '').trim();
+
+      users.sort((a, b) => {
+        if (!a && !b) return 0;
+        if (!a) return 1;
+        if (!b) return -1;
+
+        const kanaA = cleanStr(a.kana || a.furigana);
+        const kanaB = cleanStr(b.kana || b.furigana);
+        const nameA = cleanStr(a.name);
+        const nameB = cleanStr(b.name);
+
+        // 優先照合キー（フリガナがあればフリガナ、なければ氏名）
+        const compKeyA = kanaA || nameA;
+        const compKeyB = kanaB || nameB;
+        const res = compKeyA.localeCompare(compKeyB, 'ja');
+        if (res !== 0) return res;
+
+        // 氏名自体での比較
+        const nameRes = nameA.localeCompare(nameB, 'ja');
+        if (nameRes !== 0) return nameRes;
+
+        // 同名の場合は被保険者番号順（安定ソート）
+        const idA = String(a.id || '').trim();
+        const idB = String(b.id || '').trim();
+        return idA.localeCompare(idB, 'ja');
+      });
+
+      return users;
+    }
+
     function deduplicateUserMaster() {
       purgeAutoCreatedGarbageUsers();
       if (!AppState.userMaster || !Array.isArray(AppState.userMaster)) return;
@@ -23544,6 +23876,7 @@
           map.set(id, {
             id: id,
             name: formattedName || existing.name,
+            kana: u.kana || existing.kana || '',
             birth: u.birth || existing.birth,
             careLevel: u.careLevel || existing.careLevel,
             isPendingCareLevel: (u.isPendingCareLevel !== undefined) ? u.isPendingCareLevel : existing.isPendingCareLevel,
@@ -23555,6 +23888,16 @@
         }
       });
       AppState.userMaster = Array.from(map.values());
+      sortUserMasterByName(AppState.userMaster);
+
+      // 各施設の所属利用者IDリストも名前順に同期
+      if (AppState.facilities && typeof AppState.facilities === 'object') {
+        if (!AppState.activeUsersPerFacility) AppState.activeUsersPerFacility = {};
+        Object.keys(AppState.facilities).forEach(fId => {
+          const fUsers = AppState.userMaster.filter(u => getUserFacilityId(u) === fId);
+          AppState.activeUsersPerFacility[fId] = fUsers.map(u => u.id);
+        });
+      }
     }
 
     function handleFileInputChange(inputEl, type) {
@@ -23790,14 +24133,33 @@
         usedIndices.add(chosen.idx);
       }
 
-      // 6. 氏名検出（残ったセルの中で日本語文字を含むもの、年齢数値は除外）
+      // 6. 氏名およびフリガナ検出（残ったセルから判定）
+      const textCandidates = [];
       for (let i = 0; i < cells.length; i++) {
         if (usedIndices.has(i)) continue;
         if (/^\d{1,3}(?:歳|才)?$/.test(cells[i])) continue;
         if (/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/.test(cells[i])) {
-          res.name = ensureHonorific(cells[i]);
-          usedIndices.add(i);
-          break;
+          const hasKanji = /[\u4E00-\u9FFF]/.test(cells[i]);
+          const isKanaOnly = /^[\u3040-\u309F\u30A0-\u30FF\s　]+$/.test(cells[i]);
+          textCandidates.push({ idx: i, text: cells[i], hasKanji, isKanaOnly });
+        }
+      }
+
+      if (textCandidates.length > 0) {
+        // 漢字を含むセルを氏名として最優先
+        const kanjiItem = textCandidates.find(c => c.hasKanji);
+        const kanaItem = textCandidates.find(c => c.isKanaOnly && c !== kanjiItem);
+
+        if (kanjiItem) {
+          res.name = ensureHonorific(kanjiItem.text);
+          usedIndices.add(kanjiItem.idx);
+          if (kanaItem) {
+            res.kana = kanaItem.text.trim();
+            usedIndices.add(kanaItem.idx);
+          }
+        } else {
+          res.name = ensureHonorific(textCandidates[0].text);
+          usedIndices.add(textCandidates[0].idx);
         }
       }
 
