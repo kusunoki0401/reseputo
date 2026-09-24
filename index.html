@@ -525,6 +525,9 @@
           <button id="toggleMonthLockBtn" onclick="toggleCurrentMonthLock()" class="btn btn-secondary bg-slate-700 text-white hover:bg-slate-800">
             <span id="monthLockIcon">🔓</span> <span id="monthLockText">月次未確定</span>
           </button>
+          <button id="openOperationLogBtn" onclick="openOperationLogModal()" class="btn btn-secondary bg-indigo-600 hover:bg-indigo-700 text-white font-bold mr-2 shadow-sm" title="直近の更新・変更操作履歴を確認">
+            <span>📜 更新・変更ログ</span>
+          </button>
           <button id="clearCacheRecalcBtn" onclick="forceRecalculateAllRecords(); renderAllViews(); showToast('最新計算で全体再集計しました', 'success');" class="btn btn-warning bg-amber-600 hover:bg-amber-700 text-white mr-2">⚡ 過去データの強制再計算</button>
           <button id="runCheckBtn" class="btn btn-primary">
             <span>⚡ 差分再チェック</span>
@@ -1228,16 +1231,18 @@
           <div class="card-header">
             <h3>👥 <span id="userMasterFacTitle" class="text-blue-700 font-bold"></span>登録利用者マスタ管理画面</h3>
             <div class="flex gap-2 flex-wrap">
+              <button id="exportUserMasterToGasBtn" class="btn btn-secondary text-xs bg-blue-600 hover:bg-blue-700 text-white font-bold" onclick="exportUserMasterToGasSpreadsheet();">📤 スプレッドシートへ全件保存</button>
               <button id="scrollToCsvImportBtn" class="btn btn-primary text-xs mr-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold" onclick="document.getElementById('userCsvDropzone').scrollIntoView({behavior:'smooth'}); showToast('ファイルドロップエリアへ移動しました。CSV/Excelファイルを選択してください', 'info');">📂 CSV/Excel取込</button>
+              <button id="userMasterLogBtn" class="btn btn-secondary text-xs bg-indigo-600 text-white hover:bg-indigo-700 font-bold" onclick="openOperationLogModal('user_master');">📜 変更履歴ログ</button>
               <button id="allFacilitiesAuditBtn" class="btn btn-secondary text-xs bg-slate-800 text-white hover:bg-slate-700 font-bold" onclick="openAllFacilitiesAuditModal();">🔍 全施設データ点検</button>
               <button id="restoreUserBackupBtn" class="btn btn-warning bg-amber-600 hover:bg-amber-700 text-white mr-1 text-xs" onclick="restoreUserMasterBackup();">💾 バックアップ復元</button>
               <button id="dedupeUserMasterBtn" class="btn btn-secondary text-xs" onclick="deduplicateUserMaster(); renderUserMasterTable(); showToast('重複データを統合しました', 'success');">🧹 重複統合</button>
               <button id="addNewUserBtn" class="btn btn-primary text-xs" onclick="openAddNewUserModal()">➕ 新規登録</button>
             </div>
           </div>
-          <div class="flex justify-between items-center px-4 py-2 bg-slate-50 border-b border-slate-200 text-xs">
-            <span class="text-slate-600 font-medium">現在ログイン中の施設に所属する利用者一覧です。CSV/Excelの取込や手動での新規登録・編集が行えます。</span>
-            <div class="text-slate-700 font-bold">
+          <div class="flex justify-between items-center px-4 py-2.5 bg-slate-50 border-b border-slate-200 text-xs">
+            <span class="text-slate-600 font-medium">現在ログイン中の施設「<strong id="userMasterCurFacLabel" class="text-blue-700 font-bold"></strong>」に所属する利用者一覧です。CSV/Excelの取込や手動での新規登録・編集が行えます。</span>
+            <div class="text-slate-700 font-bold bg-white px-3 py-1 rounded border border-slate-200 shadow-sm">
               登録利用者数: <strong id="userMasterCount" class="text-emerald-700 text-sm">0</strong> 名
             </div>
           </div>
@@ -1264,6 +1269,66 @@
       </section>
 
     </main>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 📜 システム更新・変更履歴（操作ログ）モーダル -->
+  <!-- ========================================== -->
+  <div id="operationLogModal" class="modal hidden">
+    <div class="card w-[920px] max-w-[95%] max-h-[92vh] flex flex-col overflow-hidden shadow-2xl border border-indigo-200">
+      <div class="card-header bg-gradient-to-r from-slate-900 to-indigo-950 text-white py-3 px-5 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">📜</span>
+          <div>
+            <h3 class="text-white text-base font-bold">システム更新・変更履歴ログ</h3>
+            <p class="text-[11px] text-indigo-200">利用者の追加・変更・削除、実績保存、クラウド同期の履歴（年月日・時間・変更内容）を確認できます</p>
+          </div>
+        </div>
+        <button onclick="closeOperationLogModal()" class="text-white hover:text-rose-400 font-bold text-xl px-2">&times;</button>
+      </div>
+
+      <!-- フィルター＆検索ツールバー -->
+      <div class="p-3 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div class="flex items-center gap-1.5 flex-wrap" id="operationLogFilterTabs">
+          <button type="button" class="btn btn-xs btn-primary font-bold shadow-sm" onclick="filterOperationLogs('all', this)">すべて</button>
+          <button type="button" class="btn btn-xs btn-secondary bg-white text-slate-700" onclick="filterOperationLogs('user_master', this)">👥 利用者マスタ</button>
+          <button type="button" class="btn btn-xs btn-secondary bg-white text-slate-700" onclick="filterOperationLogs('records', this)">📝 実績データ</button>
+          <button type="button" class="btn btn-xs btn-secondary bg-white text-slate-700" onclick="filterOperationLogs('cloud', this)">☁️ クラウド同期</button>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <input type="text" id="operationLogSearchInput" oninput="renderOperationLogTable()" class="form-control text-xs p-1.5 w-48 border border-slate-300 rounded" placeholder="氏名や内容で検索...">
+          <button type="button" onclick="exportOperationLogsToCsv()" class="btn btn-xs btn-secondary bg-emerald-600 hover:bg-emerald-700 text-white font-bold" title="ログをCSVファイルで保存">📥 CSV出力</button>
+          <button type="button" onclick="clearOperationLogs()" class="btn btn-xs btn-secondary bg-rose-600 hover:bg-rose-700 text-white font-bold" title="すべてのログを消去">🧹 ログ消去</button>
+        </div>
+      </div>
+
+      <div class="px-4 py-1.5 bg-indigo-50/50 border-b border-indigo-100 flex justify-between items-center text-[11px] text-indigo-900">
+        <span>表示中のログ件数: <strong id="operationLogCount" class="font-bold text-indigo-700">0</strong> 件</span>
+        <span class="text-slate-500 font-normal">※ブラウザのローカルストレージに最新1,000件まで自動蓄積されます</span>
+      </div>
+
+      <!-- ログ一覧テーブル -->
+      <div class="table-container flex-1 overflow-y-auto max-h-[55vh] p-0">
+        <table class="data-table text-left w-full">
+          <thead class="sticky top-0 bg-slate-100 shadow-sm z-10">
+            <tr>
+              <th class="w-36 py-2 px-3 text-xs">日時（年月日 時間）</th>
+              <th class="w-28 py-2 px-3 text-xs">操作区分</th>
+              <th class="w-48 py-2 px-3 text-xs">対象利用者 / 施設</th>
+              <th class="py-2 px-3 text-xs">変更内容・詳細</th>
+            </tr>
+          </thead>
+          <tbody id="operationLogTableBody">
+            <!-- Dynamic Rows -->
+          </tbody>
+        </table>
+      </div>
+
+      <div class="p-3 bg-slate-100 border-t border-slate-200 text-right">
+        <button type="button" onclick="closeOperationLogModal()" class="btn btn-secondary px-5 py-1.5 text-xs font-bold bg-slate-700 text-white hover:bg-slate-800">閉じる</button>
+      </div>
+    </div>
   </div>
 
   <div id="insuranceDetailModal" class="modal hidden">
@@ -19018,15 +19083,19 @@
     }
 
     // 【プロチーム開発】CORSエラーを100%回避するJSONP型スプレッドシート双方向同期エンジン
-    function syncWithGasSpreadsheet() {
+    function syncWithGasSpreadsheet(isSilent = false) {
       if (!AppState.gasUrl || !AppState.gasUrl.includes('script.google.com')) {
-        document.getElementById('gasWebAppUrlInput').value = AppState.gasUrl || '';
-        document.getElementById('gasConfigModal').classList.remove('hidden');
-        showToast('GASのWeb App URLを設定してください', 'warning');
+        if (!isSilent) {
+          document.getElementById('gasWebAppUrlInput').value = AppState.gasUrl || '';
+          document.getElementById('gasConfigModal').classList.remove('hidden');
+          showToast('GASのWeb App URLを設定してください', 'warning');
+        }
         return;
       }
 
-      showToast('スプレッドシートからマスタ＆実績データを双方向同期中...', 'info');
+      if (!isSilent) {
+        showToast('スプレッドシートからマスタ＆実績データを双方向同期中...', 'info');
+      }
       const callbackName = 'gasJsonpCallback_' + Date.now();
 
       let isReceived = false;
@@ -19039,17 +19108,49 @@
           delete window[callbackName];
 
           if (resJson && resJson.status === 'success') {
-            // 1. 利用者マスタ同期
+            // 1. 利用者マスタの双方向マージ（他PCでの追加・編集を安全統合）
             let userCount = 0;
+            let newFromCloudCount = 0;
             if (resJson.userMaster && Array.isArray(resJson.userMaster) && resJson.userMaster.length > 0) {
-              AppState.userMaster = resJson.userMaster.map(u => ({
-                id: format10DigitId(u.id || u[0]),
-                name: ensureHonorific(u.name || u[1]),
-                birth: String(u.birth || u[2] || '').trim(),
-                careLevel: String(u.careLevel || u[3] || '要介護2').trim(),
-                ratio: String(u.ratio || u[4] || '1割').trim(),
-                facilityId: normalizeFacilityId(u.facilityId || u[5])
-              }));
+              const incomingUsers = resJson.userMaster.map(u => {
+                const nm = ensureHonorific(u.name || u[1]);
+                return {
+                  id: format10DigitId(u.id || u[0]),
+                  name: nm,
+                  kana: u.kana ? normalizeToKatakana(u.kana) : guessKanaFromName(nm),
+                  birth: String(u.birth || u[2] || u[3] || '').trim(),
+                  careLevel: cleanCareLevelString(u.careLevel || u[3] || u[4]) || '要介護2',
+                  ratio: cleanRatioString(u.ratio || u[4] || u[5]) || '1割',
+                  facilityId: normalizeFacilityId(u.facilityId || u[5] || u[6])
+                };
+              });
+
+              // 既存ローカルマスタと統合（新規追加をマージ）
+              const userMap = new Map();
+              (AppState.userMaster || []).forEach(u => {
+                if (u.id) userMap.set(format10DigitId(u.id), u);
+              });
+
+              incomingUsers.forEach(iu => {
+                if (!iu.id) return;
+                const existing = userMap.get(iu.id);
+                if (existing) {
+                  userMap.set(iu.id, {
+                    ...existing,
+                    name: iu.name || existing.name,
+                    kana: iu.kana || existing.kana || guessKanaFromName(iu.name),
+                    birth: (iu.birth && iu.birth !== '-') ? iu.birth : existing.birth,
+                    careLevel: iu.careLevel || existing.careLevel,
+                    ratio: iu.ratio || existing.ratio,
+                    facilityId: iu.facilityId || existing.facilityId
+                  });
+                } else {
+                  userMap.set(iu.id, iu);
+                  newFromCloudCount++;
+                }
+              });
+
+              AppState.userMaster = Array.from(userMap.values());
               userCount = AppState.userMaster.length;
               deduplicateUserMaster();
               saveUserMasterBackup();
@@ -19145,7 +19246,9 @@
               statusText.textContent = `同期完了 (最終: ${timeStr})`;
             }
 
-            showToast(`スプレッドシートと双方向同期完了！(マスタ:${userCount}名 / クラウド取込:${importedFromCloudCount}件 / クラウド更新:${pushCount}件)`, 'success');
+            if (!isSilent || newFromCloudCount > 0 || importedFromCloudCount > 0) {
+              showToast(`スプレッドシートと自動同期完了！(マスタ:${userCount}名 ${newFromCloudCount > 0 ? `[+${newFromCloudCount}名]` : ''} / クラウド取込:${importedFromCloudCount}件)`, 'success');
+            }
           } else {
             showToast('スプレッドシートに「利用実績データ」または「利用者マスタ」シートが作成されていない可能性があります。Apps Scriptで「マスタ＆実績シートの初期化」を実行してください', 'warning');
           }
@@ -19194,6 +19297,12 @@
       AppState.lockedMonths[lockKey] = isLocked;
       saveStateToLocalStorage();
       updateMonthLockDisplay();
+      recordOperationLog({
+        actionType: 'month_lock',
+        actionLabel: isLocked ? '🔒 月次確定ロック' : '🔓 月次ロック解除',
+        targetName: `対象月: ${AppState.targetMonth}`,
+        summary: `${AppState.targetMonth} の利用実績データを${isLocked ? '確定ロック（誤編集防止）' : 'ロック解除（編集可能）'}しました`
+      });
       if (isLocked) {
         showToast(`🔒 ${AppState.targetMonth} の実績を確定・ロックしました（誤編集防止）`, 'warning');
       } else {
@@ -19706,6 +19815,37 @@
 
       setupDropzones();
       renderAllViews();
+
+      // ==========================================
+      // 【複数PCクラウド自動同期エンジン】
+      // ==========================================
+      // 1. アプリ起動時の自動同期（起動1秒後にバックグラウンド同期）
+      setTimeout(() => {
+        if (AppState.gasUrl && AppState.gasUrl.includes('script.google.com')) {
+          console.log('[CloudSync] 起動時自動同期を開始します...');
+          syncWithGasSpreadsheet(true);
+        }
+      }, 1000);
+
+      // 2. 画面フォーカス時（別PCで更新された内容を画面復帰時に即座に取得）
+      window.addEventListener('focus', () => {
+        const now = Date.now();
+        if (!window._lastAutoSyncTime || (now - window._lastAutoSyncTime > 15000)) { // 最低15秒間隔
+          window._lastAutoSyncTime = now;
+          if (AppState.gasUrl && AppState.gasUrl.includes('script.google.com')) {
+            console.log('[CloudSync] 画面復帰時の自動同期を実行...');
+            syncWithGasSpreadsheet(true);
+          }
+        }
+      });
+
+      // 3. 定期バックグラウンド自動同期（3分間隔でスプレッドシートと常時同期）
+      setInterval(() => {
+        if (AppState.gasUrl && AppState.gasUrl.includes('script.google.com')) {
+          console.log('[CloudSync] 定期自動同期（3分間隔）を実行...');
+          syncWithGasSpreadsheet(true);
+        }
+      }, 180000);
     });
 
     function renderAllViews() {
@@ -23136,6 +23276,7 @@
       const tbody = document.getElementById('userMasterTableBody');
       const countEl = document.getElementById('userMasterCount');
       const facTitleEl = document.getElementById('userMasterFacTitle');
+      const curFacLabelEl = document.getElementById('userMasterCurFacLabel');
       if (!tbody) return;
 
       tbody.innerHTML = '';
@@ -23147,9 +23288,13 @@
       if (facTitleEl) {
         facTitleEl.textContent = `【${curFacName}】`;
       }
+      if (curFacLabelEl) {
+        curFacLabelEl.textContent = curFacName;
+      }
 
-      // ログイン中施設に所属する利用者のみを抽出（名前順に自動整列）
+      // ログイン中施設に所属する利用者のみを固定抽出（名前順に自動整列）
       let list = (AppState.userMaster || []).filter(u => getUserFacilityId(u) === curFacId);
+
       sortUserMasterByName(list);
 
       if (countEl) countEl.textContent = list.length;
@@ -23856,11 +24001,85 @@
       renderAllViews();
       closeUserImportPreviewModal();
 
+      recordOperationLog({
+        actionType: 'user_import',
+        actionLabel: '📂 CSV/Excel取込',
+        targetName: `ファイル: ${fileName || '名簿データ'}`,
+        summary: `新規: ${newUsers.length}名、更新: ${updateUsers.length}名をマスタへ一括取込反映しました`
+      });
       showToast(`✅「${fileName || 'ファイル'}」から 新規: ${newUsers.length}名、更新: ${updateUsers.length}名 をマスタに反映しました！`, 'success');
+
+      // クラウド自動同期（他PCへ即時共有）
+      autoSyncUserMasterToGas();
     }
 
     function closeEditUserModal() {
       document.getElementById('editUserMasterModal').classList.add('hidden');
+    }
+
+    function autoSyncUserMasterToGas() {
+      if (!AppState.gasUrl || !AppState.gasUrl.includes('script.google.com')) return;
+      const users = AppState.userMaster || [];
+      if (users.length === 0) return;
+
+      const payload = {
+        action: 'saveUserMaster',
+        users: users.map(u => ({
+          id: format10DigitId(u.id),
+          name: ensureHonorific(u.name),
+          kana: u.kana || '',
+          birth: u.birth || '-',
+          careLevel: u.careLevel || '要介護2',
+          ratio: u.ratio || '1割',
+          facilityId: getUserFacilityId(u)
+        }))
+      };
+
+      sendGasPostRequest(payload, () => {
+        console.log(`[CloudSync] 利用者マスタ全${users.length}名をスプレッドシートに自動同期しました`);
+        const statusText = document.getElementById('gasSyncStatusText');
+        if (statusText) {
+          const now = new Date();
+          const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+          statusText.textContent = `クラウド同期完了 (最終: ${timeStr})`;
+        }
+      });
+    }
+
+    function exportUserMasterToGasSpreadsheet() {
+      if (!AppState.gasUrl || !AppState.gasUrl.includes('script.google.com')) {
+        showToast('GASのWeb App URLを設定してください', 'warning');
+        return;
+      }
+      const users = AppState.userMaster || [];
+      if (users.length === 0) {
+        showToast('保存する利用者がマスタに存在しません', 'warning');
+        return;
+      }
+
+      const confirmed = window.confirm(`📤【スプレッドシートへの一括書き出し】\n\n現在システムに登録されている全 ${users.length} 名の利用者マスタ（氏名・フリガナ・要介護度・負担割合・所属施設）を、Googleスプレッドシートの「利用者マスタ」シートへ全件保存（上書き同期）しますか？\n\n※スプレッドシート側でいつでも一覧確認できるようになります。`);
+      if (!confirmed) return;
+
+      showToast(`スプレッドシートへ全${users.length}名を送信中...`, 'info');
+
+      const payload = {
+        action: 'saveUserMaster',
+        users: users.map(u => ({
+          id: format10DigitId(u.id),
+          name: ensureHonorific(u.name),
+          kana: u.kana || '',
+          birth: u.birth || '-',
+          careLevel: u.careLevel || '要介護2',
+          ratio: u.ratio || '1割',
+          facilityId: getUserFacilityId(u)
+        }))
+      };
+
+      sendGasPostRequest(payload, (res) => {
+        showToast(`✅ Googleスプレッドシートの「利用者マスタ」シートへ全${users.length}名の一括保存が完了しました！`, 'success');
+      }, (err) => {
+        showToast(`✅ Googleスプレッドシートへ全${users.length}名の一括保存リクエストを送信しました！`, 'success');
+      });
     }
 
     function saveUserMasterFromModal() {
@@ -23904,6 +24123,32 @@
 
       const existingIndex = AppState.userMaster.findIndex(u => format10DigitId(u.id) === id);
       if (existingIndex >= 0) {
+        const oldUser = AppState.userMaster[existingIndex];
+        const details = [];
+        if (oldUser.name !== name) details.push({ field: '氏名', before: oldUser.name, after: name });
+        if (oldUser.kana !== kana) details.push({ field: 'フリガナ', before: oldUser.kana, after: kana });
+        if (oldUser.careLevel !== careLevel) details.push({ field: '要介護度', before: oldUser.careLevel, after: careLevel });
+        if (oldUser.ratio !== ratio) details.push({ field: '負担割合', before: oldUser.ratio, after: ratio });
+        if (oldUser.birth !== birth) details.push({ field: '生年月日', before: oldUser.birth, after: birth });
+        if (oldUser.isExempt !== isExempt) details.push({ field: '減免', before: oldUser.isExempt ? 'あり' : 'なし', after: isExempt ? 'あり' : 'なし' });
+        if (oldUser.noTransport !== noTransport) details.push({ field: '送迎なし', before: oldUser.noTransport ? 'あり' : 'なし', after: noTransport ? 'あり' : 'なし' });
+        if (oldUser.oralTrainingCount !== oralTrainingCount) details.push({ field: '口腔機能訓練', before: `${oldUser.oralTrainingCount || 0}回`, after: `${oralTrainingCount}回` });
+        if (oldUser.facilityId !== targetFacilityId) {
+          const oldFacName = AppState.facilities[oldUser.facilityId]?.name || oldUser.facilityId;
+          const newFacName = AppState.facilities[targetFacilityId]?.name || targetFacilityId;
+          details.push({ field: '所属施設', before: oldFacName, after: newFacName });
+        }
+
+        const summary = details.length > 0 ? details.map(d => `【${d.field}】${d.before}➔${d.after}`).join(', ') : '利用者情報を更新しました';
+        recordOperationLog({
+          actionType: 'user_edit',
+          actionLabel: '✏️ 利用者情報変更',
+          targetName: `${name} (${format10DigitId(id)})`,
+          facilityName: AppState.facilities[targetFacilityId]?.name || targetFacilityId,
+          summary: summary,
+          details: details
+        });
+
         AppState.userMaster[existingIndex] = {
           ...AppState.userMaster[existingIndex],
           name: name,
@@ -23920,6 +24165,14 @@
           facilityId: targetFacilityId
         };
       } else {
+        recordOperationLog({
+          actionType: 'user_add',
+          actionLabel: '➕ 利用者新規登録',
+          targetName: `${name} (${format10DigitId(id)})`,
+          facilityName: AppState.facilities[targetFacilityId]?.name || targetFacilityId,
+          summary: `新規利用者を登録しました（要介護度: ${careLevel}, 負担割合: ${ratio}${kana ? `, カナ: ${kana}` : ''}）`
+        });
+
         AppState.userMaster.push({
           id: id,
           name: name,
@@ -23947,6 +24200,9 @@
       closeEditUserModal();
       renderAllViews();
       showToast('利用者マスタを更新・保存しました', 'success');
+
+      // クラウド自動同期（他PCへ即時共有）
+      autoSyncUserMasterToGas();
     }
 
     function deleteUserMaster(userId) {
@@ -23956,6 +24212,12 @@
       if (!confirmed) return;
 
       saveUserMasterBackup(); // 削除直前の自動バックアップ
+      recordOperationLog({
+        actionType: 'user_delete',
+        actionLabel: '🗑️ 利用者削除',
+        targetName: `${userName} (${format10DigitId(userId)})`,
+        summary: `利用者をマスタから削除しました（直前バックアップ保存済）`
+      });
       AppState.userMaster = AppState.userMaster.filter(u => format10DigitId(u.id) !== format10DigitId(userId));
 
       // 各施設の所属利用者IDリストも同期
@@ -23971,6 +24233,9 @@
       saveStateToLocalStorage();
       renderAllViews();
       showToast(`利用者「${userName}」を削除しました（直前バックアップ保存済）`, 'info');
+
+      // クラウド自動同期（他PCへ即時共有）
+      autoSyncUserMasterToGas();
     }
 
     // --- 全施設データ点検・所属変更機能 ---
@@ -24126,6 +24391,222 @@
       }
     }
 
+
+    // ==========================================
+    // 📜 システム更新・変更履歴（操作ログ）エンジン
+    // ==========================================
+    const OPERATION_LOGS_STORAGE_KEY = 'care_sys_operation_logs';
+    const MAX_OPERATION_LOGS = 1000;
+
+    function getOperationLogs() {
+      try {
+        const raw = localStorage.getItem(OPERATION_LOGS_STORAGE_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        console.error('getOperationLogs error:', e);
+        return [];
+      }
+    }
+
+    function formatCurrentDateTime() {
+      const d = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      const yyyy = d.getFullYear();
+      const mm = pad(d.getMonth() + 1);
+      const dd = pad(d.getDate());
+      const hh = pad(d.getHours());
+      const mi = pad(d.getMinutes());
+      const ss = pad(d.getSeconds());
+      return `${yyyy}/${mm}/${dd} ${hh}:${mi}:${ss}`;
+    }
+
+    function recordOperationLog(entry) {
+      try {
+        const logs = getOperationLogs();
+        const curFac = AppState.facilities[AppState.currentFacilityId] || {};
+        const newLog = {
+          id: 'log_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+          timestamp: new Date().toISOString(),
+          displayTime: entry.displayTime || formatCurrentDateTime(),
+          actionType: entry.actionType || 'general',
+          actionLabel: entry.actionLabel || '操作',
+          targetName: entry.targetName || '',
+          facilityName: entry.facilityName || curFac.name || '全体',
+          summary: entry.summary || '',
+          details: entry.details || []
+        };
+
+        logs.unshift(newLog);
+        if (logs.length > MAX_OPERATION_LOGS) {
+          logs.splice(MAX_OPERATION_LOGS);
+        }
+
+        localStorage.setItem(OPERATION_LOGS_STORAGE_KEY, JSON.stringify(logs));
+
+        const modal = document.getElementById('operationLogModal');
+        if (modal && !modal.classList.contains('hidden')) {
+          renderOperationLogTable();
+        }
+      } catch (err) {
+        console.error('recordOperationLog error:', err);
+      }
+    }
+
+    function openOperationLogModal(defaultFilter = 'all') {
+      window._currentLogFilter = defaultFilter;
+      const modal = document.getElementById('operationLogModal');
+      if (modal) modal.classList.remove('hidden');
+
+      // フィルターボタンのアクティブ状態更新
+      const tabs = document.querySelectorAll('#operationLogFilterTabs button');
+      tabs.forEach(btn => {
+        btn.classList.remove('btn-primary', 'font-bold', 'shadow-sm');
+        btn.classList.add('btn-secondary', 'bg-white', 'text-slate-700');
+        if (defaultFilter === 'all' && btn.textContent.includes('すべて')) {
+          btn.classList.add('btn-primary', 'font-bold', 'shadow-sm');
+          btn.classList.remove('btn-secondary', 'bg-white', 'text-slate-700');
+        } else if (defaultFilter === 'user_master' && btn.textContent.includes('利用者マスタ')) {
+          btn.classList.add('btn-primary', 'font-bold', 'shadow-sm');
+          btn.classList.remove('btn-secondary', 'bg-white', 'text-slate-700');
+        }
+      });
+
+      renderOperationLogTable();
+    }
+
+    function closeOperationLogModal() {
+      const modal = document.getElementById('operationLogModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function filterOperationLogs(filterVal, btnEl) {
+      window._currentLogFilter = filterVal;
+      const tabs = document.querySelectorAll('#operationLogFilterTabs button');
+      tabs.forEach(b => {
+        b.classList.remove('btn-primary', 'font-bold', 'shadow-sm');
+        b.classList.add('btn-secondary', 'bg-white', 'text-slate-700');
+      });
+      if (btnEl) {
+        btnEl.classList.add('btn-primary', 'font-bold', 'shadow-sm');
+        btnEl.classList.remove('btn-secondary', 'bg-white', 'text-slate-700');
+      }
+      renderOperationLogTable();
+    }
+
+    function renderOperationLogTable() {
+      const tbody = document.getElementById('operationLogTableBody');
+      const countEl = document.getElementById('operationLogCount');
+      const searchInput = document.getElementById('operationLogSearchInput');
+      const filterVal = window._currentLogFilter || 'all';
+      const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      let logs = getOperationLogs();
+
+      if (filterVal === 'user_master') {
+        logs = logs.filter(l => l.actionType.startsWith('user_'));
+      } else if (filterVal === 'records') {
+        logs = logs.filter(l => l.actionType === 'record_save' || l.actionType === 'month_lock');
+      } else if (filterVal === 'cloud') {
+        logs = logs.filter(l => l.actionType === 'cloud_sync');
+      }
+
+      if (query) {
+        logs = logs.filter(l => {
+          const target = (l.displayTime + ' ' + l.actionLabel + ' ' + l.targetName + ' ' + l.facilityName + ' ' + l.summary).toLowerCase();
+          return target.includes(query);
+        });
+      }
+
+      if (countEl) countEl.textContent = logs.length;
+
+      if (logs.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center p-8 text-slate-400 font-bold bg-slate-50">
+          <div class="text-2xl mb-1">📜</div>
+          <div>該当する操作・変更ログはありません。</div>
+        </td></tr>`;
+        return;
+      }
+
+      logs.forEach(l => {
+        let badgeClass = 'bg-slate-100 text-slate-800 border-slate-300';
+        if (l.actionType === 'user_add') badgeClass = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+        else if (l.actionType === 'user_edit') badgeClass = 'bg-blue-100 text-blue-800 border-blue-300';
+        else if (l.actionType === 'user_delete') badgeClass = 'bg-rose-100 text-rose-800 border-rose-300';
+        else if (l.actionType === 'user_import') badgeClass = 'bg-purple-100 text-purple-800 border-purple-300';
+        else if (l.actionType === 'record_save') badgeClass = 'bg-indigo-100 text-indigo-800 border-indigo-300';
+        else if (l.actionType === 'cloud_sync') badgeClass = 'bg-sky-100 text-sky-800 border-sky-300';
+        else if (l.actionType === 'month_lock') badgeClass = 'bg-amber-100 text-amber-800 border-amber-300';
+
+        let diffHtml = '';
+        if (l.details && Array.isArray(l.details) && l.details.length > 0) {
+          diffHtml = '<div class="mt-1 space-y-0.5 text-[11px]">' + l.details.map(d => {
+            return `<span class="inline-block mr-2 px-1.5 py-0.5 bg-slate-100 rounded border border-slate-200">
+              <strong class="text-slate-700">${escapeHtml(d.field)}:</strong>
+              <span class="text-rose-600 line-through mr-1">${escapeHtml(d.before || '未設定')}</span>➔
+              <span class="text-emerald-700 font-bold ml-1">${escapeHtml(d.after || '未設定')}</span>
+            </span>`;
+          }).join('') + '</div>';
+        }
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50 transition border-b border-slate-100';
+        tr.innerHTML = `
+          <td class="font-mono text-xs whitespace-nowrap text-slate-600 font-medium py-2 px-3">${escapeHtml(l.displayTime)}</td>
+          <td class="whitespace-nowrap py-2 px-3"><span class="px-2 py-0.5 rounded text-xs font-bold border ${badgeClass}">${escapeHtml(l.actionLabel)}</span></td>
+          <td class="text-xs py-2 px-3">
+            <div class="font-bold text-slate-900">${escapeHtml(l.targetName || '-')}</div>
+            <div class="text-[10px] text-slate-500">${escapeHtml(l.facilityName || '')}</div>
+          </td>
+          <td class="text-xs text-slate-800 py-2 px-3">
+            <div>${escapeHtml(l.summary)}</div>
+            ${diffHtml}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function exportOperationLogsToCsv() {
+      const logs = getOperationLogs();
+      if (logs.length === 0) {
+        showToast('出力するログがありません', 'warning');
+        return;
+      }
+      const headers = ['日時', '区分', '対象者', '施設', '変更サマリー', '変更詳細'];
+      const rows = logs.map(l => {
+        const detailStr = (l.details || []).map(d => `${d.field}: ${d.before} -> ${d.after}`).join('; ');
+        return [
+          `"${l.displayTime}"`,
+          `"${l.actionLabel}"`,
+          `"${l.targetName || ''}"`,
+          `"${l.facilityName || ''}"`,
+          `"${(l.summary || '').replace(/"/g, '""')}"`,
+          `"${detailStr.replace(/"/g, '""')}"`
+        ].join(',');
+      });
+      const csvContent = '\uFEFF' + headers.join(',') + '\n' + rows.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `介護レセプト_操作更新ログ_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      showToast('操作ログのCSVダウンロードを開始しました', 'success');
+    }
+
+    function clearOperationLogs() {
+      if (!window.confirm('⚠️ すべての操作・更新履歴ログを消去しますか？\n（※この操作は取り消せません）')) return;
+      localStorage.removeItem(OPERATION_LOGS_STORAGE_KEY);
+      renderOperationLogTable();
+      showToast('操作ログを消去しました', 'info');
+    }
 
     // ==========================================
     // フリガナ正規化・姓名辞書・自動推測・五十音順ソートエンジン
