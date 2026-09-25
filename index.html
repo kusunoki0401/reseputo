@@ -21285,14 +21285,7 @@
       }
 
       userSelect.onchange = () => {
-        if (window._recordFormIsDirty) {
-          const proceed = window.confirm('⚠️ 前の利用者の入力内容がまだ保存されていません。\n保存せずに別の利用者に切り替えますか？\n\n※保存する場合は「キャンセル」を押し、「💾 この利用者の実績を保存」を押してください。');
-          if (!proceed) {
-            userSelect.value = window._lastActiveUserId || userSelect.value;
-            return;
-          }
-          window._recordFormIsDirty = false;
-        }
+        window._recordFormIsDirty = false;
         window._lastActiveUserId = userSelect.value;
         renderCalendarGrid();
         updateLiveUserRecordSummary();
