@@ -53,8 +53,33 @@
       flex-direction: column;
       flex-shrink: 0;
       padding: 1.25rem 1rem;
+      transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), padding 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    .logo-area { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem; }
+    .sidebar.collapsed {
+      width: 0 !important;
+      min-width: 0 !important;
+      padding: 0 !important;
+      overflow: hidden !important;
+      border: none !important;
+      transform: translateX(-100%);
+    }
+    .sidebar-close-btn {
+      display: none;
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 1.25rem;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px;
+      line-height: 1;
+    }
+    .sidebar-close-btn:hover {
+      color: #fff;
+      background: rgba(255,255,255,0.1);
+    }
+    .logo-area { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+    .logo-area-inner { display: flex; align-items: center; gap: 0.75rem; }
     .logo-icon { font-size: 1.8rem; }
     .logo-text h2 { font-size: 1.1rem; font-weight: 700; color: #fff; }
     .badge-version { font-size: 0.7rem; background: rgba(255,255,255,0.15); padding: 2px 6px; border-radius: 4px; color: #93c5fd; }
@@ -377,26 +402,95 @@
     .tab-content { display: none !important; }
     .tab-content.active { display: block !important; }
 
-    .record-grid-container {
-      display: grid;
-      grid-template-columns: repeat(7, minmax(130px, 1fr));
-      gap: 0.5rem;
-      overflow-x: auto;
-    }
     .calendar-week-header {
       display: grid;
-      grid-template-columns: repeat(7, minmax(130px, 1fr));
-      gap: 0.5rem;
+      grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+      gap: 0.35rem;
       text-align: center;
       font-weight: 700;
-      margin-bottom: 0.5rem;
+      margin-bottom: 0.4rem;
+      width: 100%;
     }
-  
+    .record-grid-container {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+      gap: 0.35rem;
+      width: 100%;
+    }
+    .day-card {
+      background: #fff;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 0.4rem 0.3rem;
+      min-height: 95px;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      transition: border-color 0.2s, background-color 0.2s;
+      overflow: hidden;
+    }
+    .day-card.active-day { border-color: var(--primary); background: #f0f7ff; }
+    .day-number { font-weight: 700; font-size: 0.8rem; display: flex; justify-content: space-between; align-items: center; }
+    .day-status-badge {
+      font-size: 0.72rem;
+      padding: 2px 5px;
+      border-radius: 4px;
+      font-weight: 700;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s;
+    }
+    .meal-checkboxes {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+      font-size: 0.72rem;
+      margin-top: 0.15rem;
+    }
+    .meal-checkboxes label {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      cursor: pointer;
+      user-select: none;
+      padding: 1px 0;
+    }
+
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      background: #f1f5f9;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    .user-unit-badge {
+      display: flex;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+      align-items: center;
+      width: 100%;
+      margin-top: 0.4rem;
+    }
+    .badge-item {
+      background: #fff;
+      padding: 0.3rem 0.6rem;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      font-size: 0.78rem;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      white-space: nowrap;
+    }
 
     .sidebar-footer button { cursor: pointer !important; user-select: none; }
     .sidebar-footer button * { pointer-events: none !important; }
 
-    /* === iPad・タブレット（画面幅1024px以下）専用レスポンシブ最適化 === */
+    /* === iPad・タブレット（全iPad解像度 1366px以下対応）専用レスポンシブ最適化 === */
     .sidebar-overlay {
       display: none;
       position: fixed;
@@ -408,25 +502,33 @@
     }
     .sidebar-overlay.active { display: block; }
 
+    /* 開閉ボタンは常に画面左上に目立つよう配置 */
     #sidebarToggleBtn {
-      display: none;
+      display: inline-flex !important;
       align-items: center;
       justify-content: center;
+      gap: 0.35rem;
       background: #1e293b;
       color: #fff;
       border: 1px solid #334155;
       border-radius: 8px;
-      padding: 0.4rem 0.65rem;
-      font-size: 1.15rem;
+      padding: 0.45rem 0.75rem;
+      font-size: 0.95rem;
       cursor: pointer;
       font-weight: bold;
       flex-shrink: 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      transition: all 0.15s ease;
     }
     #sidebarToggleBtn:hover {
       background: #334155;
+      transform: translateY(-1px);
+    }
+    #sidebarToggleBtn:active {
+      transform: scale(0.97);
     }
 
-    @media screen and (max-width: 1024px) {
+    @media screen and (max-width: 1366px) {
       body {
         overflow-x: hidden;
       }
@@ -434,9 +536,6 @@
         position: relative;
         overflow-x: hidden;
         width: 100vw;
-      }
-      #sidebarToggleBtn {
-        display: inline-flex;
       }
       .sidebar {
         position: fixed;
@@ -452,17 +551,22 @@
       .sidebar.open {
         transform: translateX(0);
       }
+      .sidebar-close-btn {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+      }
       .main-content {
         width: 100vw;
         max-width: 100vw;
-        padding: 0.85rem 0.85rem 2rem 0.85rem;
+        padding: 0.75rem 0.75rem 2rem 0.75rem;
         overflow-x: hidden;
       }
       .top-header {
         flex-direction: column;
         align-items: stretch;
         gap: 0.6rem;
-        margin-bottom: 1rem;
+        margin-bottom: 0.85rem;
       }
       .header-title {
         display: flex;
@@ -493,14 +597,25 @@
       .kpi-value {
         font-size: 1.25rem;
       }
-      .record-grid-container,
-      .calendar-week-header {
-        grid-template-columns: repeat(7, minmax(90px, 1fr)) !important;
-        -webkit-overflow-scrolling: touch;
+      .calendar-week-header,
+      .record-grid-container {
+        grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+        gap: 0.25rem !important;
+        width: 100% !important;
       }
       .day-card {
-        min-height: 90px;
-        padding: 0.35rem;
+        min-height: 85px;
+        padding: 0.25rem 0.2rem;
+      }
+      .day-number {
+        font-size: 0.75rem;
+      }
+      .day-status-badge {
+        font-size: 0.68rem;
+        padding: 1px 4px;
+      }
+      .meal-checkboxes {
+        font-size: 0.68rem;
       }
       .table-container {
         max-width: 100%;
@@ -524,9 +639,9 @@
       .kpi-grid {
         grid-template-columns: 1fr !important;
       }
-      .record-grid-container,
-      .calendar-week-header {
-        grid-template-columns: repeat(7, minmax(80px, 1fr)) !important;
+      .calendar-week-header,
+      .record-grid-container {
+        grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
       }
     }
   
@@ -577,11 +692,16 @@
   <div class="app-container">
     <aside class="sidebar">
       <div class="logo-area">
-        <div class="logo-icon">📊</div>
-        <div class="logo-text">
-          <h2>介護請求照合</h2>
-          <span class="badge-version">令和8年6月改定対応</span>
+        <div class="logo-area-inner">
+          <div class="logo-icon">📊</div>
+          <div class="logo-text">
+            <h2>介護請求照合</h2>
+            <span class="badge-version">令和8年6月改定対応</span>
+          </div>
         </div>
+        <button type="button" onclick="toggleSidebarDrawer(false)" class="sidebar-close-btn" title="メニューを閉じる">
+          ✕
+        </button>
       </div>
 
       <div class="facility-selector">
@@ -653,6 +773,7 @@
         <div class="header-title flex items-center gap-2">
           <button id="sidebarToggleBtn" type="button" onclick="toggleSidebarDrawer()" class="btn btn-secondary shadow-sm" title="メニューを開閉">
             <span>☰</span>
+            <span>メニュー</span>
           </button>
           <div>
             <h1 id="pageTitle">照合ダッシュボード</h1>
@@ -669,7 +790,7 @@
             <span>📜 更新・変更ログ</span>
           </button>
           <div class="flex items-center gap-1 bg-slate-100 border border-slate-300 rounded-lg px-2.5 py-1 text-xs">
-            <span id="topCloudSyncDot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span id="topCloudSyncDot" class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
             <span id="topCloudSyncStatusText" class="font-bold text-slate-700">クラウド共有: 正常</span>
           </div>
           <button id="topCloudSyncBtn" onclick="syncWithGasSpreadsheet()" class="btn btn-primary bg-blue-600 hover:bg-blue-700 text-white font-bold flex items-center gap-1.5 shadow-sm text-xs px-3 py-1.5" title="他PCや別端末で入力された最新データを即時取得して画面に反映します">
@@ -890,18 +1011,20 @@
             <button id="applyUserScheduleBtn" onclick="applyUserScheduleToCalendar()" class="btn btn-sm btn-primary bg-indigo-600 hover:bg-indigo-700 text-white font-bold hidden shadow-sm">⚡ 登録利用曜日を適用</button>
           </div>
 
-          <div class="calendar-week-header">
-            <div class="day-name">月</div>
-            <div class="day-name">火</div>
-            <div class="day-name">水</div>
-            <div class="day-name">木</div>
-            <div class="day-name">金</div>
-            <div class="day-name sat">土</div>
-            <div class="day-name sun">日</div>
-          </div>
+          <div class="calendar-scroll-wrapper" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+            <div class="calendar-week-header">
+              <div class="day-name">月</div>
+              <div class="day-name">火</div>
+              <div class="day-name">水</div>
+              <div class="day-name">木</div>
+              <div class="day-name">金</div>
+              <div class="day-name sat">土</div>
+              <div class="day-name sun">日</div>
+            </div>
 
-          <div class="record-grid-container" id="userRecordFormContainer">
-            <!-- Calendar Grid -->
+            <div class="record-grid-container" id="userRecordFormContainer">
+              <!-- Calendar Grid -->
+            </div>
           </div>
 
           <div id="individualAdditionsSection" class="mt-4 p-3 bg-blue-50/70 border border-blue-200 rounded-lg hidden">
@@ -2159,20 +2282,46 @@
       }
     };
 
-    // 【iPad・タブレット対応】サイドバードロワー開閉コントローラー
+    // 【全端末・iPad・PC完全対応】サイドバー開閉コントローラー
     function toggleSidebarDrawer(forceState) {
       try {
         const sidebar = document.querySelector('.sidebar');
         const overlay = document.getElementById('sidebarOverlay');
         if (!sidebar) return;
 
-        const isOpen = (typeof forceState === 'boolean') ? !forceState : sidebar.classList.contains('open');
-        if (isOpen) {
-          sidebar.classList.remove('open');
-          if (overlay) overlay.classList.remove('active');
+        const isMobileOrTablet = (typeof window !== 'undefined' && typeof window.innerWidth === 'number') ? (window.innerWidth <= 1366) : true;
+
+        if (isMobileOrTablet) {
+          // モバイル・iPad：スライドインドロワー開閉
+          let shouldOpen;
+          if (typeof forceState === 'boolean') {
+            shouldOpen = forceState;
+          } else {
+            shouldOpen = !sidebar.classList.contains('open');
+          }
+
+          if (shouldOpen) {
+            sidebar.classList.add('open');
+            if (overlay) overlay.classList.add('active');
+          } else {
+            sidebar.classList.remove('open');
+            if (overlay) overlay.classList.remove('active');
+          }
         } else {
-          sidebar.classList.add('open');
-          if (overlay) overlay.classList.add('active');
+          // PC・デスクトップ：折りたたみトグル
+          let shouldCollapse;
+          if (typeof forceState === 'boolean') {
+            shouldCollapse = !forceState;
+          } else {
+            shouldCollapse = !sidebar.classList.contains('collapsed');
+          }
+
+          if (shouldCollapse) {
+            sidebar.classList.add('collapsed');
+          } else {
+            sidebar.classList.remove('collapsed');
+          }
+          if (overlay) overlay.classList.remove('active');
         }
       } catch (e) {
         console.warn('toggleSidebarDrawer error:', e);
@@ -19216,24 +19365,27 @@
       showToast(`突合基準を ${modeText} に切り替えました`, 'info');
     }
 
-    // 【常時表示クラウドステータス更新関数】
-    function updateTopCloudSyncStatus(status, detail) {
+    // 【常時表示クラウドステータス更新関数】（サイレントモード対応：自動同期時は無風・静止）
+    function updateTopCloudSyncStatus(status, detail, isSilent = false) {
       const dot = document.getElementById('topCloudSyncDot');
       const text = document.getElementById('topCloudSyncStatusText');
       const sideText = document.getElementById('gasSyncStatusText');
       const icon = document.getElementById('topCloudSyncIcon');
 
       if (status === 'syncing') {
-        if (dot) dot.className = 'w-2.5 h-2.5 rounded-full bg-blue-500 animate-ping';
-        if (text) text.textContent = 'クラウド同期中...';
-        if (icon) icon.className = 'inline-block animate-spin';
+        // サイレント同期中（自動5秒同期・画面復帰時など）は画面上のスピナー回転やアニメーションを一切起こさない
+        if (!isSilent) {
+          if (dot) dot.className = 'w-2.5 h-2.5 rounded-full bg-blue-500';
+          if (text) text.textContent = 'クラウド同期中...';
+          if (icon) icon.className = 'inline-block animate-spin';
+        }
       } else if (status === 'synced') {
         if (dot) dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500';
         const tStr = detail || (function() {
           const n = new Date();
           return `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
         })();
-        if (text) text.textContent = `クラウド同期: 完了 (${tStr})`;
+        if (text) text.textContent = `クラウド共有: 正常 (${tStr})`;
         if (sideText) sideText.textContent = `同期完了 (最終: ${tStr})`;
         if (icon) icon.className = '';
       } else if (status === 'error') {
@@ -19250,13 +19402,14 @@
         return;
       }
 
-      updateTopCloudSyncStatus('syncing');
+      // 送信時も画面をぐるぐるさせない（サイレント処理）
+      updateTopCloudSyncStatus('syncing', null, true);
       const jsonStr = (typeof payload === 'string') ? payload : JSON.stringify(payload);
       let executed = false;
       const done = (ok) => {
         if (!executed) {
           executed = true;
-          updateTopCloudSyncStatus(ok ? 'synced' : 'error');
+          updateTopCloudSyncStatus(ok ? 'synced' : 'error', null, true);
           if (typeof callback === 'function') callback(ok);
         }
       };
@@ -19312,7 +19465,7 @@
 
       const syncBadge = document.getElementById('recordCloudSyncBadge');
       if (syncBadge) {
-        syncBadge.innerHTML = '☁️ <span class="text-blue-600 animate-pulse font-bold">スプレッドシートへ送信中...</span>';
+        syncBadge.innerHTML = '☁️ <span class="text-blue-600 font-bold">スプレッドシートへ送信中...</span>';
       }
 
       const payload = {
@@ -19344,7 +19497,7 @@
       if (window._isSyncingInProgress) return;
       window._isSyncingInProgress = true;
 
-      updateTopCloudSyncStatus('syncing');
+      updateTopCloudSyncStatus('syncing', null, isSilent);
       if (!isSilent) {
         showToast('スプレッドシートから最新データを取得・同期中...', 'info');
       }
@@ -19479,29 +19632,41 @@
             }
 
             try {
-              renderAllViews();
-              // カレンダー入力画面が開かれている場合はカレンダーも最新化
-              if (typeof renderCalendarGrid === 'function') renderCalendarGrid();
-              if (typeof updateLiveUserRecordSummary === 'function') updateLiveUserRecordSummary();
+              const activeEl = document.activeElement;
+              const isUserTyping = activeEl && (
+                activeEl.tagName === 'INPUT' || 
+                activeEl.tagName === 'SELECT' || 
+                activeEl.tagName === 'TEXTAREA' ||
+                (typeof activeEl.closest === 'function' && (activeEl.closest('#userRecordFormContainer') || activeEl.closest('.filter-bar')))
+              );
+
+              // ユーザーが入力・操作中の場合は画面の再描画をスキップして入力途切れを防止
+              if (!isUserTyping) {
+                renderAllViews();
+                if (typeof renderCalendarGrid === 'function') renderCalendarGrid();
+                if (typeof updateLiveUserRecordSummary === 'function') updateLiveUserRecordSummary();
+              } else {
+                console.log('[CloudSync] ユーザー入力中のため、画面再描画を一時保留しました');
+              }
             } catch (viewErr) {
               console.warn('renderAllViews during sync warning:', viewErr);
             }
 
             const now = new Date();
             const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-            updateTopCloudSyncStatus('synced', timeStr);
+            updateTopCloudSyncStatus('synced', timeStr, isSilent);
 
-            if (!isSilent || newFromCloudCount > 0 || importedFromCloudCount > 0) {
+            if (!isSilent) {
               showToast(`☁️ スプレッドシート同期完了！(マスタ:${userCount}名 ${newFromCloudCount > 0 ? `[+${newFromCloudCount}名]` : ''} / 実績同期:${importedFromCloudCount}件)`, 'success');
             }
           } else {
-            updateTopCloudSyncStatus('error');
-            showToast('スプレッドシートに「利用実績データ」または「利用者マスタ」シートが作成されていない可能性があります。', 'warning');
+            updateTopCloudSyncStatus('error', null, isSilent);
+            if (!isSilent) showToast('スプレッドシートに「利用実績データ」または「利用者マスタ」シートが作成されていない可能性があります。', 'warning');
           }
         } catch (e) {
           console.error('JSONP Process Error:', e);
-          updateTopCloudSyncStatus('synced');
-          showToast('同期処理を完了しました', 'info');
+          updateTopCloudSyncStatus('synced', null, isSilent);
+          if (!isSilent) showToast('同期処理を完了しました', 'info');
         } finally {
           window._isSyncingInProgress = false;
         }
@@ -19516,8 +19681,10 @@
         window._isSyncingInProgress = false;
         if (!isReceived) {
           console.warn('JSONP Load Error - Checking URL & Permissions');
-          updateTopCloudSyncStatus('error');
-          showToast('【接続エラー】GASのデプロイ設定で「アクセスできるユーザー: 全員」になっているかご確認ください', 'error');
+          updateTopCloudSyncStatus('error', null, isSilent);
+          if (!isSilent) {
+            showToast('【接続エラー】GASのデプロイ設定で「アクセスできるユーザー: 全員」になっているかご確認ください', 'error');
+          }
           script.remove();
           delete window[callbackName];
         }
@@ -19529,8 +19696,8 @@
       setTimeout(() => {
         window._isSyncingInProgress = false;
         if (!isReceived && window[callbackName]) {
-          updateTopCloudSyncStatus('error');
-          showToast('【確認】スプレッドシートのWeb App URLの「アクセス権限（全員）」をご確認ください', 'warning');
+          updateTopCloudSyncStatus('error', null, isSilent);
+          if (!isSilent) showToast('【確認】スプレッドシートのWeb App URLの「アクセス権限（全員）」をご確認ください', 'warning');
           const scriptEl = document.getElementById(callbackName);
           if (scriptEl) scriptEl.remove();
           delete window[callbackName];
@@ -20095,9 +20262,6 @@
       document.addEventListener('visibilitychange', () => {
         if (!document.hidden) triggerImmediateSync();
       });
-      // iPadタッチ操作やクリック操作時に最新データがないかゼロ秒検知
-      window.addEventListener('touchstart', triggerImmediateSync, { passive: true });
-      window.addEventListener('click', triggerImmediateSync, { passive: true });
 
       // 3. 【即時自動同期】超高頻度スマート同期（5秒間隔でスプレッドシート変更を常時検知）
       setInterval(() => {
