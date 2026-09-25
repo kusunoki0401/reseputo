@@ -2332,6 +2332,16 @@
     window.switchNavTab = function(btnEl, targetId) {
       try {
         console.log('Switching to tab:', targetId);
+
+        // 【未保存保護】実績一括入力画面から別画面へ移動する際の未保存確認
+        const curInputTab = document.getElementById('input-records');
+        const wasOnInputRecords = curInputTab && curInputTab.classList.contains('active');
+        if (wasOnInputRecords && targetId !== 'input-records' && window._recordFormIsDirty) {
+          const proceed = window.confirm('⚠️ 現在入力中の実績が保存されていません。\n保存せずに別のメニューへ移動しますか？\n\n※保存する場合は「キャンセル」を押し、「💾 この利用者の実績を保存」ボタンを押してください。');
+          if (!proceed) return;
+          window._recordFormIsDirty = false;
+        }
+
         // iPad等の画面幅狭小端末ではメニュー選択後にドロワーを閉じる
         if (typeof toggleSidebarDrawer === 'function') toggleSidebarDrawer(false);
 
@@ -2360,13 +2370,15 @@
           console.warn('Tab render error:', renderErr);
         }
 
-        // 【ユーザー要望】左側メニュー切り替え時にスプレッドシートと自動同期（他PCの最新入力を即時反映）
-        const now = Date.now();
-        if (!window._lastNavSyncTime || (now - window._lastNavSyncTime > 1500)) { // 1.5秒以内の連打はスロットル
-          window._lastNavSyncTime = now;
-          if (typeof syncWithGasSpreadsheet === 'function' && AppState && AppState.gasUrl && AppState.gasUrl.includes('script.google.com')) {
-            console.log('[CloudSync] メニュー切り替え（' + targetId + '）に伴う最新データ自動同期を実行...');
-            syncWithGasSpreadsheet(true);
+        // 【ユーザー要望】実績一括入力画面以外への切り替え時にスプレッドシートと自動同期
+        if (targetId !== 'input-records') {
+          const now = Date.now();
+          if (!window._lastNavSyncTime || (now - window._lastNavSyncTime > 1500)) { // 1.5秒以内の連打はスロットル
+            window._lastNavSyncTime = now;
+            if (typeof syncWithGasSpreadsheet === 'function' && AppState && AppState.gasUrl && AppState.gasUrl.includes('script.google.com')) {
+              console.log('[CloudSync] メニュー切り替え（' + targetId + '）に伴う最新データ自動同期を実行...');
+              syncWithGasSpreadsheet(true);
+            }
           }
         }
       } catch (err) {
@@ -19495,6 +19507,21 @@
         }
         return;
       }
+
+      // 【ユーザー要望】実績一括入力画面（#input-records）の操作中は、保存ボタンを押すまで自動同期・画面再描画を停止
+      const inputRecordsTab = document.getElementById('input-records');
+      const isInputRecordsActive = inputRecordsTab && inputRecordsTab.classList.contains('active');
+      if (isSilent && isInputRecordsActive) {
+        // 実績一括入力画面では入力作業を妨げないよう、保存ボタンを押すまで自動同期を保留
+        return;
+      }
+
+      // 手動同期ボタン押下時、未保存データがあれば事前確認
+      if (!isSilent && window._recordFormIsDirty) {
+        const proceed = window.confirm('⚠️ 実績一括入力画面に入力途中の未保存データがあります。\n手動同期を実行すると入力中の内容が破棄されますが、よろしいですか？\n\n※保存する場合は「キャンセル」を押し、「💾 この利用者の実績を保存」ボタンを押してください。');
+        if (!proceed) return;
+        window._recordFormIsDirty = false;
+      }
       if (window._isSyncingInProgress) {
         if (Date.now() - (window._lastSyncStartTime || 0) > 8000) {
           console.warn('[CloudSync] 前回の同期フラグをセーフティ自動解除しました');
@@ -20287,6 +20314,19 @@
         });
       }
 
+      // 【未保存検知】実績一括入力画面（#input-records）の変更イベント監視
+      const inputTabEl = document.getElementById('input-records');
+      if (inputTabEl) {
+        const markRecordDirty = () => {
+          if (!window._isRenderingCalendar) {
+            window._recordFormIsDirty = true;
+            if (typeof updateRecordSyncBadgeState === 'function') updateRecordSyncBadgeState('dirty');
+          }
+        };
+        inputTabEl.addEventListener('input', markRecordDirty);
+        inputTabEl.addEventListener('change', markRecordDirty);
+      }
+
       setupDropzones();
       renderAllViews();
 
@@ -20331,7 +20371,16 @@
       updateMonthLockDisplay();
       syncMonthInputs();
       renderDashboard();
-      renderUserRecordForm();
+      
+      // 【入力保護】実績一括入力画面が開いている最中は、未保存入力を保護するためフォーム再生成をスキップ
+      const inputRecordsTab = document.getElementById('input-records');
+      const isInputRecordsActive = inputRecordsTab && inputRecordsTab.classList.contains('active');
+      if (!isInputRecordsActive) {
+        renderUserRecordForm();
+      } else {
+        console.log('[ViewRender] 実績一括入力画面で作業中のため、フォーム再生成をスキップしました');
+      }
+      
       renderMasterConfig();
       renderUserMasterTable();
       renderImportPreview();
@@ -21205,6 +21254,15 @@
       }
 
       userSelect.onchange = () => {
+        if (window._recordFormIsDirty) {
+          const proceed = window.confirm('⚠️ 前の利用者の入力内容がまだ保存されていません。\n保存せずに別の利用者に切り替えますか？\n\n※保存する場合は「キャンセル」を押し、「💾 この利用者の実績を保存」を押してください。');
+          if (!proceed) {
+            userSelect.value = window._lastActiveUserId || userSelect.value;
+            return;
+          }
+          window._recordFormIsDirty = false;
+        }
+        window._lastActiveUserId = userSelect.value;
         renderCalendarGrid();
         updateLiveUserRecordSummary();
       };
@@ -21241,6 +21299,18 @@
       }
     };
 
+    function updateRecordSyncBadgeState(status = 'ready') {
+      const syncBadge = document.getElementById('recordCloudSyncBadge');
+      if (!syncBadge) return;
+      if (status === 'dirty') {
+        syncBadge.innerHTML = '✏️ <span class="text-amber-800 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-300">未保存の入力あり（保存で同期）</span>';
+      } else if (status === 'saved') {
+        syncBadge.innerHTML = '✅ <span class="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-300">保存・クラウド同期完了</span>';
+      } else if (status === 'ready') {
+        syncBadge.innerHTML = '🛡️ <span class="text-slate-500 text-xs">（入力中は同期一時停止・保存で送信）</span>';
+      }
+    }
+
     function renderCalendarGrid() {
       const container = document.getElementById('userRecordFormContainer');
       const userSelect = document.getElementById('inputUserSelect');
@@ -21248,6 +21318,11 @@
       container.innerHTML = '';
 
       if (!userSelect || !userSelect.value) return;
+
+      window._isRenderingCalendar = true;
+      window._lastActiveUserId = userSelect.value;
+      window._recordFormIsDirty = false;
+      updateRecordSyncBadgeState('ready');
 
       const userId = userSelect.value;
       const targetM = AppState.targetMonth || '2026-07';
@@ -21504,6 +21579,7 @@
 
         container.appendChild(card);
       }
+      window._isRenderingCalendar = false;
     }
 
     // --- オムツ代 複数購入合算計算ロジック ---
@@ -21757,6 +21833,12 @@
     }
 
     function updateLiveUserRecordSummary(isManualExcessChange = false) {
+      if (!window._isRenderingCalendar) {
+        window._recordFormIsDirty = true;
+        if (typeof updateRecordSyncBadgeState === 'function') {
+          updateRecordSyncBadgeState('dirty');
+        }
+      }
       try {
         const userSelect = document.getElementById('inputUserSelect');
         if (!userSelect) return;
@@ -23211,6 +23293,10 @@
         matchedUser.isExempt = recordObj.isExempt;
       }
       saveStateToLocalStorage();
+      window._recordFormIsDirty = false;
+      if (typeof updateRecordSyncBadgeState === 'function') {
+        updateRecordSyncBadgeState('saved');
+      }
       showToast('✅ 実績情報を保存し、スプレッドシート（他PC共有）へ送信しました', 'success');
       renderDashboard();
 
