@@ -19383,9 +19383,9 @@
         if (dot) dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500';
         const tStr = detail || (function() {
           const n = new Date();
-          return `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
+          return `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}:${String(n.getSeconds()).padStart(2, '0')}`;
         })();
-        if (text) text.textContent = `クラウド共有: 正常 (${tStr})`;
+        if (text) text.textContent = `クラウド同期: 正常 (${tStr})`;
         if (sideText) sideText.textContent = `同期完了 (最終: ${tStr})`;
         if (icon) icon.className = '';
       } else if (status === 'error') {
@@ -19494,8 +19494,16 @@
         }
         return;
       }
-      if (window._isSyncingInProgress) return;
+      if (window._isSyncingInProgress) {
+        if (Date.now() - (window._lastSyncStartTime || 0) > 8000) {
+          console.warn('[CloudSync] 前回の同期フラグをセーフティ自動解除しました');
+          window._isSyncingInProgress = false;
+        } else {
+          return;
+        }
+      }
       window._isSyncingInProgress = true;
+      window._lastSyncStartTime = Date.now();
 
       updateTopCloudSyncStatus('syncing', null, isSilent);
       if (!isSilent) {
@@ -19509,7 +19517,7 @@
         isReceived = true;
         try {
           const scriptEl = document.getElementById(callbackName);
-          if (scriptEl) scriptEl.remove();
+          if (scriptEl && typeof scriptEl.remove === 'function') scriptEl.remove();
           delete window[callbackName];
 
           if (resJson && resJson.status === 'success') {
@@ -19632,32 +19640,35 @@
             }
 
             try {
+              // 1. 全体ビュー（ダッシュボード・マスタ一覧・報告書）は常に最新データで更新
+              renderAllViews();
+
+              // 2. カレンダー再描画判定：テキスト入力欄（オムツ代計算式等）に文字入力中のみ保護
               const activeEl = document.activeElement;
-              const isUserTyping = activeEl && (
-                activeEl.tagName === 'INPUT' || 
-                activeEl.tagName === 'SELECT' || 
-                activeEl.tagName === 'TEXTAREA' ||
-                (typeof activeEl.closest === 'function' && (activeEl.closest('#userRecordFormContainer') || activeEl.closest('.filter-bar')))
+              const isTypingText = activeEl && (
+                (activeEl.tagName === 'INPUT' && (activeEl.type === 'text' || activeEl.type === 'number')) ||
+                activeEl.tagName === 'TEXTAREA'
               );
 
-              // ユーザーが入力・操作中の場合は画面の再描画をスキップして入力途切れを防止
-              if (!isUserTyping) {
-                renderAllViews();
+              if (!isTypingText || !isSilent) {
                 if (typeof renderCalendarGrid === 'function') renderCalendarGrid();
                 if (typeof updateLiveUserRecordSummary === 'function') updateLiveUserRecordSummary();
               } else {
-                console.log('[CloudSync] ユーザー入力中のため、画面再描画を一時保留しました');
+                console.log('[CloudSync] テキスト入力中のため、カレンダー再生成を一時保留しました');
               }
             } catch (viewErr) {
               console.warn('renderAllViews during sync warning:', viewErr);
             }
 
             const now = new Date();
-            const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
             updateTopCloudSyncStatus('synced', timeStr, isSilent);
 
+            // 【差分検知通知】手動同期時、または他端末でデータが更新された（差分あり）場合は必ず通知！
             if (!isSilent) {
               showToast(`☁️ スプレッドシート同期完了！(マスタ:${userCount}名 ${newFromCloudCount > 0 ? `[+${newFromCloudCount}名]` : ''} / 実績同期:${importedFromCloudCount}件)`, 'success');
+            } else if (newFromCloudCount > 0 || importedFromCloudCount > 0) {
+              showToast(`☁️ 他端末の最新データを反映しました (${newFromCloudCount > 0 ? `マスタ:+${newFromCloudCount}名 ` : ''}実績:+${importedFromCloudCount}件)`, 'info');
             }
           } else {
             updateTopCloudSyncStatus('error', null, isSilent);
@@ -19685,7 +19696,7 @@
           if (!isSilent) {
             showToast('【接続エラー】GASのデプロイ設定で「アクセスできるユーザー: 全員」になっているかご確認ください', 'error');
           }
-          script.remove();
+          if (script && typeof script.remove === 'function') script.remove();
           delete window[callbackName];
         }
       };
@@ -19699,7 +19710,7 @@
           updateTopCloudSyncStatus('error', null, isSilent);
           if (!isSilent) showToast('【確認】スプレッドシートのWeb App URLの「アクセス権限（全員）」をご確認ください', 'warning');
           const scriptEl = document.getElementById(callbackName);
-          if (scriptEl) scriptEl.remove();
+          if (scriptEl && typeof scriptEl.remove === 'function') scriptEl.remove();
           delete window[callbackName];
         }
       }, 7000);
