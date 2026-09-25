@@ -2370,9 +2370,19 @@
           console.warn('Tab render error:', renderErr);
         }
 
-        // 【ユーザー要望】実績一括入力画面以外への切り替え時にスプレッドシートと自動同期
-        if (targetId !== 'input-records') {
-          const now = Date.now();
+        // 【ユーザー要望】メニュー切り替えに伴う最新データ自動同期
+        const now = Date.now();
+        if (targetId === 'input-records') {
+          // ① メニューの一括入力を選んだ時：スプレッドシートから最新データを自動同期（入力画面を最新化）
+          if (!window._lastInputNavSyncTime || (now - window._lastInputNavSyncTime > 1500)) {
+            window._lastInputNavSyncTime = now;
+            if (typeof syncWithGasSpreadsheet === 'function' && AppState && AppState.gasUrl && AppState.gasUrl.includes('script.google.com')) {
+              console.log('[CloudSync] 実績一括入力メニュー選択に伴う最新データ自動同期を実行...');
+              syncWithGasSpreadsheet(true, true);
+            }
+          }
+        } else {
+          // 実績一括入力画面以外への切り替え時
           if (!window._lastNavSyncTime || (now - window._lastNavSyncTime > 1500)) { // 1.5秒以内の連打はスロットル
             window._lastNavSyncTime = now;
             if (typeof syncWithGasSpreadsheet === 'function' && AppState && AppState.gasUrl && AppState.gasUrl.includes('script.google.com')) {
@@ -19498,7 +19508,7 @@
     }
 
     // 【プロチーム開発】CORSエラーを100%回避するJSONP型スプレッドシート双方向同期エンジン
-    function syncWithGasSpreadsheet(isSilent = false) {
+    function syncWithGasSpreadsheet(isSilent = false, forceSyncInputRecords = false) {
       if (!AppState.gasUrl || !AppState.gasUrl.includes('script.google.com')) {
         if (!isSilent) {
           document.getElementById('gasWebAppUrlInput').value = AppState.gasUrl || '';
@@ -19508,11 +19518,12 @@
         return;
       }
 
-      // 【ユーザー要望】実績一括入力画面（#input-records）の操作中は、保存ボタンを押すまで自動同期・画面再描画を停止
+      // 【ユーザー要望】実績一括入力画面（#input-records）の操作中は、定期自動同期（5秒おき）を停止
+      // ただしメニュー選択時や利用者切り替え時（forceSyncInputRecords === true）は最新データ取得のため同期を許可
       const inputRecordsTab = document.getElementById('input-records');
       const isInputRecordsActive = inputRecordsTab && inputRecordsTab.classList.contains('active');
-      if (isSilent && isInputRecordsActive) {
-        // 実績一括入力画面では入力作業を妨げないよう、保存ボタンを押すまで自動同期を保留
+      if (isSilent && isInputRecordsActive && !forceSyncInputRecords) {
+        // 定期サイレント同期（5秒おき）は入力作業を妨げないよう保留
         return;
       }
 
@@ -19532,6 +19543,10 @@
       }
       window._isSyncingInProgress = true;
       window._lastSyncStartTime = Date.now();
+
+      if (forceSyncInputRecords && typeof updateRecordSyncBadgeState === 'function') {
+        updateRecordSyncBadgeState('syncing');
+      }
 
       updateTopCloudSyncStatus('syncing', null, isSilent);
       if (!isSilent) {
@@ -19703,7 +19718,17 @@
                 activeEl.tagName === 'TEXTAREA'
               );
 
-              if (!isTypingText || !isSilent) {
+              if (forceSyncInputRecords) {
+                // 【ユーザー要望】メニュー選択時または利用者切り替え時：最新データを画面へ即時反映
+                if (!window._recordFormIsDirty) {
+                  if (typeof renderCalendarGrid === 'function') renderCalendarGrid();
+                  if (typeof updateLiveUserRecordSummary === 'function') updateLiveUserRecordSummary();
+                  if (typeof updateRecordSyncBadgeState === 'function') updateRecordSyncBadgeState('ready');
+                  console.log('[CloudSync] 実績一括入力画面をクラウド最新データで再描画しました');
+                } else {
+                  console.log('[CloudSync] 未保存入力があるため、カレンダーの再描画をスキップしました');
+                }
+              } else if (!isTypingText || !isSilent) {
                 if (typeof renderCalendarGrid === 'function') renderCalendarGrid();
                 if (typeof updateLiveUserRecordSummary === 'function') updateLiveUserRecordSummary();
               } else {
@@ -19729,11 +19754,17 @@
             }
           } else {
             updateTopCloudSyncStatus('error', null, isSilent);
+            if (forceSyncInputRecords && !window._recordFormIsDirty && typeof updateRecordSyncBadgeState === 'function') {
+              updateRecordSyncBadgeState('ready');
+            }
             if (!isSilent) showToast('スプレッドシートに「利用実績データ」または「利用者マスタ」シートが作成されていない可能性があります。', 'warning');
           }
         } catch (e) {
           console.error('JSONP Process Error:', e);
           updateTopCloudSyncStatus('synced', null, isSilent);
+          if (forceSyncInputRecords && !window._recordFormIsDirty && typeof updateRecordSyncBadgeState === 'function') {
+            updateRecordSyncBadgeState('ready');
+          }
           if (!isSilent) showToast('同期処理を完了しました', 'info');
         } finally {
           window._isSyncingInProgress = false;
@@ -21265,6 +21296,12 @@
         window._lastActiveUserId = userSelect.value;
         renderCalendarGrid();
         updateLiveUserRecordSummary();
+
+        // ② 利用者名を選択したとき：スプレッドシートから最新データを自動同期（他端末の保存内容を反映）
+        if (typeof syncWithGasSpreadsheet === 'function' && AppState && AppState.gasUrl && AppState.gasUrl.includes('script.google.com')) {
+          console.log('[CloudSync] 利用者選択切り替え（' + userSelect.value + '）に伴う最新データ自動同期を実行...');
+          syncWithGasSpreadsheet(true, true);
+        }
       };
 
       const indivSection = document.getElementById('individualAdditionsSection');
@@ -21304,6 +21341,8 @@
       if (!syncBadge) return;
       if (status === 'dirty') {
         syncBadge.innerHTML = '✏️ <span class="text-amber-800 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-300">未保存の入力あり（保存で同期）</span>';
+      } else if (status === 'syncing') {
+        syncBadge.innerHTML = '🔄 <span class="text-blue-700 font-medium bg-blue-50 px-2 py-0.5 rounded border border-blue-200 animate-pulse">最新データを同期中...</span>';
       } else if (status === 'saved') {
         syncBadge.innerHTML = '✅ <span class="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-300">保存・クラウド同期完了</span>';
       } else if (status === 'ready') {
