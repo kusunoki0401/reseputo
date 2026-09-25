@@ -19352,6 +19352,7 @@
       activeUsersPerFacility: JSON.parse(JSON.stringify(INITIAL_ACTIVE_USERS)),
       softwareData: JSON.parse(JSON.stringify(INITIAL_BACKUP_SOFTWARE_DATA)),
       records: JSON.parse(JSON.stringify(INITIAL_BACKUP_RECORDS)),
+      deletedUserIds: [],
       matchMode: localStorage.getItem('care_sys_match_mode') || 'auto'
     };
 
@@ -19521,28 +19522,53 @@
           delete window[callbackName];
 
           if (resJson && resJson.status === 'success') {
-            // 1. 利用者マスタの双方向マージ（他PCでの追加・編集を安全統合）
+            // 1. 利用者マスタの双方向マージ（他PCでの追加・編集・削除を安全統合）
             let userCount = 0;
             let newFromCloudCount = 0;
+            let deletedFromCloudCount = 0;
             if (resJson.userMaster && Array.isArray(resJson.userMaster) && resJson.userMaster.length > 0) {
-              const incomingUsers = resJson.userMaster.map(u => {
+              if (!Array.isArray(AppState.deletedUserIds)) AppState.deletedUserIds = [];
+              const deletedSet = new Set(AppState.deletedUserIds.map(id => format10DigitId(id)));
+
+              const incomingUsers = [];
+              const cloudUserIds = new Set();
+              resJson.userMaster.forEach(u => {
+                const uid = format10DigitId(u.id || u[0]);
+                if (!uid || deletedSet.has(uid)) return; // 削除済みIDは絶対に復活させない
+                cloudUserIds.add(uid);
                 const nm = ensureHonorific(u.name || u[1]);
-                return {
-                  id: format10DigitId(u.id || u[0]),
+                incomingUsers.push({
+                  id: uid,
                   name: nm,
                   kana: u.kana ? normalizeToKatakana(u.kana) : guessKanaFromName(nm),
                   birth: String(u.birth || u[2] || u[3] || '').trim(),
                   careLevel: cleanCareLevelString(u.careLevel || u[3] || u[4]) || '要介護2',
                   ratio: cleanRatioString(u.ratio || u[4] || u[5]) || '1割',
                   facilityId: normalizeFacilityId(u.facilityId || u[5] || u[6])
-                };
+                });
               });
 
-              // 既存ローカルマスタと統合（新規追加をマージ）
+              // 既存ローカルマスタ
               const userMap = new Map();
               (AppState.userMaster || []).forEach(u => {
-                if (u.id) userMap.set(format10DigitId(u.id), u);
+                if (u.id) {
+                  const uid10 = format10DigitId(u.id);
+                  if (!deletedSet.has(uid10)) {
+                    userMap.set(uid10, u);
+                  }
+                }
               });
+
+              // 【他PCでの削除伝播検知】
+              // クラウドスプレッドシート側に存在しない既存利用者は「他PCで削除された」と判定してローカルからも削除
+              for (const [locId, locUser] of userMap.entries()) {
+                if (!cloudUserIds.has(locId) && !locUser._isLocalDraft) {
+                  userMap.delete(locId);
+                  AppState.deletedUserIds.push(locId);
+                  deletedSet.add(locId);
+                  deletedFromCloudCount++;
+                }
+              }
 
               incomingUsers.forEach(iu => {
                 if (!iu.id) return;
@@ -19666,9 +19692,13 @@
 
             // 【差分検知通知】手動同期時、または他端末でデータが更新された（差分あり）場合は必ず通知！
             if (!isSilent) {
-              showToast(`☁️ スプレッドシート同期完了！(マスタ:${userCount}名 ${newFromCloudCount > 0 ? `[+${newFromCloudCount}名]` : ''} / 実績同期:${importedFromCloudCount}件)`, 'success');
-            } else if (newFromCloudCount > 0 || importedFromCloudCount > 0) {
-              showToast(`☁️ 他端末の最新データを反映しました (${newFromCloudCount > 0 ? `マスタ:+${newFromCloudCount}名 ` : ''}実績:+${importedFromCloudCount}件)`, 'info');
+              showToast(`☁️ スプレッドシート同期完了！(マスタ:${userCount}名 ${newFromCloudCount > 0 ? `[+${newFromCloudCount}名]` : ''}${deletedFromCloudCount > 0 ? `[-${deletedFromCloudCount}名]` : ''} / 実績同期:${importedFromCloudCount}件)`, 'success');
+            } else if (newFromCloudCount > 0 || deletedFromCloudCount > 0 || importedFromCloudCount > 0) {
+              const diffMsgs = [];
+              if (newFromCloudCount > 0) diffMsgs.push(`マスタ追加:+${newFromCloudCount}名`);
+              if (deletedFromCloudCount > 0) diffMsgs.push(`マスタ削除:${deletedFromCloudCount}名`);
+              if (importedFromCloudCount > 0) diffMsgs.push(`実績:+${importedFromCloudCount}件`);
+              showToast(`☁️ 他端末の最新データを反映しました (${diffMsgs.join(' ')})`, 'info');
             }
           } else {
             updateTopCloudSyncStatus('error', null, isSilent);
@@ -19820,6 +19850,7 @@
           additionMaster: AppState.additionMaster,
           records: AppState.records,
           softwareData: AppState.softwareData,
+          deletedUserIds: AppState.deletedUserIds || [],
           lockedMonths: AppState.lockedMonths || {},
           currentFacilityId: AppState.currentFacilityId,
           targetMonth: AppState.targetMonth
@@ -19834,11 +19865,33 @@
     function ensureInitialMasterSync() {
       try {
         if (!Array.isArray(AppState.userMaster)) AppState.userMaster = [];
+        if (!Array.isArray(AppState.deletedUserIds)) AppState.deletedUserIds = [];
+        const deletedSet = new Set((AppState.deletedUserIds || []).map(id => format10DigitId(id)));
+
+        // すでに利用者が存在するか、一度でもマスタ操作（削除など）が行われて初期化済みの場合は
+        // 削除済み利用者の勝手な復活を絶対に防止する
+        const isAlreadyInitialized = (AppState.userMaster.length > 0 || deletedSet.size > 0);
+        if (isAlreadyInitialized) {
+          // 削除済み利用者が万が一残っていればクリーンアップ
+          if (deletedSet.size > 0) {
+            AppState.userMaster = AppState.userMaster.filter(u => !deletedSet.has(format10DigitId(u.id)));
+            if (AppState.activeUsersPerFacility && typeof AppState.activeUsersPerFacility === 'object') {
+              Object.keys(AppState.activeUsersPerFacility).forEach(fid => {
+                if (Array.isArray(AppState.activeUsersPerFacility[fid])) {
+                  AppState.activeUsersPerFacility[fid] = AppState.activeUsersPerFacility[fid].filter(id => !deletedSet.has(format10DigitId(id)));
+                }
+              });
+            }
+          }
+          return;
+        }
+
+        // 初回起動時（ストレージが完全に空の場合のみ）初期マスタ利用者をセット
         const existingUserIds = new Set(AppState.userMaster.map(u => format10DigitId(u.id)));
         let addedCount = 0;
         INITIAL_MASTER_USERS.forEach(defUser => {
           const uid10 = format10DigitId(defUser.id);
-          if (!existingUserIds.has(uid10)) {
+          if (!existingUserIds.has(uid10) && !deletedSet.has(uid10)) {
             AppState.userMaster.push(JSON.parse(JSON.stringify(defUser)));
             existingUserIds.add(uid10);
             addedCount++;
@@ -19850,18 +19903,7 @@
         }
         ['fac_kusunoki', 'fac_sakura', 'fac_short_mirai', 'fac_mirai_nakaoka'].forEach(fid => {
           if (!AppState.activeUsersPerFacility[fid] || !Array.isArray(AppState.activeUsersPerFacility[fid]) || AppState.activeUsersPerFacility[fid].length === 0) {
-            AppState.activeUsersPerFacility[fid] = INITIAL_ACTIVE_USERS[fid] ? [...INITIAL_ACTIVE_USERS[fid]] : [];
-          } else {
-            const curSet = new Set(AppState.activeUsersPerFacility[fid].map(id => format10DigitId(id)));
-            if (INITIAL_ACTIVE_USERS[fid]) {
-              INITIAL_ACTIVE_USERS[fid].forEach(id => {
-                const id10 = format10DigitId(id);
-                if (!curSet.has(id10)) {
-                  AppState.activeUsersPerFacility[fid].push(id10);
-                  curSet.add(id10);
-                }
-              });
-            }
+            AppState.activeUsersPerFacility[fid] = (INITIAL_ACTIVE_USERS[fid] ? [...INITIAL_ACTIVE_USERS[fid]] : []).filter(id => !deletedSet.has(format10DigitId(id)));
           }
         });
 
@@ -19881,7 +19923,7 @@
         });
 
         if (addedCount > 0) {
-          console.log(`[MasterSync] ${addedCount}名の初期利用者を同期補完しました。`);
+          console.log(`[MasterSync] 初回起動: ${addedCount}名の初期利用者を同期補完しました。`);
           saveStateToLocalStorage();
         }
       } catch (err) {
@@ -19908,6 +19950,7 @@
         if (parsed.userMaster && Array.isArray(parsed.userMaster) && parsed.userMaster.length > 0) {
           AppState.userMaster = parsed.userMaster;
         }
+        AppState.deletedUserIds = Array.isArray(parsed.deletedUserIds) ? parsed.deletedUserIds : [];
         if (parsed.activeUsersPerFacility && typeof parsed.activeUsersPerFacility === 'object') {
           AppState.activeUsersPerFacility = JSON.parse(JSON.stringify(parsed.activeUsersPerFacility));
         }
@@ -24391,6 +24434,15 @@
 
       saveUserMasterBackup(); // 取込直前の自動バックアップ
 
+      // 削除済みリストから解除（再登録・取込を許可）
+      if (Array.isArray(AppState.deletedUserIds)) {
+        const addedIds = new Set([
+          ...newUsers.map(u => format10DigitId(u.id)),
+          ...updateUsers.map(u => format10DigitId(u.candidate?.id || u.existing?.id))
+        ]);
+        AppState.deletedUserIds = AppState.deletedUserIds.filter(did => !addedIds.has(format10DigitId(did)));
+      }
+
       // 1. 重複（更新）利用者の反映
       updateUsers.forEach(item => {
         const ex = item.existing;
@@ -24466,7 +24518,8 @@
           careLevel: u.careLevel || '要介護2',
           ratio: u.ratio || '1割',
           facilityId: getUserFacilityId(u)
-        }))
+        })),
+        deletedUserIds: AppState.deletedUserIds || []
       };
 
       sendGasPostRequest(payload, () => {
@@ -24624,6 +24677,12 @@
         });
       }
 
+      // 削除済みリストから解除（再登録・情報変更を許可）
+      if (Array.isArray(AppState.deletedUserIds)) {
+        const id10 = format10DigitId(id);
+        AppState.deletedUserIds = AppState.deletedUserIds.filter(did => format10DigitId(did) !== id10);
+      }
+
       deduplicateUserMaster();
       Object.keys(AppState.facilities).forEach(fId => {
         const fUsers = AppState.userMaster.filter(u => getUserFacilityId(u) === fId);
@@ -24645,21 +24704,30 @@
       const confirmed = window.confirm(`⚠️【利用者の削除確認】\n\n利用者「${userName}」を本当にマスタから削除しますか？\n\n※誤って削除ボタンを押した場合は「キャンセル」を押してください。\n※「OK」を押した場合でも、直前の自動バックアップから復元可能です。`);
       if (!confirmed) return;
 
+      const uid10 = format10DigitId(userId);
+
       saveUserMasterBackup(); // 削除直前の自動バックアップ
       recordOperationLog({
         actionType: 'user_delete',
         actionLabel: '🗑️ 利用者削除',
-        targetName: `${userName} (${format10DigitId(userId)})`,
+        targetName: `${userName} (${uid10})`,
         summary: `利用者をマスタから削除しました（直前バックアップ保存済）`
       });
-      AppState.userMaster = AppState.userMaster.filter(u => format10DigitId(u.id) !== format10DigitId(userId));
 
-      // 各施設の所属利用者IDリストも同期
+      // 1. 削除済みIDリストに記録（クラウド同期やページ再読み込みによる勝手な復活を100%防止）
+      if (!Array.isArray(AppState.deletedUserIds)) AppState.deletedUserIds = [];
+      if (!AppState.deletedUserIds.includes(uid10)) {
+        AppState.deletedUserIds.push(uid10);
+      }
+
+      // 2. 利用者マスタから完全削除
+      AppState.userMaster = (AppState.userMaster || []).filter(u => format10DigitId(u.id) !== uid10);
+
+      // 3. 各施設の所属利用者IDリストも同期
       if (AppState.facilities && typeof AppState.facilities === 'object') {
         Object.keys(AppState.facilities).forEach(fId => {
-          const fUsers = AppState.userMaster.filter(usr => getUserFacilityId(usr) === fId);
-          if (AppState.activeUsersPerFacility) {
-            AppState.activeUsersPerFacility[fId] = fUsers.map(usr => usr.id);
+          if (AppState.activeUsersPerFacility && Array.isArray(AppState.activeUsersPerFacility[fId])) {
+            AppState.activeUsersPerFacility[fId] = AppState.activeUsersPerFacility[fId].filter(id => format10DigitId(id) !== uid10);
           }
         });
       }
@@ -24668,7 +24736,7 @@
       renderAllViews();
       showToast(`利用者「${userName}」を削除しました（直前バックアップ保存済）`, 'info');
 
-      // クラウド自動同期（他PCへ即時共有）
+      // 4. クラウド自動同期（Googleスプレッドシートの「利用者マスタ」へ即時反映し、他PCにも削除を同期）
       autoSyncUserMasterToGas();
     }
 
