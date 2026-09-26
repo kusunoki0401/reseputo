@@ -19637,21 +19637,50 @@
               saveUserMasterBackup();
             }
 
-            // 2. 加算マスタ同期
+            // 2. 加算マスタ同期（ローカル変更優先保護）
             if (resJson.additionMaster) {
-              AppState.additionMaster = Object.assign({}, AppState.additionMaster, resJson.additionMaster);
+              if (!AppState.additionMasterUpdatedAt) {
+                AppState.additionMaster = Object.assign({}, AppState.additionMaster, resJson.additionMaster);
+              } else {
+                console.log('[CloudSync] ローカルの加算マスタ設定変更を優先保護しました');
+              }
             }
 
-            // 3. 施設加算設定同期
+            // 3. 施設加算設定同期（双方向・最新タイムスタンプ判定＆ローカル保護）
+            let needsPushFacilityConfig = false;
             if (resJson.facilities && typeof resJson.facilities === 'object') {
               Object.keys(resJson.facilities).forEach(fId => {
-                if (AppState.facilities[fId]) {
-                  if (resJson.facilities[fId].additions) {
-                    AppState.facilities[fId].additions = resJson.facilities[fId].additions;
-                  }
-                } else {
-                  AppState.facilities[fId] = resJson.facilities[fId];
+                const cFac = resJson.facilities[fId];
+                const lFac = AppState.facilities[fId];
+                if (!lFac) {
+                  AppState.facilities[fId] = cFac;
+                  return;
                 }
+
+                // ローカルにユーザー保存日時（updatedAt）が存在する場合
+                const lTime = lFac.updatedAt ? new Date(lFac.updatedAt).getTime() : 0;
+                const cTime = cFac.updatedAt ? new Date(cFac.updatedAt).getTime() : 0;
+
+                if (lTime > 0 && lTime >= cTime) {
+                  // ローカルの方が新しい（または同等）場合 -> クラウドの古いデータで上書きせずローカルを維持！
+                  console.log(`[CloudSync] 施設 ${fId} の加算設定はローカル保存内容（${lFac.updatedAt}）を優先保護しました`);
+                  needsPushFacilityConfig = true; // スプレッドシート側が古いのでプッシュ対象
+                } else if (cFac.additions && Array.isArray(cFac.additions) && cFac.additions.length > 0) {
+                  // クラウド側が確実に新しく、有効な加算データが存在する場合のみ採用
+                  lFac.additions = cFac.additions;
+                  if (cFac.updatedAt) lFac.updatedAt = cFac.updatedAt;
+                }
+              });
+            }
+
+            // クラウド側の施設加算設定が古い場合、ローカルの最新設定をスプレッドシートへ自動プッシュ送信
+            if (needsPushFacilityConfig && AppState.gasUrl && AppState.gasUrl.includes('script.google.com')) {
+              sendGasPostRequest({
+                action: 'saveFacilityMaster',
+                facilities: AppState.facilities,
+                additionMaster: AppState.additionMaster
+              }, () => {
+                console.log('[CloudSync] ローカルの最新施設加算設定をスプレッドシートへ自動反映しました');
               });
             }
 
@@ -20030,6 +20059,35 @@
         if (parsed.softwareData) AppState.softwareData = parsed.softwareData || {};
         if (parsed.lockedMonths) AppState.lockedMonths = Object.assign({}, parsed.lockedMonths);
         if (parsed.currentFacilityId) AppState.currentFacilityId = parsed.currentFacilityId;
+        // 全施設・加算マスタバックアップからの保護復元
+        try {
+          const allFacBackup = localStorage.getItem('care_sys_all_facilities_backup');
+          if (allFacBackup) {
+            const parsedAllFac = JSON.parse(allFacBackup);
+            if (parsedAllFac && typeof parsedAllFac === 'object') {
+              Object.keys(parsedAllFac).forEach(fId => {
+                if (AppState.facilities[fId] && parsedAllFac[fId] && parsedAllFac[fId].updatedAt) {
+                  const bTime = new Date(parsedAllFac[fId].updatedAt).getTime();
+                  const cTime = AppState.facilities[fId].updatedAt ? new Date(AppState.facilities[fId].updatedAt).getTime() : 0;
+                  if (bTime >= cTime && Array.isArray(parsedAllFac[fId].additions)) {
+                    AppState.facilities[fId].additions = parsedAllFac[fId].additions;
+                    AppState.facilities[fId].updatedAt = parsedAllFac[fId].updatedAt;
+                  }
+                }
+              });
+            }
+          }
+          const addMasterBackup = localStorage.getItem('care_sys_addition_master_backup');
+          if (addMasterBackup) {
+            const parsedAddMaster = JSON.parse(addMasterBackup);
+            if (parsedAddMaster && typeof parsedAddMaster === 'object') {
+              Object.assign(AppState.additionMaster, parsedAddMaster);
+            }
+          }
+        } catch (facBackupErr) {
+          console.warn('全施設加算バックアップ復元警告:', facBackupErr);
+        }
+
         // ショートステイ専用バックアップからの保護復元（不意のリセットを100%防止）
         try {
           const shortAddsBackup = localStorage.getItem('care_sys_short_stay_additions_backup');
@@ -23543,6 +23601,9 @@
         selectedAdditions.push(chk.value);
       });
       fac.additions = selectedAdditions;
+      const nowIso = new Date().toISOString();
+      fac.updatedAt = nowIso;
+      AppState.facilityMasterUpdatedAt = nowIso;
 
       const additionList = AppState.additionMaster[selectedType] || [];
       document.querySelectorAll('.addition-val-input').forEach(input => {
@@ -23560,21 +23621,39 @@
           }
         }
       });
+      AppState.additionMasterUpdatedAt = nowIso;
 
-      // 【ショートステイ専用】独立バックアップ保存（不意のリセットを100%防止）
-      if (targetFacilityId === 'fac_short_mirai' || selectedType === 'ショートステイ') {
-        try {
+      // 【全施設＆ショートステイ専用】独立バックアップ保存（不意のリセットを100%防止）
+      try {
+        localStorage.setItem('care_sys_all_facilities_backup', JSON.stringify(AppState.facilities));
+        localStorage.setItem('care_sys_addition_master_backup', JSON.stringify(AppState.additionMaster));
+        if (targetFacilityId === 'fac_short_mirai' || selectedType === 'ショートステイ') {
           localStorage.setItem('care_sys_short_stay_additions_backup', JSON.stringify(fac.additions));
           localStorage.setItem('care_sys_short_stay_master_backup', JSON.stringify(AppState.additionMaster['ショートステイ']));
           localStorage.setItem('care_sys_short_stay_facility_backup', JSON.stringify(fac));
-        } catch (backupErr) {
-          console.warn('ショートステイ専用バックアップ保存警告:', backupErr);
         }
+      } catch (backupErr) {
+        console.warn('施設加算バックアップ保存警告:', backupErr);
       }
 
       saveStateToLocalStorage();
       updateFacilityDisplay();
-      showToast(`${fac.name} の加算マスタ＆設定を確実に保存しました`, 'success');
+
+      // GASクラウド連携URLが設定されている場合はスプレッドシートへ即時送信
+      if (AppState.gasUrl && AppState.gasUrl.includes('script.google.com')) {
+        sendGasPostRequest({
+          action: 'saveFacilityMaster',
+          facilityId: targetFacilityId,
+          facility: fac,
+          facilities: AppState.facilities,
+          additionMaster: AppState.additionMaster
+        }, (ok) => {
+          console.log('[CloudSync] 施設加算設定をスプレッドシートへ送信完了:', ok);
+        });
+        showToast(`✅ ${fac.name} の加算マスタ＆設定を保存し、スプレッドシートへ送信しました`, 'success');
+      } else {
+        showToast(`✅ ${fac.name} の加算マスタ＆設定を保存しました`, 'success');
+      }
       renderAllViews();
     }
 
