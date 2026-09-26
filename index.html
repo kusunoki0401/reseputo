@@ -669,7 +669,7 @@
       <div id="loginFormContainer" onkeydown="if(event.key==='Enter'){event.preventDefault(); handleFacilityLogin();}">
         <div class="form-group">
           <label for="loginFacilitySelect">ログイン対象施設:</label>
-          <select id="loginFacilitySelect" class="form-control font-bold p-2.5 border-blue-600" onchange="const pi = document.getElementById('loginPasswordInput'); if(pi){ pi.value = ''; pi.setAttribute('readonly', 'readonly'); }">
+          <select id="loginFacilitySelect" class="form-control font-bold p-2.5 border-blue-600" onchange="const pi = document.getElementById('loginPasswordInput'); if(pi){ pi.value = ''; pi.focus(); }">
             <option value="fac_kusunoki">有料老人ホームくすの木（特定施設入居者生活介護）</option>
             <option value="fac_sakura">グループホーム桜（認知症対応型共同生活介護）</option>
             <option value="fac_mirai_nakaoka">デイサービス未来中岡（地域密着型通所介護）</option>
@@ -678,7 +678,7 @@
         </div>
         <div class="form-group mt-4">
           <label for="loginPasswordInput">施設パスワード:</label>
-          <input type="text" id="loginPasswordInput" name="fac_auth_token_prevent_autofill" class="form-control p-2.5 font-bold" value="" placeholder="施設パスワードを入力" required autocomplete="off" style="-webkit-text-security: disc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;" readonly onfocus="this.removeAttribute('readonly');" oninput="this.removeAttribute('readonly');">
+          <input type="text" id="loginPasswordInput" name="fac_auth_token_prevent_autofill" class="form-control p-2.5 font-bold" value="" placeholder="施設パスワードを入力" required autocomplete="new-password" inputmode="numeric" style="-webkit-text-security: disc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
         </div>
         <div id="loginErrorMsg" class="text-red-500 bg-red-50 border border-red-200 p-2 rounded text-xs mt-3 text-center hidden">⚠️ パスワードが正しくありません</div>
         
@@ -2406,7 +2406,7 @@
         const passInput = document.getElementById('loginPasswordInput');
         if (passInput) {
           passInput.value = '';
-          passInput.setAttribute('readonly', 'readonly');
+          setTimeout(() => passInput.focus(), 100);
         }
         const errEl = document.getElementById('loginErrorMsg');
         if (errEl) errEl.classList.add('hidden');
@@ -20202,7 +20202,6 @@
           if (errEl) errEl.classList.add('hidden');
           if (passInput) {
             passInput.value = '';
-            passInput.setAttribute('readonly', 'readonly');
           }
           const loginScreen = document.getElementById('loginScreen');
           if (loginScreen) {
@@ -20270,19 +20269,20 @@
       syncMonthInputs();
       if (typeof setupBirthInputListenersOnce === 'function') setupBirthInputListenersOnce();
 
-      const clearLoginPassword = () => {
-        const passInput = document.getElementById('loginPasswordInput');
-        if (passInput) {
-          passInput.value = '';
-          passInput.setAttribute('readonly', 'readonly');
-        }
-      };
-      clearLoginPassword();
-      setTimeout(clearLoginPassword, 50);
-      setTimeout(clearLoginPassword, 150);
-      setTimeout(clearLoginPassword, 300);
-      setTimeout(clearLoginPassword, 600);
-      window.addEventListener('load', clearLoginPassword);
+      const passInput = document.getElementById('loginPasswordInput');
+      if (passInput) {
+        passInput.value = '';
+        passInput.removeAttribute('readonly');
+        // 全角数字（１２３４）入力の自動半角正規化
+        passInput.addEventListener('input', (e) => {
+          if (e.target && e.target.value) {
+            const normalized = e.target.value.replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+            if (normalized !== e.target.value) {
+              e.target.value = normalized;
+            }
+          }
+        });
+      }
 
       document.querySelectorAll('.nav-item').forEach(btn => {
         btn.addEventListener('click', (e) => {
