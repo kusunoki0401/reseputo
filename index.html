@@ -789,7 +789,7 @@
           <button id="openOperationLogBtn" onclick="openOperationLogModal()" class="btn btn-secondary bg-indigo-600 hover:bg-indigo-700 text-white font-bold mr-2 shadow-sm" title="直近の更新・変更操作履歴を確認">
             <span>📜 更新・変更ログ</span>
           </button>
-          <div class="flex items-center gap-1 bg-slate-100 border border-slate-300 rounded-lg px-2.5 py-1 text-xs">
+          <div class="flex items-center gap-1 bg-slate-100 border border-slate-300 rounded-lg px-2.5 py-1 text-xs cursor-pointer hover:bg-slate-200 transition" onclick="openGasConfigModal()" title="クリックしてGoogle Apps Script連携設定・接続状況を確認">
             <span id="topCloudSyncDot" class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
             <span id="topCloudSyncStatusText" class="font-bold text-slate-700">クラウド共有: 正常</span>
           </div>
@@ -1500,7 +1500,7 @@
 
         <div class="card">
           <div class="card-header">
-            <h3>👥 <span id="userMasterFacTitle" class="text-blue-700 font-bold"></span>登録利用者マスタ管理画面</h3>
+            <h3>👥 <span id="userMasterFacTitle" class="text-blue-700 font-bold"></span>登録利用者マスタ管理画面 <span id="userMasterSyncBadge" class="ml-2 text-xs font-normal text-slate-500">（保存時にスプレッドシートへ自動同期）</span></h3>
             <div class="flex gap-2 flex-wrap">
               <button id="exportUserMasterToGasBtn" class="btn btn-secondary text-xs bg-blue-600 hover:bg-blue-700 text-white font-bold" onclick="exportUserMasterToGasSpreadsheet();">📤 スプレッドシートへ全件保存</button>
               <button id="scrollToCsvImportBtn" class="btn btn-primary text-xs mr-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold" onclick="document.getElementById('userCsvDropzone').scrollIntoView({behavior:'smooth'}); showToast('ファイルドロップエリアへ移動しました。CSV/Excelファイルを選択してください', 'info');">📂 CSV/Excel取込</button>
@@ -1656,9 +1656,12 @@
         </div>
       </div>
 
-      <div class="form-actions mt-6 flex justify-end gap-3">
-        <button id="cancelGasConfigBtn" onclick="closeGasConfigModal()" class="btn btn-secondary">キャンセル</button>
-        <button id="saveGasConfigBtn" onclick="saveGasConfigAndSync()" class="btn btn-primary">💾 URL設定を保存</button>
+      <div class="form-actions mt-6 flex justify-between items-center gap-3">
+        <button type="button" onclick="resetGasUrlToDefault()" class="btn btn-secondary text-xs text-slate-600 bg-slate-100 hover:bg-slate-200">🔄 標準URLに戻す</button>
+        <div class="flex gap-2">
+          <button id="cancelGasConfigBtn" onclick="closeGasConfigModal()" class="btn btn-secondary">キャンセル</button>
+          <button id="saveGasConfigBtn" onclick="saveGasConfigAndSync()" class="btn btn-primary">💾 URL設定を保存・接続テスト</button>
+        </div>
       </div>
     </div>
   </div>
@@ -2385,8 +2388,17 @@
         } else if (targetId === 'master-config') {
           // 【ユーザー要望】加算マスタ画面内は自動同期しない（保存後のみ同期）
           console.log('[CloudSync] 加算マスタ画面（master-config）のため、メニュー切り替え自動同期を停止しました');
+        } else if (targetId === 'user-master-mgmt') {
+          // 【利用者マスタ】メニューの利用者マスタを選んだ時：他PCで更新された最新データを即座に自動取得して画面更新
+          if (!window._lastUserMasterNavSyncTime || (now - window._lastUserMasterNavSyncTime > 1500)) {
+            window._lastUserMasterNavSyncTime = now;
+            if (typeof syncWithGasSpreadsheet === 'function' && AppState && AppState.gasUrl && AppState.gasUrl.includes('script.google.com')) {
+              console.log('[CloudSync] 利用者マスタメニュー選択に伴う最新マスタ自動同期を実行...');
+              syncWithGasSpreadsheet(true, true);
+            }
+          }
         } else {
-          // 実績一括入力・加算マスタ画面以外への切り替え時
+          // 実績一括入力・加算マスタ・利用者マスタ画面以外への切り替え時
           if (!window._lastNavSyncTime || (now - window._lastNavSyncTime > 1500)) { // 1.5秒以内の連打はスロットル
             window._lastNavSyncTime = now;
             if (typeof syncWithGasSpreadsheet === 'function' && AppState && AppState.gasUrl && AppState.gasUrl.includes('script.google.com')) {
@@ -19522,15 +19534,24 @@
         return;
       }
 
-      // 【ユーザー要望】実績一括入力画面（#input-records）および加算マスタ画面（#master-config）の操作中は、定期自動同期（5秒おき）を停止
-      // ただし一括入力のメニュー選択時や利用者切り替え時（forceSyncInputRecords === true）は最新データ取得のため同期を許可
+      // 【ユーザー要望】実績一括入力画面（#input-records）、加算マスタ画面（#master-config）、利用者マスタ画面（#user-master-mgmt）、および編集モーダル操作中は、定期自動同期（5秒おき）を停止
+      // ただしメニュー選択時や利用者切り替え時（forceSyncInputRecords === true）は最新データ取得のため同期を許可
       const inputRecordsTab = document.getElementById('input-records');
       const isInputRecordsActive = inputRecordsTab && inputRecordsTab.classList.contains('active');
       const masterConfigTab = document.getElementById('master-config');
       const isMasterConfigActive = masterConfigTab && masterConfigTab.classList.contains('active');
+      const userMasterTab = document.getElementById('user-master-mgmt');
+      const isUserMasterActive = userMasterTab && userMasterTab.classList.contains('active');
+      const editUserModal = document.getElementById('editUserMasterModal');
+      const isEditUserModalOpen = editUserModal && !editUserModal.classList.contains('hidden');
 
-      if (isSilent && (isInputRecordsActive || isMasterConfigActive) && !forceSyncInputRecords) {
-        // 実績入力画面または加算マスタ画面の操作中は、保存ボタンを押すまで定期自動同期を保留
+      // スプレッドシートへ保存中（送信中）は、古いGETデータによる上書き割り込みを防止
+      if (window._isUserMasterSavingToCloud && (Date.now() - (window._lastUserMasterSaveTime || 0) < 6000)) {
+        return;
+      }
+
+      if (isSilent && (isInputRecordsActive || isMasterConfigActive || isUserMasterActive || isEditUserModalOpen) && !forceSyncInputRecords) {
+        // 実績入力・加算マスタ・利用者マスタ画面の操作中またはモーダル入力中は、作業中の入力保護のため定期自動同期を保留
         return;
       }
 
@@ -19571,10 +19592,9 @@
           delete window[callbackName];
 
           if (resJson && resJson.status === 'success') {
-            // 1. 利用者マスタの双方向マージ（他PCでの追加・編集・削除を安全統合）
+            // 1. 利用者マスタの双方向マージ（他PCでの追加・編集を安全統合、ローカル登録を100%保護）
             let userCount = 0;
             let newFromCloudCount = 0;
-            let deletedFromCloudCount = 0;
             if (resJson.userMaster && Array.isArray(resJson.userMaster) && resJson.userMaster.length > 0) {
               if (!Array.isArray(AppState.deletedUserIds)) AppState.deletedUserIds = [];
               const deletedSet = new Set(AppState.deletedUserIds.map(id => format10DigitId(id)));
@@ -19583,7 +19603,7 @@
               const cloudUserIds = new Set();
               resJson.userMaster.forEach(u => {
                 const uid = format10DigitId(u.id || u[0]);
-                if (!uid || deletedSet.has(uid)) return; // 削除済みIDは絶対に復活させない
+                if (!uid || deletedSet.has(uid)) return; // 明示的削除IDは除外
                 cloudUserIds.add(uid);
                 const nm = ensureHonorific(u.name || u[1]);
                 incomingUsers.push({
@@ -19597,28 +19617,32 @@
                 });
               });
 
-              // 既存ローカルマスタ
+              // 既存ローカルマスタをマップ化
               const userMap = new Map();
               (AppState.userMaster || []).forEach(u => {
                 if (u.id) {
                   const uid10 = format10DigitId(u.id);
-                  if (!deletedSet.has(uid10)) {
-                    userMap.set(uid10, u);
-                  }
+                  userMap.set(uid10, u);
                 }
               });
 
-              // 【他PCでの削除伝播検知】
-              // クラウドスプレッドシート側に存在しない既存利用者は「他PCで削除された」と判定してローカルからも削除
+              // 【重要・推測削除の完全撤廃】
+              // クラウド側にまだ存在しないローカル利用者は、新しくこのPCで登録された最新データ（または送信中データ）です。
+              // 勝手に「他PCで削除された」と誤認して削除することは絶対にせず、確実に保護・維持します。
+              let hasLocalOnlyUsers = false;
               for (const [locId, locUser] of userMap.entries()) {
-                if (!cloudUserIds.has(locId) && !locUser._isLocalDraft) {
-                  userMap.delete(locId);
-                  AppState.deletedUserIds.push(locId);
-                  deletedSet.add(locId);
-                  deletedFromCloudCount++;
+                if (!cloudUserIds.has(locId)) {
+                  // この端末で登録された新規利用者
+                  hasLocalOnlyUsers = true;
+                  // 誤って削除済みリストに入っていた場合は救済解除
+                  if (deletedSet.has(locId)) {
+                    deletedSet.delete(locId);
+                    AppState.deletedUserIds = AppState.deletedUserIds.filter(did => format10DigitId(did) !== locId);
+                  }
                 }
               }
 
+              // クラウドから届いた最新データをマージ
               incomingUsers.forEach(iu => {
                 if (!iu.id) return;
                 const existing = userMap.get(iu.id);
@@ -19642,6 +19666,12 @@
               userCount = AppState.userMaster.length;
               deduplicateUserMaster();
               saveUserMasterBackup();
+
+              // ローカルにしか存在しない利用者がある場合、クラウド（スプレッドシート）にも確実に届くよう自動プッシュ同期
+              if (hasLocalOnlyUsers && !window._isUserMasterSavingToCloud && AppState.gasUrl && AppState.gasUrl.includes('script.google.com')) {
+                console.log('[CloudSync] ローカル先行登録の利用者をスプレッドシートへ自動プッシュ保存します...');
+                autoSyncUserMasterToGas();
+              }
             }
 
             // 2. 加算マスタ同期（ローカル変更優先保護）
@@ -19755,9 +19785,10 @@
               );
 
               if (forceSyncInputRecords) {
-                // 【ユーザー要望】メニュー選択時または利用者切り替え時：最新データを画面へ即時反映
+                // 【ユーザー要望】メニュー選択時・利用者切り替え時・月切り替え時：最新データを画面へ即時反映
                 if (!window._recordFormIsDirty) {
-                  if (typeof renderCalendarGrid === 'function') renderCalendarGrid();
+                  if (typeof renderUserRecordForm === 'function') renderUserRecordForm();
+                  else if (typeof renderCalendarGrid === 'function') renderCalendarGrid();
                   if (typeof updateLiveUserRecordSummary === 'function') updateLiveUserRecordSummary();
                   if (typeof updateRecordSyncBadgeState === 'function') updateRecordSyncBadgeState('ready');
                   console.log('[CloudSync] 実績一括入力画面をクラウド最新データで再描画しました');
@@ -19774,6 +19805,7 @@
               console.warn('renderAllViews during sync warning:', viewErr);
             }
 
+            window._gasSyncConsecutiveErrors = 0;
             const now = new Date();
             const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
             updateTopCloudSyncStatus('synced', timeStr, isSilent);
@@ -19789,7 +19821,10 @@
               showToast(`☁️ 他端末の最新データを反映しました (${diffMsgs.join(' ')})`, 'info');
             }
           } else {
-            updateTopCloudSyncStatus('error', null, isSilent);
+            window._gasSyncConsecutiveErrors = (window._gasSyncConsecutiveErrors || 0) + 1;
+            if (!isSilent || window._gasSyncConsecutiveErrors >= 2) {
+              updateTopCloudSyncStatus('error', null, isSilent);
+            }
             if (forceSyncInputRecords && !window._recordFormIsDirty && typeof updateRecordSyncBadgeState === 'function') {
               updateRecordSyncBadgeState('ready');
             }
@@ -19797,6 +19832,7 @@
           }
         } catch (e) {
           console.error('JSONP Process Error:', e);
+          window._gasSyncConsecutiveErrors = 0;
           updateTopCloudSyncStatus('synced', null, isSilent);
           if (forceSyncInputRecords && !window._recordFormIsDirty && typeof updateRecordSyncBadgeState === 'function') {
             updateRecordSyncBadgeState('ready');
@@ -19816,9 +19852,12 @@
         window._isSyncingInProgress = false;
         if (!isReceived) {
           console.warn('JSONP Load Error - Checking URL & Permissions');
-          updateTopCloudSyncStatus('error', null, isSilent);
+          window._gasSyncConsecutiveErrors = (window._gasSyncConsecutiveErrors || 0) + 1;
+          if (!isSilent || window._gasSyncConsecutiveErrors >= 2) {
+            updateTopCloudSyncStatus('error', null, isSilent);
+          }
           if (!isSilent) {
-            showToast('【接続エラー】GASのデプロイ設定で「アクセスできるユーザー: 全員」になっているかご確認ください', 'error');
+            showToast('【接続エラー】スプレッドシート連携URLまたは「アクセス権限（全員）」をご確認ください', 'error');
           }
           if (script && typeof script.remove === 'function') script.remove();
           delete window[callbackName];
@@ -19827,17 +19866,20 @@
 
       document.body.appendChild(script);
 
-      // 7秒タイムアウト判定
+      // 15秒タイムアウト判定（GASコールドスタートや回線遅延による誤判定を防止）
       setTimeout(() => {
         window._isSyncingInProgress = false;
         if (!isReceived && window[callbackName]) {
-          updateTopCloudSyncStatus('error', null, isSilent);
-          if (!isSilent) showToast('【確認】スプレッドシートのWeb App URLの「アクセス権限（全員）」をご確認ください', 'warning');
+          window._gasSyncConsecutiveErrors = (window._gasSyncConsecutiveErrors || 0) + 1;
+          if (!isSilent || window._gasSyncConsecutiveErrors >= 2) {
+            updateTopCloudSyncStatus('error', null, isSilent);
+            if (!isSilent) showToast('【確認】スプレッドシートへの通信がタイムアウトしました。右上の「同期エラー」をクリックして設定をご確認ください', 'warning');
+          }
           const scriptEl = document.getElementById(callbackName);
           if (scriptEl && typeof scriptEl.remove === 'function') scriptEl.remove();
           delete window[callbackName];
         }
-      }, 7000);
+      }, 15000);
     }
 
     function isCurrentMonthLocked() {
@@ -20364,8 +20406,23 @@
 
       document.getElementById('targetMonth').addEventListener('change', (e) => {
         AppState.targetMonth = e.target.value;
+        window._recordFormIsDirty = false; // 月切り替え時は未保存状態を安全リセット
         saveStateToLocalStorage();
-        renderAllViews();
+        syncMonthInputs();
+        updateMonthLockDisplay();
+        renderDashboard();
+        
+        // 【重要】一括入力画面が開いている場合でも、月変更時は新しい月の日数・曜日でカレンダーを即座に再生成！
+        renderUserRecordForm();
+        renderReportPaper();
+
+        showToast(`📅 対象月を「${e.target.value}」に変更しました。最新データを同期中...`, 'info');
+
+        // 【ユーザー要望】月の変更だけで同期のトリガーにする（スプレッドシートから即座に最新データを自動同期）
+        if (typeof syncWithGasSpreadsheet === 'function' && AppState && AppState.gasUrl && AppState.gasUrl.includes('script.google.com')) {
+          console.log('[CloudSync] 対象月変更（' + e.target.value + '）に伴う最新データ自動同期を実行...');
+          syncWithGasSpreadsheet(true, true);
+        }
       });
 
       document.getElementById('runCheckBtn').addEventListener('click', () => {
@@ -20381,23 +20438,43 @@
       document.getElementById('saveUserRecordBtn').addEventListener('click', saveCurrentRecordForm);
       document.getElementById('saveMasterBtn').addEventListener('click', saveFacilityMasterConfig);
 
-      document.getElementById('openGasConfigBtn').addEventListener('click', () => {
-        document.getElementById('gasWebAppUrlInput').value = AppState.gasUrl;
-        document.getElementById('gasConfigModal').classList.remove('hidden');
-      });
-      document.getElementById('closeGasConfigModalBtn').addEventListener('click', () => {
-        document.getElementById('gasConfigModal').classList.add('hidden');
-      });
-      document.getElementById('cancelGasConfigBtn').addEventListener('click', () => {
-        document.getElementById('gasConfigModal').classList.add('hidden');
-      });
-      document.getElementById('saveGasConfigBtn').addEventListener('click', () => {
-        const urlVal = document.getElementById('gasWebAppUrlInput').value.trim();
+      window.openGasConfigModal = function() {
+        const inputEl = document.getElementById('gasWebAppUrlInput');
+        if (inputEl) inputEl.value = AppState.gasUrl || DEFAULT_GAS_URL;
+        const modal = document.getElementById('gasConfigModal');
+        if (modal) modal.classList.remove('hidden');
+      };
+
+      window.closeGasConfigModal = function() {
+        const modal = document.getElementById('gasConfigModal');
+        if (modal) modal.classList.add('hidden');
+      };
+
+      window.saveGasConfigAndSync = function() {
+        const inputEl = document.getElementById('gasWebAppUrlInput');
+        const urlVal = inputEl ? inputEl.value.trim() : '';
+        if (!urlVal || !urlVal.includes('script.google.com')) {
+          showToast('有効なGoogle Apps Script URLを入力してください', 'warning');
+          return;
+        }
         AppState.gasUrl = urlVal;
         localStorage.setItem('care_sys_gas_url', AppState.gasUrl);
-        document.getElementById('gasConfigModal').classList.add('hidden');
-        showToast('GAS Web App URLを保存しました', 'success');
-      });
+        window.closeGasConfigModal();
+        showToast('GAS Web App URLを保存しました。接続確認中...', 'info');
+        window._gasSyncConsecutiveErrors = 0;
+        syncWithGasSpreadsheet(false);
+      };
+
+      window.resetGasUrlToDefault = function() {
+        const inputEl = document.getElementById('gasWebAppUrlInput');
+        if (inputEl) inputEl.value = DEFAULT_GAS_URL;
+        showToast('標準のWeb App URLをセットしました。「URL設定を保存」を押してください', 'info');
+      };
+
+      document.getElementById('openGasConfigBtn')?.addEventListener('click', window.openGasConfigModal);
+      document.getElementById('closeGasConfigModalBtn')?.addEventListener('click', window.closeGasConfigModal);
+      document.getElementById('cancelGasConfigBtn')?.addEventListener('click', window.closeGasConfigModal);
+      document.getElementById('saveGasConfigBtn')?.addEventListener('click', window.saveGasConfigAndSync);
 
       document.getElementById('manualGasSyncBtn').addEventListener('click', () => {
         syncWithGasSpreadsheet();
@@ -20468,13 +20545,13 @@
       syncMonthInputs();
       renderDashboard();
       
-      // 【入力保護】実績一括入力画面が開いている最中は、未保存入力を保護するためフォーム再生成をスキップ
+      // 【入力保護】実績一括入力画面で未保存の入力中のみ保護し、それ以外（未保存なし、月変更時など）はカレンダーを最新化
       const inputRecordsTab = document.getElementById('input-records');
       const isInputRecordsActive = inputRecordsTab && inputRecordsTab.classList.contains('active');
-      if (!isInputRecordsActive) {
+      if (!isInputRecordsActive || !window._recordFormIsDirty) {
         renderUserRecordForm();
       } else {
-        console.log('[ViewRender] 実績一括入力画面で作業中のため、フォーム再生成をスキップしました');
+        console.log('[ViewRender] 実績一括入力画面で未保存入力があるため、フォーム再生成をスキップしました');
       }
       
       // 【加算マスタ保護】加算マスタ画面が開いている最中は、設定中のチェックや数値を保護するため画面再生成をスキップ
@@ -21108,8 +21185,16 @@
       const userSelect = document.getElementById('inputUserSelect');
       if (userSelect) {
         userSelect.value = userId;
+        window._recordFormIsDirty = false;
+        window._lastActiveUserId = userId;
         renderCalendarGrid();
         updateLiveUserRecordSummary();
+
+        // 【ユーザー要望】人を変更した場合：スプレッドシートから最新データを自動同期
+        if (typeof syncWithGasSpreadsheet === 'function' && AppState && AppState.gasUrl && AppState.gasUrl.includes('script.google.com')) {
+          console.log('[CloudSync] 検索モーダルからの利用者変更（' + userId + '）に伴う最新データ自動同期を実行...');
+          syncWithGasSpreadsheet(true, true);
+        }
       }
       closeUserSearchModal();
       const user = findUserById(userId);
@@ -24725,10 +24810,25 @@
       document.getElementById('editUserMasterModal').classList.add('hidden');
     }
 
-    function autoSyncUserMasterToGas() {
-      if (!AppState.gasUrl || !AppState.gasUrl.includes('script.google.com')) return;
+    function autoSyncUserMasterToGas(callback) {
+      if (!AppState.gasUrl || !AppState.gasUrl.includes('script.google.com')) {
+        if (typeof callback === 'function') callback(false);
+        return;
+      }
       const users = AppState.userMaster || [];
-      if (users.length === 0) return;
+      if (users.length === 0) {
+        if (typeof callback === 'function') callback(false);
+        return;
+      }
+
+      // 送信中フラグ（古いGET同期による上書き割り込みをブロック）
+      window._isUserMasterSavingToCloud = true;
+      window._lastUserMasterSaveTime = Date.now();
+
+      const badgeEl = document.getElementById('userMasterSyncBadge');
+      if (badgeEl) {
+        badgeEl.innerHTML = '⏳ <span class="text-blue-600 font-bold">スプレッドシートへ保存・同期中...</span>';
+      }
 
       const payload = {
         action: 'saveUserMaster',
@@ -24744,14 +24844,19 @@
         deletedUserIds: AppState.deletedUserIds || []
       };
 
-      sendGasPostRequest(payload, () => {
-        console.log(`[CloudSync] 利用者マスタ全${users.length}名をスプレッドシートに自動同期しました`);
+      sendGasPostRequest(payload, (ok) => {
+        window._isUserMasterSavingToCloud = false;
+        console.log(`[CloudSync] 利用者マスタ全${users.length}名をスプレッドシートに自動同期しました (成功: ${ok})`);
         const statusText = document.getElementById('gasSyncStatusText');
+        const now = new Date();
+        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         if (statusText) {
-          const now = new Date();
-          const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-          statusText.textContent = `クラウド同期完了 (最終: ${timeStr})`;
+          statusText.textContent = `マスタ同期完了 (最終: ${timeStr})`;
         }
+        if (badgeEl) {
+          badgeEl.innerHTML = `✅ <span class="text-emerald-700 font-bold">保存・クラウド同期完了</span> <span class="text-slate-400 text-xs">(${timeStr})</span>`;
+        }
+        if (typeof callback === 'function') callback(ok);
       });
     }
 
@@ -25096,7 +25201,8 @@
       const originalLen = AppState.userMaster.length;
       AppState.userMaster = AppState.userMaster.filter(u => {
         const name = String(u.name || '').trim();
-        if (name.includes('新規利用者(') || name.includes('新規利用者（') || name.includes('新規利用者')) return false;
+        // システムが過去に自動生成した仮ユーザー（例: "新規利用者(0000000001)" 等のカッコ付き）のみを対象にし、手動登録データは誤削除しない
+        if (/^新規利用者[\(（][0-9a-zA-Z_-]+[\)）]/.test(name)) return false;
         if (!name || name === '様') return false;
         if (name === `${u.id} 様` || name === u.id) return false;
         if (/^\d{6,12}\s*様?$/.test(name)) return false;
