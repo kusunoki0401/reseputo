@@ -1114,6 +1114,18 @@
                   <span id="shortTvRentalCalcText" class="text-xs font-bold text-amber-700 ml-1 font-mono"></span>
                 </div>
               </div>
+              <div class="form-group selfpay-short-item" id="shortMiraiBentoContainer">
+                <div class="flex justify-between items-center mb-1">
+                  <label class="font-bold text-slate-800 text-xs">🍱 未来弁当 (1個 698円):</label>
+                  <span class="text-[10px] text-emerald-700 font-normal">※個数を入力</span>
+                </div>
+                <div class="flex items-center gap-2 mt-1">
+                  <input type="number" id="shortMiraiBentoCount" class="form-control font-bold bg-white text-right w-24 h-9 border-emerald-300 focus:border-emerald-500 font-mono" value="" min="0" placeholder="0" oninput="updateLiveUserRecordSummary()">
+                  <span class="text-xs font-bold text-slate-600">個</span>
+                  <span id="shortMiraiBentoCalcText" class="text-xs font-bold text-emerald-700 ml-1 font-mono"></span>
+                </div>
+                <p class="text-[10px] text-slate-500 mt-1">※1個あたり698円で自費計算されます</p>
+              </div>
               <div class="form-group selfpay-short-item">
                 <div class="flex justify-between items-center mb-1">
                   <label class="font-bold text-slate-800 text-xs">🍚 食事負担超過額 (436円/日):</label>
@@ -1146,6 +1158,11 @@
                   <input type="checkbox" id="chkSelfInitialFee" onchange="updateLiveUserRecordSummary()" class="w-4 h-4 text-amber-600 rounded cursor-pointer accent-amber-600">
                   <span>🏠 新規入居（入所一時金 ¥150,000 を自費請求に加算する）</span>
                 </label>
+              </div>
+              <div class="form-group selfpay-kusunoki-item" id="kusunokiFamilyLunchContainer">
+                <label class="font-bold text-slate-800 text-xs">家族昼食代 (円):</label>
+                <input type="number" id="kusunokiFamilyLunchCost" class="form-control font-bold bg-white" value="" min="0" placeholder="0" oninput="updateLiveUserRecordSummary()">
+                <span class="text-[10px] text-slate-500 mt-0.5">※直接金額を入力してください</span>
               </div>
             </div>
           </div>
@@ -2638,6 +2655,37 @@
       ]
     };
 
+    // 【パーセンテージ加算の正規化関数】（例: 0.228 ➔ 22.8%、0.03 ➔ 3.0%、0.01 ➔ 1.0%）
+    function normalizePercentValue(val) {
+      if (val === undefined || val === null || val === '') return 0;
+      let num = typeof val === 'number' ? val : parseFloat(String(val).replace(/%/g, ''));
+      if (isNaN(num)) return 0;
+      // 1未満の小数（例: 0.228, 0.03, -0.01 等）で記録されている場合、パーセント値（22.8%, 3.0%, -1.0%）に自動補正
+      if (num !== 0 && Math.abs(num) < 1) {
+        num = Math.round(num * 1000) / 10;
+      }
+      return num;
+    }
+
+    // additionMaster 全体のパーセンテージ値を自動補正するヘルパー
+    function sanitizeAdditionMasterPercents(addMaster) {
+      if (!addMaster || typeof addMaster !== 'object') return;
+      Object.keys(addMaster).forEach(svcType => {
+        const list = addMaster[svcType];
+        if (Array.isArray(list)) {
+          list.forEach(item => {
+            if (item && item.type === 'percent') {
+              if (item.percent !== undefined && item.percent !== null) {
+                item.percent = normalizePercentValue(item.percent);
+                item.unit = `${item.percent.toFixed(1)}%`;
+              }
+            }
+          });
+        }
+      });
+    }
+
+
     function normalizeFacilityId(rawFac) {
       if (!rawFac) return '';
       const str = String(rawFac).trim();
@@ -2876,7 +2924,7 @@
               if (careInfo.isYoushien && item.target === 'kaigo_only') return;
               if (item.type === 'daily') dailyAddUnits += (item.rate || 0);
               else if (item.type === 'monthly') monthlyAddUnits += (item.rate || 0);
-              else if (item.type === 'percent') percentRate += (item.percent || 0);
+              else if (item.type === 'percent') percentRate += normalizePercentValue(item.percent || 0);
             }
           });
 
@@ -2927,6 +2975,7 @@
             if (rec.useHairColor) selfPayAmt += 1000;
             if (rec.bathCount > 10) selfPayAmt += (rec.bathCount - 10) * 500;
             if (rec.useInitialFee) selfPayAmt += 150000; // くすの木 新規入所一時金
+            if (rec.familyLunchCost) selfPayAmt += Number(rec.familyLunchCost || 0); // くすの木 家族昼食代
           }
 
           // 基本居住費（家賃）、光熱水費、管理費：入居契約中（入院・外出中も居室確保のため）は月額満額発生
@@ -3011,7 +3060,7 @@
               } else {
                 if (item.type === 'daily') dailyAddUnits += (item.rate || 0);
                 else if (item.type === 'monthly') monthlyAddUnits += (item.rate || 0);
-                else if (item.type === 'percent') percentRate += (item.percent || 0);
+                else if (item.type === 'percent') percentRate += normalizePercentValue(item.percent || 0);
               }
             }
           });
@@ -3054,7 +3103,7 @@
             if (item) {
               if (item.type === 'daily') dailyAddUnits += (item.rate || 0);
               else if (item.type === 'monthly') monthlyAddUnits += (item.rate || 0);
-              else if (item.type === 'percent') percentRate += (item.percent || 0);
+              else if (item.type === 'percent') percentRate += normalizePercentValue(item.percent || 0);
             }
           });
 
@@ -3161,7 +3210,7 @@
               if (careInfo.isYoushien && item.target === 'kaigo_only') return;
               if (item.type === 'daily') total += (item.rate || 0) * useDays;
               else if (item.type === 'monthly') total += (item.rate || 0);
-              else if (item.type === 'percent') percentRate += (item.percent || 0);
+              else if (item.type === 'percent') percentRate += normalizePercentValue(item.percent || 0);
             }
           });
 
@@ -3311,6 +3360,8 @@
           if (rec) {
             const tvCount = Number(rec.shortTvRentalCount || 0);
             if (tvCount > 0) extraSelfPay += tvCount * 150;
+            const bentoCount = Number(rec.shortMiraiBentoCount || 0);
+            if (bentoCount > 0) extraSelfPay += bentoCount * 698;
             if (rec.useHaircut) extraSelfPay += 2500;
             if (rec.useHairColor) extraSelfPay += 1000;
           }
@@ -19676,8 +19727,14 @@
 
             // 2. 加算マスタ同期（ローカル変更優先保護）
             if (resJson.additionMaster) {
+              if (typeof sanitizeAdditionMasterPercents === 'function') {
+                sanitizeAdditionMasterPercents(resJson.additionMaster);
+              }
               if (!AppState.additionMasterUpdatedAt) {
                 AppState.additionMaster = Object.assign({}, AppState.additionMaster, resJson.additionMaster);
+                if (typeof sanitizeAdditionMasterPercents === 'function') {
+                  sanitizeAdditionMasterPercents(AppState.additionMaster);
+                }
               } else {
                 console.log('[CloudSync] ローカルの加算マスタ設定変更を優先保護しました');
               }
@@ -19984,6 +20041,8 @@
           activeUsersPerFacility: AppState.activeUsersPerFacility,
           facilities: AppState.facilities,
           additionMaster: AppState.additionMaster,
+          additionMasterUpdatedAt: AppState.additionMasterUpdatedAt,
+          facilityMasterUpdatedAt: AppState.facilityMasterUpdatedAt,
           records: AppState.records,
           softwareData: AppState.softwareData,
           deletedUserIds: AppState.deletedUserIds || [],
@@ -20104,6 +20163,8 @@
           }
         }
         if (parsed.additionMaster) Object.assign(AppState.additionMaster, parsed.additionMaster);
+        if (parsed.additionMasterUpdatedAt) AppState.additionMasterUpdatedAt = parsed.additionMasterUpdatedAt;
+        if (parsed.facilityMasterUpdatedAt) AppState.facilityMasterUpdatedAt = parsed.facilityMasterUpdatedAt;
         if (parsed.records) AppState.records = parsed.records || {};
         if (parsed.softwareData) AppState.softwareData = parsed.softwareData || {};
         if (parsed.lockedMonths) AppState.lockedMonths = Object.assign({}, parsed.lockedMonths);
@@ -20162,6 +20223,11 @@
           }
         } catch (backupErr) {
           console.warn('ショートステイバックアップ復元警告:', backupErr);
+        }
+
+        // 加算マスタのパーセント値を確実に正規化（0.228 -> 22.8等）
+        if (typeof sanitizeAdditionMasterPercents === 'function') {
+          sanitizeAdditionMasterPercents(AppState.additionMaster);
         }
 
         // 全4施設の初期利用者・実績が欠落していないか自動同期補完
@@ -21336,8 +21402,8 @@
         allGroups.forEach(el => el.classList.remove('hidden'));
 
         if (serviceType === 'ショートステイ' || facId === 'fac_short_mirai') {
-          // 【ショートステイ未来月見台】居室負担額・食事負担超過額・テレビ貸出・理美容代を表示
-          if (titleEl) titleEl.innerHTML = '<span>💳</span> 個別自費項目設定 (ショートステイ未来月見台：個室/多床室負担額・食事負担超過額・テレビ貸出・理美容代)';
+          // 【ショートステイ未来月見台】未来弁当・テレビ貸出・食事負担超過額・理美容代を表示
+          if (titleEl) titleEl.innerHTML = '<span>💳</span> 個別自費項目設定 (ショートステイ未来月見台：未来弁当・テレビ貸出・食事負担超過額・理美容代)';
           allGroups.forEach(el => {
             if (el.classList.contains('selfpay-hair-item') || el.classList.contains('selfpay-short-item')) {
               el.classList.remove('hidden');
@@ -21587,11 +21653,18 @@
       if (document.getElementById('chkSelfHaircut')) document.getElementById('chkSelfHaircut').checked = !!existingRec.useHaircut;
       if (document.getElementById('chkSelfHairColor')) document.getElementById('chkSelfHairColor').checked = !!existingRec.useHairColor;
       if (document.getElementById('chkSelfInitialFee')) document.getElementById('chkSelfInitialFee').checked = !!existingRec.useInitialFee;
+      if (document.getElementById('kusunokiFamilyLunchCost')) document.getElementById('kusunokiFamilyLunchCost').value = existingRec.familyLunchCost || '';
       if (document.getElementById('shortTvRentalCount')) {
         const tvCnt = existingRec.shortTvRentalCount || '';
         document.getElementById('shortTvRentalCount').value = tvCnt;
         const tvCalcEl = document.getElementById('shortTvRentalCalcText');
         if (tvCalcEl) tvCalcEl.textContent = tvCnt > 0 ? `(¥${formatNumber(tvCnt * 150)})` : '';
+      }
+      if (document.getElementById('shortMiraiBentoCount')) {
+        const bentoCnt = existingRec.shortMiraiBentoCount || '';
+        document.getElementById('shortMiraiBentoCount').value = bentoCnt;
+        const bentoCalcEl = document.getElementById('shortMiraiBentoCalcText');
+        if (bentoCalcEl) bentoCalcEl.textContent = bentoCnt > 0 ? `(¥${formatNumber(bentoCnt * 698)})` : '';
       }
       if (document.getElementById('shortMealExcessDays')) {
         const excessDays = (existingRec.shortMealExcessDays !== undefined && existingRec.shortMealExcessDays !== null) ? existingRec.shortMealExcessDays : '';
@@ -22120,16 +22193,22 @@
         useHaircut: !!document.getElementById('chkSelfHaircut')?.checked,
         useHairColor: !!document.getElementById('chkSelfHairColor')?.checked,
         shortTvRentalCount: Number(document.getElementById('shortTvRentalCount')?.value || 0),
+        shortMiraiBentoCount: Number(document.getElementById('shortMiraiBentoCount')?.value || 0),
         shortMealExcessDays: Number(document.getElementById('shortMealExcessDays')?.value || 0),
         bathCount: Number(document.getElementById('selfBathCount')?.value || 0),
         useDischargeInfo: (serviceType === '有料ホーム') && !!document.getElementById('chkDischargeInfo')?.checked,
         useInitialFee: !!document.getElementById('chkSelfInitialFee')?.checked,
+        familyLunchCost: Number(document.getElementById('kusunokiFamilyLunchCost')?.value || 0),
         days: {}
       };
 
       const liveTvCnt = tempRec.shortTvRentalCount || 0;
       const liveTvCalcEl = document.getElementById('shortTvRentalCalcText');
       if (liveTvCalcEl) liveTvCalcEl.textContent = liveTvCnt > 0 ? `(¥${formatNumber(liveTvCnt * 150)})` : '';
+
+      const liveBentoCnt = tempRec.shortMiraiBentoCount || 0;
+      const liveBentoCalcEl = document.getElementById('shortMiraiBentoCalcText');
+      if (liveBentoCalcEl) liveBentoCalcEl.textContent = liveBentoCnt > 0 ? `(¥${formatNumber(liveBentoCnt * 698)})` : '';
 
       let linkageCount = 0;
       for (let d = 1; d <= daysInMonth; d++) {
@@ -22542,8 +22621,9 @@
           subtotalUnits += u;
           detailLines.push({ name: item.name, formula: form, units: u });
         } else if (item.type === 'percent') {
-          percentRate += (item.percent || 0);
-          percentAdditions.push(`${item.name} (${item.percent > 0 ? '+' : ''}${item.percent}%)`);
+          const pVal = normalizePercentValue(item.percent || 0);
+          percentRate += pVal;
+          percentAdditions.push(`${item.name} (${pVal > 0 ? '+' : ''}${pVal}%)`);
         }
       });
 
@@ -22742,8 +22822,9 @@
         const bathExtraTotal = bathCount > 10 ? ((bathCount - 10) * 500) : 0;
         const useInitialFee = !!document.getElementById('chkSelfInitialFee')?.checked;
         const initialFeeTotal = useInitialFee ? 150000 : 0;
+        const familyLunchCost = Number(document.getElementById('kusunokiFamilyLunchCost')?.value || 0);
 
-        const grandSelfTotal = calculatedRoomCost + mealTotal + diaperCost + rentalCost + snackTotal + tvTotal + fridgeTotal + beddingTotal + haircutTotal + hairColorTotal + bathExtraTotal + initialFeeTotal;
+        const grandSelfTotal = calculatedRoomCost + mealTotal + diaperCost + rentalCost + snackTotal + tvTotal + fridgeTotal + beddingTotal + haircutTotal + hairColorTotal + bathExtraTotal + initialFeeTotal + familyLunchCost;
 
         modalContent.innerHTML = `
           <div class="bg-amber-50 p-3 rounded border border-amber-200 mb-3">
@@ -22799,6 +22880,7 @@
               ${hairColorTotal > 0 ? `<tr><td class="border border-slate-300 p-2 font-bold">理美容 (カラー)</td><td class="border border-slate-300 p-2 text-center">定額</td><td class="border border-slate-300 p-2 text-right font-semibold">¥${formatNumber(hairColorTotal)}</td></tr>` : ''}
               ${bathExtraTotal > 0 ? `<tr><td class="border border-slate-300 p-2 font-bold">規定外入浴料</td><td class="border border-slate-300 p-2 text-center">10回超過分 @¥500 × ${bathCount - 10}回</td><td class="border border-slate-300 p-2 text-right font-semibold">¥${formatNumber(bathExtraTotal)}</td></tr>` : ''}
               ${initialFeeTotal > 0 ? `<tr class="bg-amber-50 font-bold"><td class="border border-slate-300 p-2 text-amber-900">🏠 入所一時金</td><td class="border border-slate-300 p-2 text-center text-amber-800">新規入居時一時金</td><td class="border border-slate-300 p-2 text-right font-semibold text-amber-900">¥${formatNumber(initialFeeTotal)}</td></tr>` : ''}
+              ${familyLunchCost > 0 ? `<tr><td class="border border-slate-300 p-2 font-bold">家族昼食代</td><td class="border border-slate-300 p-2 text-center">直接登録額</td><td class="border border-slate-300 p-2 text-right font-semibold">¥${formatNumber(familyLunchCost)}</td></tr>` : ''}
               <tr class="bg-amber-100 font-bold">
                 <td class="border border-slate-300 p-2 text-left" colspan="2">自費請求 合計金額</td>
                 <td class="border border-slate-300 p-2 text-right text-amber-900 text-sm">¥${formatNumber(grandSelfTotal)}</td>
@@ -22976,6 +23058,9 @@
         const formTvCount = Number(document.getElementById('shortTvRentalCount')?.value || 0);
         const tvRentalCount = formTvCount;
         const tvRentalTotal = tvRentalCount * 150;
+        const formBentoCount = Number(document.getElementById('shortMiraiBentoCount')?.value || 0);
+        const miraiBentoCount = formBentoCount;
+        const miraiBentoTotal = miraiBentoCount * 698;
         const formExcessDays = Number(document.getElementById('shortMealExcessDays')?.value || 0);
         const mealExcessRate = fac.shortMealExcessRate !== undefined ? fac.shortMealExcessRate : 436;
         const mealExcessTotal = formExcessDays * mealExcessRate;
@@ -22983,7 +23068,7 @@
         const haircutTotal = formHaircut ? 2500 : 0;
         const formHairColor = !!document.getElementById('chkSelfHairColor')?.checked;
         const hairColorTotal = formHairColor ? 1000 : 0;
-        const extraSelfTotal = tvRentalTotal + haircutTotal + hairColorTotal;
+        const extraSelfTotal = tvRentalTotal + miraiBentoTotal + haircutTotal + hairColorTotal;
 
         // 画面上の最新カレンダー状態（利用日数・各日の部屋タイプ・食事チェック）を同期
         const liveDays = {};
@@ -23010,6 +23095,7 @@
           ...(currentRec || {}),
           days: liveDays,
           shortTvRentalCount: tvRentalCount,
+          shortMiraiBentoCount: miraiBentoCount,
           shortMealExcessDays: formExcessDays,
           useHaircut: haircutTotal > 0,
           useHairColor: hairColorTotal > 0
@@ -23077,6 +23163,13 @@
                 <td class="border border-slate-300 p-2 font-bold text-amber-900 bg-amber-50/50">📺 テレビ貸し出し</td>
                 <td class="border border-slate-300 p-2 text-center text-amber-900">@¥150 × ${tvRentalCount}回</td>
                 <td class="border border-slate-300 p-2 text-right font-bold text-amber-900">¥${formatNumber(tvRentalTotal)}</td>
+              </tr>
+              ` : ''}
+              ${miraiBentoTotal > 0 ? `
+              <tr>
+                <td class="border border-slate-300 p-2 font-bold text-emerald-900 bg-emerald-50/50">🍱 未来弁当</td>
+                <td class="border border-slate-300 p-2 text-center text-emerald-900">@¥698 × ${miraiBentoCount}個</td>
+                <td class="border border-slate-300 p-2 text-right font-bold text-emerald-900">¥${formatNumber(miraiBentoTotal)}</td>
               </tr>
               ` : ''}
               ${haircutTotal > 0 ? `
@@ -23262,9 +23355,13 @@
       const recKey = `${AppState.currentFacilityId}_${AppState.targetMonth}_${user ? user.id : ''}`;
       const savedRec = AppState.records[recKey];
       const formTvCnt = Number(document.getElementById('shortTvRentalCount')?.value || 0);
+      const formBentoCnt = Number(document.getElementById('shortMiraiBentoCount')?.value || 0);
       const currentRec = savedRec ? {
         ...savedRec,
-        shortTvRentalCount: (savedRec.shortTvRentalCount !== undefined ? savedRec.shortTvRentalCount : formTvCnt)
+        shortTvRentalCount: (savedRec.shortTvRentalCount !== undefined ? savedRec.shortTvRentalCount : formTvCnt),
+        shortMiraiBentoCount: (savedRec.shortMiraiBentoCount !== undefined ? savedRec.shortMiraiBentoCount : formBentoCnt),
+        familyLunchCost: Number(document.getElementById('kusunokiFamilyLunchCost')?.value || 0),
+        useInitialFee: !!document.getElementById('chkSelfInitialFee')?.checked
       } : {
         diaperCost: Number(document.getElementById('selfDiaperCost')?.value || 0),
         hospitalTransportCost: Number(document.getElementById('ghSelfHospitalTransportCost')?.value || 0),
@@ -23277,8 +23374,10 @@
         useHaircut: !!document.getElementById('chkSelfHaircut')?.checked,
         useHairColor: !!document.getElementById('chkSelfHairColor')?.checked,
         shortTvRentalCount: formTvCnt,
+        shortMiraiBentoCount: formBentoCnt,
         bathCount: Number(document.getElementById('selfBathCount')?.value || 0),
-        useInitialFee: !!document.getElementById('chkSelfInitialFee')?.checked
+        useInitialFee: !!document.getElementById('chkSelfInitialFee')?.checked,
+        familyLunchCost: Number(document.getElementById('kusunokiFamilyLunchCost')?.value || 0)
       };
 
       const contractDays = (serviceType === '有料ホーム' || serviceType === 'グループホーム') ? (useDays + hospitalDays) : useDays;
@@ -23425,10 +23524,12 @@
         useHaircut: !!document.getElementById('chkSelfHaircut')?.checked,
         useHairColor: !!document.getElementById('chkSelfHairColor')?.checked,
         shortTvRentalCount: Number(document.getElementById('shortTvRentalCount')?.value || 0),
+        shortMiraiBentoCount: Number(document.getElementById('shortMiraiBentoCount')?.value || 0),
         shortMealExcessDays: Number(document.getElementById('shortMealExcessDays')?.value || 0),
         priorContinuousDays: (document.getElementById('shortPriorContinuousDays')?.value !== '' ? Number(document.getElementById('shortPriorContinuousDays').value) : null),
         isExempt: !!document.getElementById('chkUserExempt')?.checked,
         useInitialFee: !!document.getElementById('chkSelfInitialFee')?.checked,
+        familyLunchCost: Number(document.getElementById('kusunokiFamilyLunchCost')?.value || 0),
         facilityId: AppState.currentFacilityId,
         updatedAt: new Date().toISOString()
       };
@@ -23604,6 +23705,10 @@
       kaigoContainer.innerHTML = '';
       commonContainer.innerHTML = '';
 
+      if (typeof sanitizeAdditionMasterPercents === 'function') {
+        sanitizeAdditionMasterPercents(AppState.additionMaster);
+      }
+
       if (!AppState.additionMaster[selectedType]) {
         AppState.additionMaster[selectedType] = JSON.parse(JSON.stringify(DEFAULT_ADDITION_MASTER[selectedType] || []));
       }
@@ -23617,7 +23722,12 @@
 
         const isKaigoOnly = (add.target === 'kaigo_only');
         const isPercent = (add.type === 'percent');
-        const val = isPercent ? (add.percent !== undefined ? add.percent : 0) : (add.rate !== undefined ? add.rate : 0);
+        let val = isPercent ? (add.percent !== undefined ? add.percent : 0) : (add.rate !== undefined ? add.rate : 0);
+        if (isPercent && typeof normalizePercentValue === 'function') {
+          val = normalizePercentValue(val);
+          add.percent = val;
+          add.unit = `${val.toFixed(1)}%`;
+        }
         const unitSuffix = isPercent ? '%' : 'u';
 
         card.innerHTML = `
@@ -23712,8 +23822,9 @@
         const item = additionList.find(a => a.id === addId);
         if (item) {
           if (item.type === 'percent') {
-            item.percent = numVal;
-            item.unit = `${numVal.toFixed(1)}%`;
+            const finalVal = (typeof normalizePercentValue === 'function') ? normalizePercentValue(numVal) : numVal;
+            item.percent = finalVal;
+            item.unit = `${finalVal.toFixed(1)}%`;
           } else {
             item.rate = numVal;
             const suffix = item.type === 'daily' ? '単位/日' : '単位/月';
@@ -23721,6 +23832,9 @@
           }
         }
       });
+      if (typeof sanitizeAdditionMasterPercents === 'function') {
+        sanitizeAdditionMasterPercents(AppState.additionMaster);
+      }
       AppState.additionMasterUpdatedAt = nowIso;
 
       // 【全施設＆ショートステイ専用】独立バックアップ保存（不意のリセットを100%防止）
@@ -23765,6 +23879,7 @@
       }
 
       renderAllViews();
+      renderMasterConfig(true);
     }
 
     window.changeReportTargetMonth = function(newMonth) {
@@ -26460,60 +26575,144 @@
             }
           });
         } else {
-          // --- 一般的なテーブル形式（Excel請求明細 / CSV等）の解析 ---
+          // --- 一般的なテーブル形式（Excel請求明細 / くすの木等介護ソフト売上一覧 / CSV等）の解析 ---
           const fileNameLower = String(fileName || '').toLowerCase();
           const isExcelFile = fileNameLower.endsWith('.xlsx') || fileNameLower.endsWith('.xls');
 
+          // ファイル名や先頭行テキストから月度を検出 (例: "くすの木 9月売上一覧", "2026年9月")
+          if (!detectedMonth) {
+            const metaSampleTxt = (fileName || '') + ' ' + rows.slice(0, 5).map(r => (r || []).join(' ')).join(' ');
+            const mMatch = metaSampleTxt.match(/(?:20\d\d|[R令和]?\d+)[年/-]?\s*(\d{1,2})\s*月/);
+            const mMatchSales = metaSampleTxt.match(/(\d{1,2})\s*月\s*(?:売上|実績|請求)/);
+            if (mMatch) {
+              const yrMatch = metaSampleTxt.match(/(20\d\d)年?/);
+              const yr = yrMatch ? yrMatch[1] : (AppState.targetMonth ? AppState.targetMonth.slice(0, 4) : '2026');
+              const mo = String(mMatch[1]).padStart(2, '0');
+              detectedMonth = `${yr}-${mo}`;
+            } else if (mMatchSales) {
+              const yr = AppState.targetMonth ? AppState.targetMonth.slice(0, 4) : '2026';
+              const mo = String(mMatchSales[1]).padStart(2, '0');
+              detectedMonth = `${yr}-${mo}`;
+            }
+          }
+
           let headerRowIndex = -1;
-          let idIdx = -1, nameIdx = -1, unitsIdx = -1, insuranceBenefitIdx = -1, insuranceSelfPayIdx = -1, selfPayIdx = -1, totalBillIdx = -1, daysIdx = -1, monthIdx = -1;
+          let isMultiRowHeader = false;
+          let idIdx = -1, nameIdx = -1, unitsIdx = -1;
+          let insuranceBenefitIdx = -1, insuranceSelfPayIdx = -1;
+          let selfPayIdx = -1, userBillIdx = -1, totalBillIdx = -1, daysIdx = -1, monthIdx = -1;
 
           for (let r = 0; r < Math.min(rows.length, 30); r++) {
             const row = rows[r] || [];
-            let score = 0;
-            row.forEach((cell, cIdx) => {
-              const txt = String(cell || '').trim().replace(/[\r\n\s]/g, '');
-              if (!txt) return;
+            const nextRow = rows[r + 1] || [];
 
-              if (/(被保険者|利用者|受給者|顧客|お客様|個人|入居者)?(番号|コード|ID)/i.test(txt) && !/(施設|事業所|サービス|加算|保険者番号)/.test(txt)) {
-                if (idIdx === -1) { idIdx = cIdx; score += 2; }
-              }
-              if (/(利用者|被保険者|対象者|顧客|入居者)?(氏名|名前|名)/.test(txt) && !/(フリガナ|カナ|英名|病名|施設名)/.test(txt)) {
-                if (nameIdx === -1) { nameIdx = cIdx; score += 2; }
-              }
-              if (/(請求|算定|給付|基本|合計|サービス|決定)?(単位|単位数)/.test(txt) && !/(単価|率)/.test(txt)) {
-                if (unitsIdx === -1) { unitsIdx = cIdx; score += 2; }
-              }
-              // 介護保険 保険請求額（給付費）列
-              if (/(保険請求|給付請求|保険給付|保険給付額|給付費)/.test(txt)) {
-                if (insuranceBenefitIdx === -1) { insuranceBenefitIdx = cIdx; score += 2; }
-              }
-              // 保険自己負担列（一部負担金・一部負担額）
-              if (/(一部負担|保険負担|利用者負担|本人負担|1割負担|2割負担|保険分自己負担|自己負担額|給付一部負担)/.test(txt)) {
-                if (insuranceSelfPayIdx === -1) { insuranceSelfPayIdx = cIdx; score += 2; }
-              }
-              // 明示的な自費・実費利用料列（一部負担金・自己負担・保険負担列を除外）
-              if (!/(一部負担|自己負担|保険)/.test(txt)) {
-                if (/(実費利用料|請求利用料|利用料合計|自費合計|自費額|自費小計|保険外合計|保険外|実費合計|実費|食事療養費|食費・居住費)/.test(txt)) {
-                  if (selfPayIdx === -1) { selfPayIdx = cIdx; score += 2; }
-                } else if (/(利用料|自費)/.test(txt) && selfPayIdx === -1) {
-                  selfPayIdx = cIdx; score += 1;
-                }
-              }
-              // 総請求額列（合計金額）
-              if (/(合計金額|請求合計|ご請求額|総請求金額|請求総額|合計請求額|差引請求額|請求金額)/.test(txt)) {
-                if (totalBillIdx === -1) { totalBillIdx = cIdx; score += 2; }
-              }
-              if (/(利用|算定|サービス|提供|実)?(日数|回数)/.test(txt)) {
-                if (daysIdx === -1) { daysIdx = cIdx; score += 1; }
-              }
-              if (/(提供|対象|請求)?(年月|月度)/.test(txt)) {
-                if (monthIdx === -1) { monthIdx = cIdx; }
-              }
+            // 次の行に子ヘッダー特有の語句（保険請求額・一部負担額・実費利用料等）が含まれているか判定
+            const nextRowHasSubHeaders = nextRow.some(cell => {
+              const txt = String(cell || '').trim();
+              return /(保険請求|給付請求|一部負担|実費利用料|公費請求|自己負担)/.test(txt);
             });
 
-            if (score >= 2 || (nameIdx !== -1 && (unitsIdx !== -1 || selfPayIdx !== -1 || totalBillIdx !== -1 || insuranceBenefitIdx !== -1))) {
-              headerRowIndex = r;
-              break;
+            if (nextRowHasSubHeaders) {
+              // 【2段組（多段）ヘッダーの検出】介護ソフトの「大分類(上段) / 小分類(下段)」結合構造
+              const maxCols = Math.max(row.length, nextRow.length);
+              for (let c = 0; c < maxCols; c++) {
+                const topTxt = String(row[c] || '').trim().replace(/[\r\n\s]/g, '');
+                const btmTxt = String(nextRow[c] || '').trim().replace(/[\r\n\s]/g, '');
+                const fullTxt = topTxt + ' ' + btmTxt;
+
+                // 利用者氏名
+                if (/(利用者|被保険者|対象者|顧客|入居者)?(氏名|名前|名)/.test(fullTxt) && !/(フリガナ|カナ|英名|病名|施設名)/.test(fullTxt)) {
+                  if (nameIdx === -1) nameIdx = c;
+                }
+                // 被保険者番号
+                if (/(被保険者|利用者|受給者|個人|入居者)?(番号|コード|ID)/i.test(fullTxt) && !/(施設|事業所|保険者番号)/.test(fullTxt)) {
+                  if (idIdx === -1) idIdx = c;
+                }
+                // 単位数
+                if (/(請求|算定|給付|基本|合計|サービス|決定)?(単位|単位数)/.test(fullTxt) && !/(単価|率)/.test(fullTxt)) {
+                  if (unitsIdx === -1) unitsIdx = c;
+                }
+                // 介護保険 保険請求額（国保連給付費分）
+                if (/(保険請求|給付請求|保険給付|保険給付額|給付費)/.test(btmTxt || fullTxt)) {
+                  if (insuranceBenefitIdx === -1) insuranceBenefitIdx = c;
+                }
+                // 保険自己負担（一部負担額・1割負担等）
+                if (/(一部負担|保険負担|1割負担|2割負担|保険分自己負担|給付一部負担)/.test(btmTxt || fullTxt)) {
+                  if (insuranceSelfPayIdx === -1) insuranceSelfPayIdx = c;
+                }
+                // 実費利用料（食費・居室費などの自費利用料）※最優先で抽出
+                if (/(実費利用料|実費|保険外合計|保険外|食費・居住費)/.test(btmTxt) || (/(実費利用料)/.test(fullTxt))) {
+                  if (selfPayIdx === -1) selfPayIdx = c;
+                } else if (!/(一部負担|保険|公費)/.test(btmTxt) && /(利用料|自費)/.test(btmTxt) && selfPayIdx === -1) {
+                  selfPayIdx = c;
+                }
+                // 利用者請求額（本人請求総額）
+                if (/(利用者請求|本人請求|個人請求)/.test(btmTxt || fullTxt)) {
+                  if (userBillIdx === -1) userBillIdx = c;
+                }
+                // 合計金額（売上総額）
+                if (/(合計金額|総請求金額|請求総額|売上合計)/.test(btmTxt || topTxt || fullTxt)) {
+                  if (totalBillIdx === -1) totalBillIdx = c;
+                }
+                // 日数
+                if (/(利用|算定|サービス|提供|実)?(日数|回数)/.test(fullTxt)) {
+                  if (daysIdx === -1) daysIdx = c;
+                }
+              }
+
+              if (nameIdx !== -1 && (insuranceBenefitIdx !== -1 || unitsIdx !== -1 || selfPayIdx !== -1 || totalBillIdx !== -1)) {
+                headerRowIndex = r + 1; // 下段ヘッダーの行
+                isMultiRowHeader = true;
+                break;
+              }
+            } else {
+              // 【1段組ヘッダーの検出】
+              let score = 0;
+              row.forEach((cell, cIdx) => {
+                const txt = String(cell || '').trim().replace(/[\r\n\s]/g, '');
+                if (!txt) return;
+
+                if (/(被保険者|利用者|受給者|顧客|お客様|個人|入居者)?(番号|コード|ID)/i.test(txt) && !/(施設|事業所|サービス|加算|保険者番号)/.test(txt)) {
+                  if (idIdx === -1) { idIdx = cIdx; score += 2; }
+                }
+                if (/(利用者|被保険者|対象者|顧客|入居者)?(氏名|名前|名)/.test(txt) && !/(フリガナ|カナ|英名|病名|施設名)/.test(txt)) {
+                  if (nameIdx === -1) { nameIdx = cIdx; score += 2; }
+                }
+                if (/(請求|算定|給付|基本|合計|サービス|決定)?(単位|単位数)/.test(txt) && !/(単価|率)/.test(txt)) {
+                  if (unitsIdx === -1) { unitsIdx = cIdx; score += 2; }
+                }
+                if (/(保険請求|給付請求|保険給付|保険給付額|給付費)/.test(txt)) {
+                  if (insuranceBenefitIdx === -1) { insuranceBenefitIdx = cIdx; score += 2; }
+                }
+                if (/(一部負担|保険負担|利用者負担|本人負担|1割負担|2割負担|保険分自己負担|自己負担額|給付一部負担)/.test(txt)) {
+                  if (insuranceSelfPayIdx === -1) { insuranceSelfPayIdx = cIdx; score += 2; }
+                }
+                if (!/(一部負担|自己負担|保険)/.test(txt)) {
+                  if (/(実費利用料|請求利用料|利用料合計|自費合計|自費額|自費小計|保険外合計|保険外|実費合計|実費|食事療養費|食費・居住費)/.test(txt)) {
+                    if (selfPayIdx === -1) { selfPayIdx = cIdx; score += 2; }
+                  } else if (/(利用料|自費)/.test(txt) && selfPayIdx === -1) {
+                    selfPayIdx = cIdx; score += 1;
+                  }
+                }
+                if (/(利用者請求|本人請求|個人請求)/.test(txt)) {
+                  if (userBillIdx === -1) { userBillIdx = cIdx; score += 2; }
+                }
+                if (/(合計金額|請求合計|ご請求額|総請求金額|請求総額|合計請求額|差引請求額|請求金額)/.test(txt)) {
+                  if (totalBillIdx === -1) { totalBillIdx = cIdx; score += 2; }
+                }
+                if (/(利用|算定|サービス|提供|実)?(日数|回数)/.test(txt)) {
+                  if (daysIdx === -1) { daysIdx = cIdx; score += 1; }
+                }
+                if (/(提供|対象|請求)?(年月|月度)/.test(txt)) {
+                  if (monthIdx === -1) { monthIdx = cIdx; }
+                }
+              });
+
+              if (score >= 2 || (nameIdx !== -1 && (unitsIdx !== -1 || selfPayIdx !== -1 || totalBillIdx !== -1 || insuranceBenefitIdx !== -1))) {
+                headerRowIndex = r;
+                isMultiRowHeader = false;
+                break;
+              }
             }
           }
 
@@ -26540,7 +26739,7 @@
           if (idIdx === -1 && nameIdx === -1) { idIdx = 0; unitsIdx = 1; selfPayIdx = 2; daysIdx = 3; }
 
           // 自費データがインポートされたか判定：Excelファイル、または明示的な自費列・請求利用料列・総額列がある場合
-          const hasSelfPayColumn = (selfPayIdx !== -1) || (totalBillIdx !== -1);
+          const hasSelfPayColumn = (selfPayIdx !== -1) || (totalBillIdx !== -1) || (userBillIdx !== -1);
           const isSelfPayImported = isExcelFile || hasSelfPayColumn;
 
           const unitRate = AppState.facilities[AppState.currentFacilityId]?.unitRate || 10;
@@ -26551,26 +26750,43 @@
             let rawId = idIdx !== -1 && row[idIdx] ? String(row[idIdx]).trim().replace(/\D/g, '') : '';
             let rawName = nameIdx !== -1 && row[nameIdx] ? String(row[nameIdx]).trim().replace(/[\r\n]/g, '') : '';
             if (!rawId && !rawName) continue;
+            // 集計行（合計・小計・総計）や注釈行（区変中の為、月遅れ請求等）をスキップ
+            if (/^(合計|小計|総計|総合計|平均|区変|対象外|備考|注|※)/.test(rawName) || /^(合計|総計)$/.test(rawName)) continue;
+            if (row.some(c => /月遅れ|区変中の為/.test(String(c || '')))) continue;
             if (rawId) rawId = format10DigitId(rawId);
 
             let parsedUnits = unitsIdx !== -1 && row[unitsIdx] ? Number(String(row[unitsIdx]).replace(/[^0-9.]/g, '')) : 0;
             const parsedBenefit = insuranceBenefitIdx !== -1 && row[insuranceBenefitIdx] ? Number(String(row[insuranceBenefitIdx]).replace(/[^0-9.]/g, '')) : 0;
             const parsedInsurance = insuranceSelfPayIdx !== -1 && row[insuranceSelfPayIdx] ? Number(String(row[insuranceSelfPayIdx]).replace(/[^0-9.]/g, '')) : 0;
             let parsedSelfPay = selfPayIdx !== -1 && row[selfPayIdx] ? Number(String(row[selfPayIdx]).replace(/[^0-9.]/g, '')) : 0;
-            const parsedTotalBill = totalBillIdx !== -1 && row[totalBillIdx] ? Number(String(row[totalBillIdx]).replace(/[^0-9.]/g, '')) : 0;
+            const parsedUserBill = userBillIdx !== -1 && row[userBillIdx] ? Number(String(row[userBillIdx]).replace(/[^0-9.]/g, '')) : 0;
+            let parsedTotalBill = totalBillIdx !== -1 && row[totalBillIdx] ? Number(String(row[totalBillIdx]).replace(/[^0-9.]/g, '')) : 0;
             const parsedDays = daysIdx !== -1 && row[daysIdx] ? Number(String(row[daysIdx]).replace(/[^0-9.]/g, '')) : 0;
 
-            // 単位数列がなく「保険請求額」と「一部負担金」がある場合、単位数を自動逆算（(給付費 + 一部負担) / 単価）
+            // 単位数列がなく「保険請求額」や「一部負担金」がある場合、単位数を自動逆算（(給付費 + 一部負担) / 単価）
             if (parsedUnits === 0 && (parsedBenefit > 0 || parsedInsurance > 0)) {
               const totalInsYen = parsedBenefit + parsedInsurance;
               parsedUnits = Math.round(totalInsYen / unitRate);
             }
 
-            // 自費列がなく総請求額がある場合、総額から保険分を差し引いて自費を算出
-            if (parsedSelfPay === 0 && parsedTotalBill > 0) {
-              const insCost = parsedInsurance > 0 ? parsedInsurance : Math.floor(parsedUnits * unitRate * 0.1);
-              if (parsedTotalBill > insCost) {
-                parsedSelfPay = parsedTotalBill - insCost;
+            // 自費列がなく総請求額・利用者請求額がある場合、総額から保険分を差し引いて自費を算出
+            if (parsedSelfPay === 0) {
+              if (parsedUserBill > 0 && parsedInsurance > 0 && parsedUserBill > parsedInsurance) {
+                parsedSelfPay = parsedUserBill - parsedInsurance;
+              } else if (parsedTotalBill > 0) {
+                const insCost = parsedInsurance > 0 ? parsedInsurance : Math.floor(parsedUnits * unitRate * 0.1);
+                if (parsedTotalBill > insCost) {
+                  parsedSelfPay = parsedTotalBill - insCost;
+                }
+              }
+            }
+
+            // 請求総額のフォールバック
+            if (parsedTotalBill === 0) {
+              if (parsedUserBill > 0) {
+                parsedTotalBill = parsedUserBill;
+              } else if (parsedInsurance > 0 || parsedSelfPay > 0) {
+                parsedTotalBill = parsedInsurance + parsedSelfPay;
               }
             }
 
