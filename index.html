@@ -2727,12 +2727,12 @@
         { id: 'short_terminal_mgmt', name: 'ターミナルケアマネジメント加算', unit: '400 単位/月', type: 'monthly', rate: 400, target: 'common' },
         { id: 'short_end_of_life_collab', name: '看取り連携体制加算', unit: '64 単位/日', type: 'daily', rate: 64, target: 'common' },
         { id: 'short_oral_collab', name: '口腔連携強化加算', unit: '50 単位/月', type: 'monthly', rate: 50, target: 'common' },
-        { id: 'short_treatment_1_i_a', name: '介護職員等処遇改善加算Ⅰ（イ）', unit: '14.0%', type: 'percent', percent: 14.0, target: 'common' },
-        { id: 'short_treatment_1_i_b', name: '介護職員等処遇改善加算Ⅰ（ロ）', unit: '14.9%', type: 'percent', percent: 14.9, target: 'common' },
-        { id: 'short_treatment_2_i_a', name: '介護職員等処遇改善加算Ⅱ（イ）', unit: '13.6%', type: 'percent', percent: 13.6, target: 'common' },
-        { id: 'short_treatment_2_i_b', name: '介護職員等処遇改善加算Ⅱ（ロ）', unit: '14.6%', type: 'percent', percent: 14.6, target: 'common' },
-        { id: 'short_treatment_3', name: '介護職員等処遇改善加算Ⅲ', unit: '11.3%', type: 'percent', percent: 11.3, target: 'common' },
-        { id: 'short_treatment_4', name: '介護職員等処遇改善加算Ⅳ', unit: '9.0%', type: 'percent', percent: 9.0, target: 'common' },
+        { id: 'short_treatment_1_i_a', name: '介護職員等処遇改善加算Ⅰ（イ）', unit: '16.3%', type: 'percent', percent: 16.3, target: 'common' },
+        { id: 'short_treatment_1_i_b', name: '介護職員等処遇改善加算Ⅰ（ロ）', unit: '17.6%', type: 'percent', percent: 17.6, target: 'common' },
+        { id: 'short_treatment_2_i_a', name: '介護職員等処遇改善加算Ⅱ（イ）', unit: '15.9%', type: 'percent', percent: 15.9, target: 'common' },
+        { id: 'short_treatment_2_i_b', name: '介護職員等処遇改善加算Ⅱ（ロ）', unit: '17.2%', type: 'percent', percent: 17.2, target: 'common' },
+        { id: 'short_treatment_3', name: '介護職員等処遇改善加算Ⅲ', unit: '13.6%', type: 'percent', percent: 13.6, target: 'common' },
+        { id: 'short_treatment_4', name: '介護職員等処遇改善加算Ⅳ', unit: '11.3%', type: 'percent', percent: 11.3, target: 'common' },
         { id: 'short_productivity_1', name: '生産性向上推進体制加算（Ⅰ）', unit: '100 単位/月', type: 'monthly', rate: 100, target: 'common' },
         { id: 'short_productivity_2', name: '生産性向上推進体制加算（Ⅱ）', unit: '10 単位/月', type: 'monthly', rate: 10, target: 'common' },
         { id: 'short_kyousei_deduct', name: '共生型介護と介護特例減算', unit: '-8.0%', type: 'percent', percent: -8.0, target: 'common' },
@@ -2775,6 +2775,20 @@
                 item.percent = normalizePercentValue(item.percent);
                 item.unit = `${item.percent.toFixed(1)}%`;
               }
+            }
+            // ショートステイ処遇改善加算の新基準（スプレッドシート完全整合）への自己修復
+            if (item && item.id === 'short_treatment_1_i_a' && (item.percent === 14 || item.percent === 14.0)) {
+              item.percent = 16.3; item.unit = '16.3%';
+            } else if (item && item.id === 'short_treatment_1_i_b' && (item.percent === 14.9)) {
+              item.percent = 17.6; item.unit = '17.6%';
+            } else if (item && item.id === 'short_treatment_2_i_a' && (item.percent === 13.6)) {
+              item.percent = 15.9; item.unit = '15.9%';
+            } else if (item && item.id === 'short_treatment_2_i_b' && (item.percent === 14.6)) {
+              item.percent = 17.2; item.unit = '17.2%';
+            } else if (item && item.id === 'short_treatment_3' && (item.percent === 11.3)) {
+              item.percent = 13.6; item.unit = '13.6%';
+            } else if (item && item.id === 'short_treatment_4' && (item.percent === 9 || item.percent === 9.0)) {
+              item.percent = 11.3; item.unit = '11.3%';
             }
           });
         }
@@ -3231,6 +3245,12 @@
             total += hospitalDays * 246;
           }
 
+          // 初期加算 (1日あたり30単位)
+          const initialDays = Number(extraAdditions.initialAddDays || 0);
+          if (initialDays > 0) {
+            total += initialDays * 30;
+          }
+
           const currentTypeAdditions = AppState.additionMaster['グループホーム'] || [];
           const selectedAddIds = fac.additions || [];
           
@@ -3241,6 +3261,7 @@
           selectedAddIds.forEach(addId => {
             const item = currentTypeAdditions.find(a => a.id === addId);
             if (item) {
+              if (addId === 'gh_hospital_stay' || addId === 'gh_initial_add') return; // 日毎チェックで算定するため施設全体の一律加算からは除外
               if (item.type === 'daily') dailyAddUnits += (item.rate || 0);
               else if (item.type === 'monthly') monthlyAddUnits += (item.rate || 0);
               else if (item.type === 'percent') percentRate += normalizePercentValue(item.percent || 0);
@@ -19917,33 +19938,39 @@
               }
             }
 
-            // 2. 加算マスタ同期（ローカル変更・保存設定の絶対保護）
-            if (resJson.additionMaster) {
-              if (typeof sanitizeAdditionMasterPercents === 'function') {
-                sanitizeAdditionMasterPercents(resJson.additionMaster);
-              }
-              const cloudAddMasterTime = resJson.additionMasterUpdatedAt ? new Date(resJson.additionMasterUpdatedAt).getTime() : 0;
-              const localAddMasterTime = AppState.additionMasterUpdatedAt ? new Date(AppState.additionMasterUpdatedAt).getTime() : 0;
+            // 2. 加算マスタ同期（【完全クラウド優先】スプレッドシートの「加算マスタ」シートの変更を常に最優先で参照・反映）
+            if (resJson.additionMaster && typeof resJson.additionMaster === 'object') {
+              // スプレッドシートから届いた加算マスタ（ショートステイ、有料ホーム、グループホーム、デイサービス）を確実にマージ
+              Object.keys(resJson.additionMaster).forEach(svcType => {
+                const cloudList = resJson.additionMaster[svcType];
+                if (!Array.isArray(cloudList) || cloudList.length === 0) return;
 
-              // ローカルに保存履歴がある場合、クラウド側がそれより確実に新しくない限り上書きを完全拒否（ゾンビ復活防止）
-              if (localAddMasterTime > 0) {
-                if (cloudAddMasterTime > localAddMasterTime) {
-                  AppState.additionMaster = Object.assign({}, AppState.additionMaster, resJson.additionMaster);
-                  AppState.additionMasterUpdatedAt = resJson.additionMasterUpdatedAt;
-                  if (typeof sanitizeAdditionMasterPercents === 'function') {
-                    sanitizeAdditionMasterPercents(AppState.additionMaster);
+                if (!AppState.additionMaster[svcType]) {
+                  AppState.additionMaster[svcType] = [];
+                }
+
+                // スプレッドシートに登録されている各加算項目で更新・追加
+                cloudList.forEach(cloudItem => {
+                  if (!cloudItem || !cloudItem.id) return;
+                  const existIdx = AppState.additionMaster[svcType].findIndex(a => a.id === cloudItem.id);
+                  if (existIdx >= 0) {
+                    // 既存項目をスプレッドシートの最新値（名前、単位、率、計算種別）で完全に上書き更新
+                    AppState.additionMaster[svcType][existIdx] = Object.assign({}, AppState.additionMaster[svcType][existIdx], cloudItem);
+                  } else {
+                    // スプレッドシートに新規追加された項目を登録
+                    AppState.additionMaster[svcType].push(cloudItem);
                   }
-                  console.log('[CloudSync] 加算マスタをクラウド最新データで更新しました');
-                } else {
-                  console.log('[CloudSync] ローカルの加算マスタ設定変更を優先保護しました（ゾンビ上書き完全防止）');
-                }
-              } else if (cloudAddMasterTime > 0) {
-                AppState.additionMaster = Object.assign({}, AppState.additionMaster, resJson.additionMaster);
-                AppState.additionMasterUpdatedAt = resJson.additionMasterUpdatedAt;
-                if (typeof sanitizeAdditionMasterPercents === 'function') {
-                  sanitizeAdditionMasterPercents(AppState.additionMaster);
-                }
+                });
+              });
+
+              if (typeof sanitizeAdditionMasterPercents === 'function') {
+                sanitizeAdditionMasterPercents(AppState.additionMaster);
               }
+              AppState.additionMasterUpdatedAt = resJson.serverTime || new Date().toISOString();
+              try {
+                localStorage.setItem('care_sys_addition_master_backup', JSON.stringify(AppState.additionMaster));
+              } catch (e) {}
+              console.log('[CloudSync] スプレッドシートの「加算マスタ」シートを完全参照し、加算マスタを最新値に更新しました');
             }
 
             // 3. 施設加算設定同期（双方向・最新タイムスタンプ判定＆ローカル絶対保護）
@@ -20951,6 +20978,7 @@
         let shortTransportDays = 0;
         let linkageCount = 0;
         let ghHospitalStayDays = 0;
+        let ghInitialAddDays = 0;
 
         const daysInMonth = getDaysInTargetMonth(targetM);
 
@@ -20961,6 +20989,9 @@
               const isHospital = (dayObj.status === '入院・外出' || dayObj.status === '外出・入院');
               if (dayObj.hospitalStay) {
                 ghHospitalStayDays++;
+              }
+              if (dayObj.initialAdd) {
+                ghInitialAddDays++;
               }
               if (dayObj.status === '利用' || dayObj.active) {
                 useDays++;
@@ -21009,6 +21040,7 @@
         const extraAdditions = {
           linkageCount: linkageCount,
           hospitalStayDays: (serviceType === 'グループホーム') ? ghHospitalStayDays : 0,
+          initialAddDays: (serviceType === 'グループホーム') ? ghInitialAddDays : 0,
           useDischargeInfo: (serviceType === '有料ホーム') && !!userRec?.useDischargeInfo,
           trainingUnits: trainingUnits,
           transportDeductionUnits: transportDeductionUnits,
@@ -22010,11 +22042,15 @@
           let bottomSection = '';
           if (serviceType === 'グループホーム') {
             const hospitalChecked = dayData ? !!dayData.hospitalStay : false;
+            const initialChecked = dayData ? !!dayData.initialAdd : false;
             const pasteChecked = dayData ? !!dayData.pasteMeal : false;
             bottomSection = `
               <div class="mt-auto pt-1 border-t border-slate-100 flex items-center justify-between gap-1 flex-wrap text-[10px]">
                 <label class="flex items-center gap-0.5 cursor-pointer text-amber-800 font-bold" title="入院時費用加算 (246単位/日)">
                   <input type="checkbox" id="hosp_${d}" ${hospitalChecked ? 'checked' : ''} onchange="updateLiveUserRecordSummary()"> 入院
+                </label>
+                <label class="flex items-center gap-0.5 cursor-pointer text-indigo-800 font-bold" title="初期加算 (30単位/日)">
+                  <input type="checkbox" id="initial_${d}" ${initialChecked ? 'checked' : ''} onchange="updateLiveUserRecordSummary()"> 初期
                 </label>
                 <label class="flex items-center gap-0.5 cursor-pointer text-emerald-800 font-bold" title="ペースト食 (朝500/昼665/夕630)">
                   <input type="checkbox" id="paste_${d}" ${pasteChecked ? 'checked' : ''} onchange="updateLiveUserRecordSummary()"> ペースト
@@ -22399,8 +22435,10 @@
       }
 
       let ghLiveHospitalStayDays = 0;
+      let ghLiveInitialAddDays = 0;
       for (let d = 1; d <= daysInMonth; d++) {
         if (document.getElementById(`hosp_${d}`)?.checked) ghLiveHospitalStayDays++;
+        if (document.getElementById(`initial_${d}`)?.checked) ghLiveInitialAddDays++;
       }
 
       const tempRec = {
@@ -22532,6 +22570,7 @@
       const extraAdditions = {
         linkageCount: linkageCount,
         hospitalStayDays: (serviceType === 'グループホーム') ? ghLiveHospitalStayDays : 0,
+        initialAddDays: (serviceType === 'グループホーム') ? ghLiveInitialAddDays : 0,
         useDischargeInfo: tempRec.useDischargeInfo,
         trainingUnits: trainingUnits,
         transportDeductionUnits: transportDeductionUnits,
@@ -22603,6 +22642,7 @@
       let shortTransportDays = 0;
       let linkageCount = 0;
       let hospitalStayDays = 0;
+      let initialAddDays = 0;
       for (let d = 1; d <= daysInMonth; d++) {
         const badge = document.querySelector(`#dayCard_${d} .day-status-badge`);
         const status = badge ? badge.textContent.trim() : '未利用';
@@ -22624,6 +22664,7 @@
         }
         if (serviceType === 'グループホーム') {
           if (document.getElementById(`hosp_${d}`)?.checked) hospitalStayDays++;
+          if (document.getElementById(`initial_${d}`)?.checked) initialAddDays++;
         }
       }
 
@@ -22786,6 +22827,11 @@
           subtotalUnits += u;
           detailLines.push({ name: '入院時費用加算', formula: `@246 単位 × ${hospitalStayDays} 日`, units: u });
         }
+        if (initialAddDays > 0) {
+          const u = initialAddDays * 30;
+          subtotalUnits += u;
+          detailLines.push({ name: '初期加算', formula: `@30 単位 × ${initialAddDays} 日`, units: u });
+        }
       }
 
       const currentTypeAdditions = AppState.additionMaster[serviceType] || [];
@@ -22797,7 +22843,7 @@
         const item = currentTypeAdditions.find(a => a.id === addId);
         if (!item) return;
         if (careInfo.isYoushien && item.target === 'kaigo_only') return;
-        if (addId === 'oral_func_1' || addId === 'indiv_training_1_i' || addId === 'indiv_training_1_ro' || addId === 'short_indiv_training' || addId === 'short_transport' || addId === 'gh_hospital_stay') return;
+        if (addId === 'oral_func_1' || addId === 'indiv_training_1_i' || addId === 'indiv_training_1_ro' || addId === 'short_indiv_training' || addId === 'short_transport' || addId === 'gh_hospital_stay' || addId === 'gh_initial_add') return;
         if (serviceType === 'デイサービス' && careInfo.isYoushien && (addId === 'indiv_training_2' || addId.includes('indiv_training'))) return;
 
         // 【ショートステイ 長期利用者減算】連続31日目以降の日数のみ減算（-30単位/日）
@@ -23477,12 +23523,14 @@
       let privateToiletDays = 0, privateNoToiletDays = 0, multiDays = 0;
       let trainingUnits = 0, transportDeductionUnits = 0, shortTrainDays = 0, shortTransportDays = 0, linkageCount = 0;
       let ghHospitalStayDays = 0;
+      let ghInitialAddDays = 0;
 
       for (let d = 1; d <= daysInMonth; d++) {
         const badge = document.querySelector(`#dayCard_${d} .day-status-badge`);
         const status = badge ? badge.textContent.trim() : '未利用';
-        if (serviceType === 'グループホーム' && document.getElementById(`hosp_${d}`)?.checked) {
-          ghHospitalStayDays++;
+        if (serviceType === 'グループホーム') {
+          if (document.getElementById(`hosp_${d}`)?.checked) ghHospitalStayDays++;
+          if (document.getElementById(`initial_${d}`)?.checked) ghInitialAddDays++;
         }
         if (status === '利用') {
           useDays++;
@@ -23561,6 +23609,7 @@
       const extraAdditions = {
         linkageCount: linkageCount,
         hospitalStayDays: (serviceType === 'グループホーム') ? ghHospitalStayDays : 0,
+        initialAddDays: (serviceType === 'グループホーム') ? ghInitialAddDays : 0,
         useDischargeInfo: (serviceType === '有料ホーム') && !!document.getElementById('chkDischargeInfo')?.checked,
         trainingUnits: trainingUnits,
         transportDeductionUnits: transportDeductionUnits,
@@ -23784,6 +23833,7 @@
           const shortTrain = document.getElementById(`shortTrain_${d}`)?.checked || false;
           const shortTransport = document.getElementById(`shortTransport_${d}`)?.checked || false;
           const hospitalStay = !!document.getElementById(`hosp_${d}`)?.checked;
+          const initialAdd = !!document.getElementById(`initial_${d}`)?.checked;
           const pasteMeal = !!document.getElementById(`paste_${d}`)?.checked;
 
           recordObj.days[d] = {
@@ -23797,6 +23847,7 @@
             shortTrain: shortTrain,
             shortTransport: shortTransport,
             hospitalStay: hospitalStay,
+            initialAdd: initialAdd,
             pasteMeal: pasteMeal
           };
         }
@@ -24164,6 +24215,7 @@
         let shortTransportDays = 0;
         let linkageCount = 0;
         let ghHospitalStayDays = 0;
+        let ghInitialAddDays = 0;
 
         if (userRec && userRec.days) {
           Object.keys(userRec.days).forEach(d => {
@@ -24172,6 +24224,9 @@
               const isHospital = (dayObj.status === '入院・外出' || dayObj.status === '外出・入院');
               if (dayObj.hospitalStay) {
                 ghHospitalStayDays++;
+              }
+              if (dayObj.initialAdd) {
+                ghInitialAddDays++;
               }
               if (dayObj.status === '利用' || dayObj.active) {
                 useDays++;
@@ -24219,6 +24274,7 @@
         const extraAdditions = {
           linkageCount: (serviceType === '有料ホーム') ? linkageCount : 0,
           hospitalStayDays: (serviceType === 'グループホーム') ? ghHospitalStayDays : 0,
+          initialAddDays: (serviceType === 'グループホーム') ? ghInitialAddDays : 0,
           useDischargeInfo: (serviceType === '有料ホーム') && !!userRec?.useDischargeInfo,
           trainingUnits: trainingUnits,
           transportDeductionUnits: transportDeductionUnits,
