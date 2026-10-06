@@ -288,19 +288,85 @@
     @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
     @media print {
+      @page {
+        size: A4 portrait;
+        margin: 10mm 8mm 12mm 8mm;
+      }
+      body {
+        background: #fff !important;
+        color: #0f172a !important;
+      }
       body * { visibility: hidden; }
-      #reportPaper, #reportPaper * { visibility: visible; }
+      #reportPaper, #reportPaper * {
+        visibility: visible;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
       #reportPaper {
         position: absolute;
         left: 0;
         top: 0;
-        width: 100%;
-        max-width: 100%;
+        width: 100% !important;
+        max-width: 100% !important;
         box-shadow: none !important;
         border: none !important;
         padding: 0 !important;
+        margin: 0 !important;
       }
-      .card-header, #printReportBtn, .navbar, .tab-nav, .dashboard-kpi-grid { display: none !important; }
+      /* ページごとの合計表示を完全に防止（テーブル末尾に1回のみ出力） */
+      #reportPaper table tfoot,
+      #reportPaper table .report-total-group {
+        display: table-row-group !important;
+      }
+      /* 見出し行は各ページ上部に綺麗にリピート表示 */
+      #reportPaper thead {
+        display: table-header-group !important;
+      }
+      /* 行や重要サマリーブロックの途中改ページを防止 */
+      #reportPaper tr {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+      .report-prevent-break {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+      .card-header, #printReportBtn, .navbar, .tab-nav, .dashboard-kpi-grid, #toastContainer, .modal {
+        display: none !important;
+      }
+    }
+
+    /* 報告書専用スタイル（画面表示時・印刷時共通） */
+    .report-paper {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+      color: #0f172a;
+    }
+    .report-stamp-box {
+      border: 1px solid #475569;
+      text-align: center;
+      width: 64px;
+      font-size: 10px;
+    }
+    .report-stamp-title {
+      background: #f1f5f9;
+      border-bottom: 1px solid #475569;
+      padding: 3px 0;
+      font-weight: 700;
+      color: #334155;
+    }
+    .report-stamp-area {
+      height: 54px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #94a3b8;
+      font-size: 11px;
+    }
+    .report-table tbody tr.user-row:nth-child(even) {
+      background-color: #f8fafc;
+    }
+    .report-table tbody tr.user-row:hover {
+      background-color: #f1f5f9;
     }
 
     .login-screen {
@@ -1363,20 +1429,43 @@
             </div>
           </div>
 
-          <div class="report-paper border border-slate-300 p-8 bg-white max-w-3xl mx-auto rounded shadow" id="reportPaper">
-            <div class="text-center mb-6 border-b-2 border-black pb-4">
-              <h2 class="text-2xl font-bold">月次介護報酬・自費請求 突合確認報告書</h2>
-              <div class="grid grid-cols-2 gap-2 mt-4 text-left text-xs">
-                <p>対象施設: <strong id="repFacilityName">-</strong></p>
-                <p>対象年月: <strong id="repTargetMonth">2026年07月分</strong></p>
-                <p>作成日時: <span id="repCreatedDate">2026-08-19</span></p>
-                <p>確認責任者: <span>介護課長（印）</span></p>
+          <div class="report-paper border border-slate-300 p-8 bg-white max-w-5xl mx-auto rounded shadow" id="reportPaper">
+            <!-- 帳票ヘッダー・捺印欄 -->
+            <div class="mb-5 pb-4 border-b-2 border-slate-800 flex justify-between items-start gap-4">
+              <div>
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="text-xs font-bold px-2 py-0.5 bg-blue-100 text-blue-900 rounded border border-blue-300">月次確定帳票</span>
+                  <span class="text-xs text-slate-500">内部統制・監査・請求承認用</span>
+                </div>
+                <h2 class="text-2xl font-bold tracking-tight text-slate-900 mb-2">月次介護報酬・自費請求 突合確認報告書</h2>
+                <div class="grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-slate-700">
+                  <p>対象施設: <strong id="repFacilityName" class="text-slate-900 font-bold text-sm">-</strong></p>
+                  <p>対象年月: <strong id="repTargetMonth" class="text-slate-900 font-bold text-sm">2026年07月分</strong></p>
+                  <p>作成日時: <span id="repCreatedDate">2026-08-19</span></p>
+                  <p>報告種別: <span class="font-semibold text-slate-800">国保連請求・自己負担・自費突合</span></p>
+                </div>
+              </div>
+
+              <!-- 正式な決裁印影欄（3枠） -->
+              <div class="flex items-center gap-1.5 self-start pt-1">
+                <div class="report-stamp-box">
+                  <div class="report-stamp-title">承認</div>
+                  <div class="report-stamp-area">施設長</div>
+                </div>
+                <div class="report-stamp-box">
+                  <div class="report-stamp-title">確認</div>
+                  <div class="report-stamp-area">介護課長</div>
+                </div>
+                <div class="report-stamp-box">
+                  <div class="report-stamp-title">作成</div>
+                  <div class="report-stamp-area">担当者</div>
+                </div>
               </div>
             </div>
 
             <div>
               <!-- 突合ステータス -->
-              <div class="border border-black p-3.5 mb-5 bg-slate-50" id="repSummaryBox">
+              <div class="report-prevent-break border border-slate-400 p-3.5 mb-5 bg-slate-50 rounded" id="repSummaryBox">
                 <div class="flex justify-between items-center mb-1">
                   <h4 class="font-bold text-sm text-slate-800">【突合判定結果】</h4>
                   <span id="repSummaryStatusBadge" class="font-bold text-xs px-2.5 py-0.5 rounded border border-emerald-500 bg-emerald-100 text-emerald-800">突合一致 (正常)</span>
@@ -1387,23 +1476,23 @@
               </div>
 
               <!-- ① 当月総収入サマリー (課長・経営管理用) -->
-              <div class="mb-5">
-                <h4 class="font-bold text-sm text-slate-800 border-b border-black pb-1 mb-2 flex justify-between items-end">
+              <div class="report-prevent-break mb-5">
+                <h4 class="font-bold text-sm text-slate-800 border-b border-slate-700 pb-1 mb-2 flex justify-between items-end">
                   <span>💴 1ヶ月の事業所総収入 サマリー</span>
                   <span class="text-xs font-normal text-slate-600">※保険給付 ＋ 利用者自己負担 ＋ 自費売上の合算総額</span>
                 </h4>
                 <div class="grid grid-cols-4 gap-2 mb-2 text-center text-xs">
-                  <div class="border border-slate-400 p-2.5 bg-blue-50/50 rounded">
+                  <div class="border border-slate-400 p-2.5 bg-blue-50/60 rounded">
                     <span class="text-[11px] text-blue-900 font-bold block">① 保険給付費請求 (国保連/県)</span>
                     <strong class="text-sm text-blue-950 font-mono block mt-1" id="repKpiInsuranceBenefit">¥0</strong>
                     <span class="text-[10px] text-slate-500">公費10割給付含む</span>
                   </div>
-                  <div class="border border-slate-400 p-2.5 bg-emerald-50/50 rounded">
+                  <div class="border border-slate-400 p-2.5 bg-emerald-50/60 rounded">
                     <span class="text-[11px] text-emerald-900 font-bold block">② 介護保険自己負担額</span>
                     <strong class="text-sm text-emerald-950 font-mono block mt-1" id="repKpiUserInsurance">¥0</strong>
                     <span class="text-[10px] text-slate-500">1〜3割負担分</span>
                   </div>
-                  <div class="border border-slate-400 p-2.5 bg-amber-50/50 rounded">
+                  <div class="border border-slate-400 p-2.5 bg-amber-50/60 rounded">
                     <span class="text-[11px] text-amber-900 font-bold block">③ 自費請求売上額</span>
                     <strong class="text-sm text-amber-950 font-mono block mt-1" id="repKpiSelfPayTotal">¥0</strong>
                     <span class="text-[10px] text-slate-500">食費・居住費・水光熱等</span>
@@ -1417,45 +1506,45 @@
               </div>
 
               <!-- ② 介護ソフト突合比較表 -->
-              <div class="mb-5">
-                <h4 class="font-bold text-sm text-slate-800 border-b border-black pb-1 mb-2">
+              <div class="report-prevent-break mb-5">
+                <h4 class="font-bold text-sm text-slate-800 border-b border-slate-700 pb-1 mb-2">
                   【介護ソフト突合 比較内訳】
                 </h4>
-                <table class="w-full border-collapse border border-black text-xs text-right">
+                <table class="w-full border-collapse border border-slate-700 text-xs text-right">
                   <thead>
                     <tr class="bg-slate-100 text-center font-bold">
-                      <th class="border border-black p-1.5 text-left">突合区分</th>
-                      <th class="border border-black p-1.5">介護給付費 (総単位)</th>
-                      <th class="border border-black p-1.5">介護報酬総額 (円)</th>
-                      <th class="border border-black p-1.5">自費請求額 (円)</th>
-                      <th class="border border-black p-1.5">利用者請求合計 (円)</th>
-                      <th class="border border-black p-1.5">総収入 (円)</th>
+                      <th class="border border-slate-700 p-1.5 text-left">突合区分</th>
+                      <th class="border border-slate-700 p-1.5">介護給付費 (総単位)</th>
+                      <th class="border border-slate-700 p-1.5">介護報酬総額 (円)</th>
+                      <th class="border border-slate-700 p-1.5">自費請求額 (円)</th>
+                      <th class="border border-slate-700 p-1.5">利用者請求合計 (円)</th>
+                      <th class="border border-slate-700 p-1.5">総収入 (円)</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr>
-                      <td class="border border-black p-1.5 text-left font-semibold">介護ソフト出力値</td>
-                      <td class="border border-black p-1.5 font-mono" id="repSoftUnits">0 単位</td>
-                      <td class="border border-black p-1.5 font-mono" id="repSoftInsuranceYen">¥0</td>
-                      <td class="border border-black p-1.5 font-mono" id="repSoftSelfPay">¥0</td>
-                      <td class="border border-black p-1.5 font-mono" id="repSoftTotal">¥0</td>
-                      <td class="border border-black p-1.5 font-mono" id="repSoftGrandRevenue">¥0</td>
+                      <td class="border border-slate-700 p-1.5 text-left font-semibold">介護ソフト出力値</td>
+                      <td class="border border-slate-700 p-1.5 font-mono" id="repSoftUnits">0 単位</td>
+                      <td class="border border-slate-700 p-1.5 font-mono" id="repSoftInsuranceYen">¥0</td>
+                      <td class="border border-slate-700 p-1.5 font-mono" id="repSoftSelfPay">¥0</td>
+                      <td class="border border-slate-700 p-1.5 font-mono" id="repSoftTotal">¥0</td>
+                      <td class="border border-slate-700 p-1.5 font-mono" id="repSoftGrandRevenue">¥0</td>
                     </tr>
                     <tr>
-                      <td class="border border-black p-1.5 text-left font-semibold">現場入力計算値</td>
-                      <td class="border border-black p-1.5 font-mono" id="repWebUnits">0 単位</td>
-                      <td class="border border-black p-1.5 font-mono" id="repWebInsuranceYen">¥0</td>
-                      <td class="border border-black p-1.5 font-mono" id="repWebSelfPay">¥0</td>
-                      <td class="border border-black p-1.5 font-mono font-bold" id="repWebTotal">¥0</td>
-                      <td class="border border-black p-1.5 font-mono font-bold text-blue-900" id="repWebGrandRevenue">¥0</td>
+                      <td class="border border-slate-700 p-1.5 text-left font-semibold">現場入力計算値</td>
+                      <td class="border border-slate-700 p-1.5 font-mono" id="repWebUnits">0 単位</td>
+                      <td class="border border-slate-700 p-1.5 font-mono" id="repWebInsuranceYen">¥0</td>
+                      <td class="border border-slate-700 p-1.5 font-mono" id="repWebSelfPay">¥0</td>
+                      <td class="border border-slate-700 p-1.5 font-mono font-bold" id="repWebTotal">¥0</td>
+                      <td class="border border-slate-700 p-1.5 font-mono font-bold text-blue-900" id="repWebGrandRevenue">¥0</td>
                     </tr>
                     <tr class="bg-amber-50 font-bold" id="repDiffRow">
-                      <td class="border border-black p-1.5 text-left">差額 (ズレ)</td>
-                      <td class="border border-black p-1.5 font-mono" id="repDiffUnits">0 単位</td>
-                      <td class="border border-black p-1.5 font-mono" id="repDiffInsuranceYen">¥0</td>
-                      <td class="border border-black p-1.5 font-mono" id="repDiffSelfPay">¥0</td>
-                      <td class="border border-black p-1.5 font-mono" id="repDiffTotal">¥0</td>
-                      <td class="border border-black p-1.5 font-mono" id="repDiffGrandRevenue">¥0</td>
+                      <td class="border border-slate-700 p-1.5 text-left">差額 (ズレ)</td>
+                      <td class="border border-slate-700 p-1.5 font-mono" id="repDiffUnits">0 単位</td>
+                      <td class="border border-slate-700 p-1.5 font-mono" id="repDiffInsuranceYen">¥0</td>
+                      <td class="border border-slate-700 p-1.5 font-mono" id="repDiffSelfPay">¥0</td>
+                      <td class="border border-slate-700 p-1.5 font-mono" id="repDiffTotal">¥0</td>
+                      <td class="border border-slate-700 p-1.5 font-mono" id="repDiffGrandRevenue">¥0</td>
                     </tr>
                   </tbody>
                 </table>
@@ -1463,35 +1552,42 @@
 
               <!-- ③ 利用者別 請求・総収入明細一覧表 -->
               <div class="mb-4">
-                <h4 class="font-bold text-sm text-slate-800 border-b border-black pb-1 mb-2 flex justify-between items-end">
+                <h4 class="font-bold text-sm text-slate-800 border-b border-slate-700 pb-1 mb-2 flex justify-between items-end">
                   <span>【利用者別 請求・売上明細一覧】</span>
                   <span class="text-xs font-normal text-slate-600">※単位: 円 / 減免者は自己負担0円（公費全額）</span>
                 </h4>
                 <div class="overflow-x-auto">
-                  <table class="w-full border-collapse border border-black text-[11px] text-right" id="repUserDetailTable">
+                  <table class="report-table w-full border-collapse border border-slate-700 text-[11px] text-right" id="repUserDetailTable">
                     <thead>
-                      <tr class="bg-slate-100 text-center font-bold">
-                        <th class="border border-black p-1 text-center w-8">No</th>
-                        <th class="border border-black p-1 text-left">利用者氏名</th>
-                        <th class="border border-black p-1 text-center">要介護度 (割合)</th>
-                        <th class="border border-black p-1 text-center">利用/契約日数</th>
-                        <th class="border border-black p-1">給付単位</th>
-                        <th class="border border-black p-1">介護報酬総額</th>
-                        <th class="border border-black p-1">利用者保険負担</th>
-                        <th class="border border-black p-1">自費小計</th>
-                        <th class="border border-black p-1">利用者請求合計</th>
-                        <th class="border border-black p-1 text-blue-900 bg-blue-50/50">当月総売上貢献</th>
-                        <th class="border border-black p-1 text-center w-12">判定</th>
+                      <tr class="bg-slate-100 text-center font-bold text-slate-800">
+                        <th class="border border-slate-700 p-1.5 text-center w-8">No</th>
+                        <th class="border border-slate-700 p-1.5 text-left">利用者氏名</th>
+                        <th class="border border-slate-700 p-1.5 text-center">要介護度 (割合)</th>
+                        <th class="border border-slate-700 p-1.5 text-center">利用/契約日数</th>
+                        <th class="border border-slate-700 p-1.5">給付単位</th>
+                        <th class="border border-slate-700 p-1.5">介護報酬総額</th>
+                        <th class="border border-slate-700 p-1.5">利用者保険負担</th>
+                        <th class="border border-slate-700 p-1.5">自費小計</th>
+                        <th class="border border-slate-700 p-1.5">利用者請求合計</th>
+                        <th class="border border-slate-700 p-1.5 text-blue-950 bg-blue-50/70">当月総売上貢献</th>
+                        <th class="border border-slate-700 p-1.5 text-center w-14">判定</th>
                       </tr>
                     </thead>
                     <tbody id="repUserDetailTableBody">
                       <!-- Dynamic rows -->
                     </tbody>
-                    <tfoot id="repUserDetailTableFoot" class="bg-slate-100 font-bold font-mono">
-                      <!-- Dynamic footer totals -->
-                    </tfoot>
+                    <!-- tfootではなく2つ目のtbodyを使用することで、ブラウザ印刷エンジンによる毎ページ合計リピート表示を根絶し、末尾のみに配置 -->
+                    <tbody id="repUserDetailTableFoot" class="bg-slate-100 font-bold font-mono border-t-2 border-slate-900 report-total-group">
+                      <!-- Dynamic totals -->
+                    </tbody>
                   </table>
                 </div>
+              </div>
+
+              <!-- 帳票フッター注記 -->
+              <div class="mt-4 pt-2 border-t border-slate-300 flex justify-between items-center text-[10px] text-slate-500">
+                <span>※ 本報告書は現場実績と介護請求ソフトの突合確認・内部統制および請求確定のために出力されたものです。</span>
+                <span>介護レセプト・自費突合システム</span>
               </div>
             </div>
           </div>
@@ -24190,24 +24286,24 @@
 
         if (tbody) {
           const tr = document.createElement('tr');
-          if (isMismatch) tr.className = 'bg-rose-50 font-semibold';
-          const exemptLabel = isExempt ? ' <span class="text-amber-800 font-bold">[減免]</span>' : '';
+          tr.className = isMismatch ? 'bg-rose-50/80 font-semibold user-row' : 'user-row';
+          const exemptLabel = isExempt ? ' <span class="text-amber-800 font-bold text-[10px] bg-amber-100 px-1 py-0.2 rounded border border-amber-300">[減免]</span>' : '';
           const daysText = (serviceType === '有料ホーム' || serviceType === 'グループホーム') 
-            ? `${useDays}日 (契約${contractDays}日)` 
+            ? `${useDays}日 <span class="text-[10px] text-slate-500">(契${contractDays})</span>` 
             : `${useDays}日`;
 
           tr.innerHTML = `
-            <td class="border border-black p-1 text-center">${validUserIndex}</td>
-            <td class="border border-black p-1 text-left font-bold text-slate-900">${user.name}${exemptLabel}</td>
-            <td class="border border-black p-1 text-center">${user.careLevel} (${user.ratio})</td>
-            <td class="border border-black p-1 text-center">${daysText}</td>
-            <td class="border border-black p-1 font-mono">${formatNumber(webUnits)} u</td>
-            <td class="border border-black p-1 font-mono">¥${formatNumber(webInsuranceYen)}</td>
-            <td class="border border-black p-1 font-mono">${isExempt ? '¥0' : `¥${formatNumber(webUserInsurance)}`}</td>
-            <td class="border border-black p-1 font-mono">¥${formatNumber(webSelfPay)}</td>
-            <td class="border border-black p-1 font-mono font-bold">¥${formatNumber(webUserBilling)}</td>
-            <td class="border border-black p-1 font-mono font-bold text-blue-900 bg-blue-50/40">¥${formatNumber(webGrandRevenue)}</td>
-            <td class="border border-black p-1 text-center">${!hasSoftData ? '<span class="text-slate-400 font-normal">未取込</span>' : (isMismatch ? '<span class="text-rose-700 font-bold">要確認</span>' : '<span class="text-emerald-700 font-bold">一致</span>')}</td>
+            <td class="border border-slate-700 p-1.5 text-center text-slate-600">${validUserIndex}</td>
+            <td class="border border-slate-700 p-1.5 text-left font-bold text-slate-900">${user.name}${exemptLabel}</td>
+            <td class="border border-slate-700 p-1.5 text-center text-slate-800">${user.careLevel} <span class="text-slate-500 text-[10px]">(${user.ratio})</span></td>
+            <td class="border border-slate-700 p-1.5 text-center text-slate-800">${daysText}</td>
+            <td class="border border-slate-700 p-1.5 font-mono text-slate-900">${formatNumber(webUnits)} u</td>
+            <td class="border border-slate-700 p-1.5 font-mono text-slate-900">¥${formatNumber(webInsuranceYen)}</td>
+            <td class="border border-slate-700 p-1.5 font-mono text-slate-900">${isExempt ? '¥0' : `¥${formatNumber(webUserInsurance)}`}</td>
+            <td class="border border-slate-700 p-1.5 font-mono text-slate-900">¥${formatNumber(webSelfPay)}</td>
+            <td class="border border-slate-700 p-1.5 font-mono font-bold text-slate-950">¥${formatNumber(webUserBilling)}</td>
+            <td class="border border-slate-700 p-1.5 font-mono font-bold text-blue-950 bg-blue-50/60">¥${formatNumber(webGrandRevenue)}</td>
+            <td class="border border-slate-700 p-1.5 text-center">${!hasSoftData ? '<span class="text-slate-400 font-normal">未取込</span>' : (isMismatch ? '<span class="text-rose-700 font-bold bg-rose-100 px-1.5 py-0.5 rounded border border-rose-300">要確認</span>' : '<span class="text-emerald-700 font-bold bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-300">一致</span>')}</td>
           `;
           tbody.appendChild(tr);
         }
@@ -24215,15 +24311,15 @@
 
       if (tfoot) {
         tfoot.innerHTML = `
-          <tr class="border-t-2 border-black">
-            <td class="border border-black p-1.5 text-center" colspan="4">総合計 (${validUserIndex}名)</td>
-            <td class="border border-black p-1.5">${formatNumber(totalUnitsWeb)} u</td>
-            <td class="border border-black p-1.5">¥${formatNumber(totalInsuranceYenWeb)}</td>
-            <td class="border border-black p-1.5">¥${formatNumber(totalUserInsuranceWeb)}</td>
-            <td class="border border-black p-1.5">¥${formatNumber(totalSelfPayWeb)}</td>
-            <td class="border border-black p-1.5 text-slate-950 font-bold">¥${formatNumber(totalUserBillingWeb)}</td>
-            <td class="border border-black p-1.5 text-blue-950 font-bold bg-blue-100/50">¥${formatNumber(totalGrandRevenueWeb)}</td>
-            <td class="border border-black p-1.5 text-center text-xs">${errCount === 0 ? '全件一致' : `${errCount}件差分`}</td>
+          <tr class="border-t-2 border-b-2 border-slate-900 bg-slate-100 font-bold text-slate-900">
+            <td class="border border-slate-700 p-1.5 text-center font-bold" colspan="4">【総合計】対象: ${validUserIndex}名</td>
+            <td class="border border-slate-700 p-1.5 font-mono text-slate-950">${formatNumber(totalUnitsWeb)} u</td>
+            <td class="border border-slate-700 p-1.5 font-mono text-slate-950">¥${formatNumber(totalInsuranceYenWeb)}</td>
+            <td class="border border-slate-700 p-1.5 font-mono text-slate-950">¥${formatNumber(totalUserInsuranceWeb)}</td>
+            <td class="border border-slate-700 p-1.5 font-mono text-slate-950">¥${formatNumber(totalSelfPayWeb)}</td>
+            <td class="border border-slate-700 p-1.5 font-mono font-bold text-slate-950">¥${formatNumber(totalUserBillingWeb)}</td>
+            <td class="border border-slate-700 p-1.5 font-mono font-bold text-blue-950 bg-blue-100/60">¥${formatNumber(totalGrandRevenueWeb)}</td>
+            <td class="border border-slate-700 p-1.5 text-center text-xs font-bold ${errCount === 0 ? 'text-emerald-800' : 'text-rose-700'}">${errCount === 0 ? '全件一致' : `${errCount}件差分`}</td>
           </tr>
         `;
       }
@@ -26774,13 +26870,77 @@
             }
           });
         } else {
-          // --- 一般的なテーブル形式（Excel請求明細 / くすの木等介護ソフト売上一覧 / CSV等）の解析 ---
-          const fileNameLower = String(fileName || '').toLowerCase();
-          const isExcelFile = fileNameLower.endsWith('.xlsx') || fileNameLower.endsWith('.xls');
+          // --- 1. 介護ソフト特有の「月次利用料請求明細CSV（サービス費・食費・滞在費・利用者負担等の金額列形式）」の専用自動判定 ---
+          let isCareSoftMonthlyBill = false;
+          const firstDataRow = rows[1] || [];
+          if (rows.length >= 2 && firstDataRow.length >= 18) {
+            const hText = (rows[0] || []).join(' ');
+            const hasYmPattern = /R\s*\d+\s*\/\s*\d+/i.test(firstDataRow[3] || '') || /R\s*\d+\s*\/\s*\d+/i.test(hText);
+            const hasSrvMoney = !isNaN(Number(firstDataRow[5])) && !isNaN(Number(firstDataRow[21] || firstDataRow[11]));
+            const hasKeywords = /(サービス費|食費|滞在費|保険請求|利用者負担|請求金額|T\[rX)/i.test(hText);
+            if (hasKeywords || (hasYmPattern && hasSrvMoney)) {
+              isCareSoftMonthlyBill = true;
+            }
+          }
 
-          // ファイル名や先頭行テキストから月度を検出 (例: "くすの木 9月売上一覧", "2026年9月")
-          if (!detectedMonth) {
-            const metaSampleTxt = (fileName || '') + ' ' + rows.slice(0, 5).map(r => (r || []).join(' ')).join(' ');
+          if (isCareSoftMonthlyBill) {
+            // 提供年月の検出 (例: "R 8/ 9" => 2026-09)
+            const ymRaw = String(firstDataRow[3] || '').trim();
+            const rMatch = ymRaw.match(/R\s*(\d+)\s*\/\s*(\d+)/i);
+            if (rMatch) {
+              const reiwaYr = Number(rMatch[1]);
+              const westernYr = 2018 + reiwaYr;
+              const mo = String(rMatch[2]).padStart(2, '0');
+              detectedMonth = `${westernYr}-${mo}`;
+            }
+
+            const unitRate = AppState.facilities[AppState.currentFacilityId]?.unitRate || 10;
+            for (let i = 1; i < rows.length; i++) {
+              const r = rows[i];
+              if (!r || r.length < 15 || !r[0]) continue;
+              const rawId = String(r[0]).trim();
+              const careLevel = String(r[1] || '').trim();
+              const rawName = String(r[2] || '').trim();
+              const totalBill = Number(r[4]) || 0;
+              const srvIns = Number(r[5]) || 0;
+              const srvPub = Number(r[6]) || 0;
+              const claimTotal = Number(r[11]) || 0;
+              const userInsBurden = Number(r[12]) || 0;
+              const pubBurden = Number(r[13]) || 0;
+              const mealBurden = Number(r[14]) || 0;
+              const stayBurden = Number(r[15]) || 0;
+              const otherCost = Number(r[18]) || 0;
+              const selfPayCol = Number(r[19]) || 0;
+              const userBilling = Number(r[21]) || 0;
+
+              // 介護報酬総額 = サービス費保険 + サービス費公費 + 利用者負担額 (または 保険請求 + 自己負担)
+              const totalInsYen = (srvIns + srvPub + userInsBurden > 0) ? (srvIns + srvPub + userInsBurden) : (claimTotal + userInsBurden);
+              const units = Math.round(totalInsYen / unitRate);
+              const selfPay = mealBurden + stayBurden + otherCost + selfPayCol;
+
+              rawRecords.push({
+                id: rawId,
+                name: rawName,
+                careLevel: careLevel,
+                useDays: 30,
+                units: units,
+                insuranceBenefit: srvIns + srvPub,
+                insuranceSelfPay: userInsBurden,
+                selfPay: selfPay,
+                totalBill: userBilling > 0 ? userBilling : (userInsBurden + selfPay),
+                isKokuhoren: false,
+                isSelfPayImported: true,
+                fileFormat: '介護ソフト利用料請求明細CSV'
+              });
+            }
+          } else {
+            // --- 2. 一般的なテーブル形式（Excel請求明細 / くすの木等介護ソフト売上一覧 / 通常CSV等）の解析 ---
+            const fileNameLower = String(fileName || '').toLowerCase();
+            const isExcelFile = fileNameLower.endsWith('.xlsx') || fileNameLower.endsWith('.xls');
+
+            // ファイル名や先頭行テキストから月度を検出 (例: "くすの木 9月売上一覧", "2026年9月")
+            if (!detectedMonth) {
+              const metaSampleTxt = (fileName || '') + ' ' + rows.slice(0, 5).map(r => (r || []).join(' ')).join(' ');
             const mMatch = metaSampleTxt.match(/(?:20\d\d|[R令和]?\d+)[年/-]?\s*(\d{1,2})\s*月/);
             const mMatchSales = metaSampleTxt.match(/(\d{1,2})\s*月\s*(?:売上|実績|請求)/);
             if (mMatch) {
@@ -27004,6 +27164,7 @@
             });
           }
         }
+      }
 
         // 対象月の自動連動（CSV内に提供年月が明記されていた場合）
         if (detectedMonth && detectedMonth !== AppState.targetMonth) {
@@ -27039,7 +27200,7 @@
             .replace(/廣/g, '広');
         }
 
-        // 2. マスタとの照合（被保険者番号、または氏名による自動照合）
+        // 2. マスタとの照合（被保険者番号、内部枝番、または氏名による自動照合）
         rawRecords.forEach(rec => {
           let matchedUser = rec.id ? findUserById(rec.id) : null;
           if (!matchedUser && rec.name) {
@@ -27048,6 +27209,9 @@
               const uCleanName = normalizeKanjiForMatch(u.name);
               return uCleanName && (uCleanName === cleanRecName || cleanRecName.includes(uCleanName) || uCleanName.includes(cleanRecName));
             });
+          }
+          if (!matchedUser && rec.id) {
+            matchedUser = AppState.userMaster.find(u => u.id === rec.id || String(u.id).endsWith(rec.id));
           }
 
           if (matchedUser) {
@@ -27077,6 +27241,23 @@
             count++;
           } else {
             unmatchedRecords.push(rec);
+            // マスタ未登録者であっても、ソフト側のデータとして保持し、突合集計から欠落しないように安全登録
+            const tempId = rec.id ? (rec.id.length >= 8 ? rec.id : `soft_${rec.id}`) : `soft_${Math.random().toString(36).slice(2, 7)}`;
+            const recKey = `${AppState.currentFacilityId}_${targetM}_${tempId}`;
+            AppState.softwareData[recKey] = {
+              units: rec.units,
+              insuranceBenefit: rec.insuranceBenefit || 0,
+              insuranceSelfPay: rec.insuranceSelfPay || 0,
+              selfPay: rec.selfPay,
+              totalBill: rec.totalBill || 0,
+              useDays: rec.useDays || getDaysInTargetMonth(targetM),
+              importDate: new Date().toLocaleString('ja-JP'),
+              fileName: fileName,
+              fileFormat: rec.fileFormat || '一般CSV',
+              isKokuhoren: !!rec.isKokuhoren,
+              isSelfPayImported: !!rec.isSelfPayImported,
+              unmatchedName: rec.name || `利用者(${rec.id || '番号未記載'})`
+            };
           }
         });
 
