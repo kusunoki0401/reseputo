@@ -1218,11 +1218,11 @@
             <div class="form-row">
               <div class="form-group">
                 <label>施設名称:</label>
-                <input type="text" id="facilityNameInput" class="form-control">
+                <input type="text" id="facilityNameInput" class="form-control bg-slate-100 text-slate-700 font-bold cursor-not-allowed" readonly title="ログイン中の施設名です（編集不可）">
               </div>
               <div class="form-group">
                 <label>サービス種別:</label>
-                <select id="facilityTypeSelect" class="form-control" onchange="renderMasterConfig(true)">
+                <select id="facilityTypeSelect" class="form-control bg-slate-100 text-slate-700 font-bold cursor-not-allowed pointer-events-none" disabled title="ログイン中の施設サービス種別です（編集不可）">
                   <option value="グループホーム">認知症対応型共同生活介護（グループホーム）</option>
                   <option value="デイサービス">地域密着型通所介護（デイサービス）</option>
                   <option value="有料ホーム">介護付き有料老人ホーム（特定施設入居者生活介護）</option>
@@ -2711,6 +2711,50 @@
         }
       }
       return 'fac_kusunoki';
+    }
+
+    // 【当月の対象利用者（アクティブ利用者）の取得】
+    // 「今月の対象者を選択」で区分変更等により除外された設定を月別で確実に保護・取得
+    function getActiveUserIds(facilityId, targetMonth) {
+      const fId = facilityId || AppState.currentFacilityId || 'fac_kusunoki';
+      const tMonth = targetMonth || (AppState && AppState.targetMonth) || (typeof getCurrentYearMonth === 'function' ? getCurrentYearMonth() : '2026-07');
+      const monthKey = `${fId}_${tMonth}`;
+
+      // 1. 月別の明示的保存リストがあれば最優先（区分変更等の月別除外設定）
+      if (AppState && AppState.activeUsersByMonth && Array.isArray(AppState.activeUsersByMonth[monthKey])) {
+        return [...AppState.activeUsersByMonth[monthKey]];
+      }
+
+      // 2. 当月が未設定の場合：施設に属する全利用者を初期リストとする（他月の区分変更除外に引きずられない）
+      const matched = (AppState && AppState.userMaster ? AppState.userMaster : []).filter(u => getUserFacilityId(u) === fId);
+      if (matched.length > 0) {
+        return matched.map(u => u.id);
+      }
+
+      // 3. 後方互換性：過去の施設単位アクティブリストがあれば採用
+      if (AppState && AppState.activeUsersPerFacility && Array.isArray(AppState.activeUsersPerFacility[fId])) {
+        return [...AppState.activeUsersPerFacility[fId]];
+      }
+      return [];
+    }
+
+    // 【当月の対象利用者（アクティブ利用者）の保存】
+    function setActiveUserIds(facilityId, targetMonth, userIds) {
+      const fId = facilityId || AppState.currentFacilityId || 'fac_kusunoki';
+      const tMonth = targetMonth || (AppState && AppState.targetMonth) || (typeof getCurrentYearMonth === 'function' ? getCurrentYearMonth() : '2026-07');
+      const monthKey = `${fId}_${tMonth}`;
+
+      if (!AppState.activeUsersByMonth || typeof AppState.activeUsersByMonth !== 'object') {
+        AppState.activeUsersByMonth = {};
+      }
+      if (!AppState.activeUsersPerFacility || typeof AppState.activeUsersPerFacility !== 'object') {
+        AppState.activeUsersPerFacility = {};
+      }
+
+      const cleanIds = Array.isArray(userIds) ? [...userIds] : [];
+      AppState.activeUsersByMonth[monthKey] = cleanIds;
+      AppState.activeUsersPerFacility[fId] = cleanIds; // 後方互換性維持
+      AppState.activeUsersUpdatedAt = new Date().toISOString();
     }
 
     function ensureHonorific(name) {
@@ -19439,6 +19483,8 @@
       additionMaster: JSON.parse(JSON.stringify(DEFAULT_ADDITION_MASTER)),
       userMaster: JSON.parse(JSON.stringify(INITIAL_MASTER_USERS)),
       activeUsersPerFacility: JSON.parse(JSON.stringify(INITIAL_ACTIVE_USERS)),
+      activeUsersByMonth: {},
+      activeUsersUpdatedAt: null,
       softwareData: JSON.parse(JSON.stringify(INITIAL_BACKUP_SOFTWARE_DATA)),
       records: JSON.parse(JSON.stringify(INITIAL_BACKUP_RECORDS)),
       deletedUserIds: [],
@@ -19652,19 +19698,69 @@
 
               const incomingUsers = [];
               const cloudUserIds = new Set();
+              const datePattern = /(?:^(?:19|20)\d{2}[-/年\.]|^(?:M|T|S|H|R|明|大|昭|平|令)\d{1,2}[\./年\.])/i;
+              const kanaPattern = /^[ァ-ヶー\s　]+$/;
+
               resJson.userMaster.forEach(u => {
                 const uid = format10DigitId(u.id || u[0]);
                 if (!uid || deletedSet.has(uid)) return; // 明示的削除IDは除外
                 cloudUserIds.add(uid);
                 const nm = ensureHonorific(u.name || u[1]);
+
+                let kana = u.kana ? normalizeToKatakana(u.kana) : '';
+                let rawBirth = String(u.birth || u[2] || '').trim();
+                let rawCare = String(u.careLevel || u[3] || '').trim();
+                let rawRatio = String(u.ratio || u[4] || '').trim();
+                let rawFac = String(u.facilityId || u[5] || '').trim();
+
+                // 【旧GASからの列ズレ検知・自動シフト補正】
+                // もし生年月日欄(rawBirth)にカタカナが入り、介護度欄(rawCare)に生年月日の日付が入っている場合
+                if (kanaPattern.test(rawBirth) && datePattern.test(rawCare)) {
+                  kana = normalizeToKatakana(rawBirth);
+                  rawBirth = rawCare;
+                  rawCare = rawRatio; // E列(要支援2など)
+                  rawRatio = rawFac;   // F列(3割など)
+                  rawFac = String(u[6] || u.facilityId || '').trim(); // G列
+                }
+
+                // 介護度の解析
+                let finalCareLevel = cleanCareLevelString(rawCare);
+                if (!finalCareLevel && cleanCareLevelString(rawRatio)) {
+                  finalCareLevel = cleanCareLevelString(rawRatio);
+                }
+
+                // 公式マスタ（INITIAL_MASTER_USERS / くすの木名簿）との照合救済（要支援・要介護の混同完全防止）
+                const cleanNm = nm.replace(/[\s　様]/g, '');
+                const knownUser = INITIAL_MASTER_USERS.find(iu => format10DigitId(iu.id) === uid || String(iu.name).replace(/[\s　様]/g, '') === cleanNm);
+                if (knownUser) {
+                  // 公式が「要支援」なのに届いたデータが「要介護」になっている場合、または要介護2になっている場合は公式を最優先
+                  if (!finalCareLevel || 
+                      (finalCareLevel === '要介護2' && knownUser.careLevel && knownUser.careLevel !== '要介護2') ||
+                      (knownUser.careLevel.includes('支援') && !finalCareLevel.includes('支援'))) {
+                    finalCareLevel = knownUser.careLevel;
+                  }
+                  if (!rawBirth || rawBirth === '-' || kanaPattern.test(rawBirth)) {
+                    rawBirth = knownUser.birth || rawBirth;
+                  }
+                  if (!kana) {
+                    kana = knownUser.kana || guessKanaFromName(nm);
+                  }
+                  if (knownUser.ratio && (!rawRatio || rawRatio === '1割') && knownUser.ratio !== '1割') {
+                    rawRatio = knownUser.ratio;
+                  }
+                }
+
+                if (!finalCareLevel) finalCareLevel = '要介護2';
+                if (!kana) kana = guessKanaFromName(nm);
+
                 incomingUsers.push({
                   id: uid,
                   name: nm,
-                  kana: u.kana ? normalizeToKatakana(u.kana) : guessKanaFromName(nm),
-                  birth: String(u.birth || u[2] || u[3] || '').trim(),
-                  careLevel: cleanCareLevelString(u.careLevel || u[3] || u[4]) || '要介護2',
-                  ratio: cleanRatioString(u.ratio || u[4] || u[5]) || '1割',
-                  facilityId: normalizeFacilityId(u.facilityId || u[5] || u[6])
+                  kana: kana,
+                  birth: rawBirth || '-',
+                  careLevel: finalCareLevel,
+                  ratio: cleanRatioString(rawRatio) || (knownUser ? knownUser.ratio : '1割'),
+                  facilityId: normalizeFacilityId(rawFac) || (knownUser ? knownUser.facilityId : 'fac_kusunoki')
                 });
               });
 
@@ -19725,22 +19821,36 @@
               }
             }
 
-            // 2. 加算マスタ同期（ローカル変更優先保護）
+            // 2. 加算マスタ同期（ローカル変更・保存設定の絶対保護）
             if (resJson.additionMaster) {
               if (typeof sanitizeAdditionMasterPercents === 'function') {
                 sanitizeAdditionMasterPercents(resJson.additionMaster);
               }
-              if (!AppState.additionMasterUpdatedAt) {
+              const cloudAddMasterTime = resJson.additionMasterUpdatedAt ? new Date(resJson.additionMasterUpdatedAt).getTime() : 0;
+              const localAddMasterTime = AppState.additionMasterUpdatedAt ? new Date(AppState.additionMasterUpdatedAt).getTime() : 0;
+
+              // ローカルに保存履歴がある場合、クラウド側がそれより確実に新しくない限り上書きを完全拒否（ゾンビ復活防止）
+              if (localAddMasterTime > 0) {
+                if (cloudAddMasterTime > localAddMasterTime) {
+                  AppState.additionMaster = Object.assign({}, AppState.additionMaster, resJson.additionMaster);
+                  AppState.additionMasterUpdatedAt = resJson.additionMasterUpdatedAt;
+                  if (typeof sanitizeAdditionMasterPercents === 'function') {
+                    sanitizeAdditionMasterPercents(AppState.additionMaster);
+                  }
+                  console.log('[CloudSync] 加算マスタをクラウド最新データで更新しました');
+                } else {
+                  console.log('[CloudSync] ローカルの加算マスタ設定変更を優先保護しました（ゾンビ上書き完全防止）');
+                }
+              } else if (cloudAddMasterTime > 0) {
                 AppState.additionMaster = Object.assign({}, AppState.additionMaster, resJson.additionMaster);
+                AppState.additionMasterUpdatedAt = resJson.additionMasterUpdatedAt;
                 if (typeof sanitizeAdditionMasterPercents === 'function') {
                   sanitizeAdditionMasterPercents(AppState.additionMaster);
                 }
-              } else {
-                console.log('[CloudSync] ローカルの加算マスタ設定変更を優先保護しました');
               }
             }
 
-            // 3. 施設加算設定同期（双方向・最新タイムスタンプ判定＆ローカル保護）
+            // 3. 施設加算設定同期（双方向・最新タイムスタンプ判定＆ローカル絶対保護）
             let needsPushFacilityConfig = false;
             if (resJson.facilities && typeof resJson.facilities === 'object') {
               Object.keys(resJson.facilities).forEach(fId => {
@@ -19755,14 +19865,20 @@
                 const lTime = lFac.updatedAt ? new Date(lFac.updatedAt).getTime() : 0;
                 const cTime = cFac.updatedAt ? new Date(cFac.updatedAt).getTime() : 0;
 
-                if (lTime > 0 && lTime >= cTime) {
-                  // ローカルの方が新しい（または同等）場合 -> クラウドの古いデータで上書きせずローカルを維持！
-                  console.log(`[CloudSync] 施設 ${fId} の加算設定はローカル保存内容（${lFac.updatedAt}）を優先保護しました`);
-                  needsPushFacilityConfig = true; // スプレッドシート側が古いのでプッシュ対象
-                } else if (cFac.additions && Array.isArray(cFac.additions) && cFac.additions.length > 0) {
-                  // クラウド側が確実に新しく、有効な加算データが存在する場合のみ採用
+                // 【鉄壁保護】ローカルに保存日時がある場合、クラウドが確実に新しくない限り上書きを完全拒否
+                if (lTime > 0) {
+                  if (cTime > lTime && Array.isArray(cFac.additions)) {
+                    lFac.additions = cFac.additions;
+                    lFac.updatedAt = cFac.updatedAt;
+                    console.log(`[CloudSync] 施設 ${fId} の加算設定をクラウド最新（${cFac.updatedAt}）で更新しました`);
+                  } else {
+                    console.log(`[CloudSync] 施設 ${fId} の加算設定はローカル保存内容（${lFac.updatedAt}）を優先保護しました（ゾンビ上書き完全防止）`);
+                    if (cTime < lTime) needsPushFacilityConfig = true;
+                  }
+                } else if (cTime > 0 && Array.isArray(cFac.additions) && cFac.additions.length > 0) {
+                  // ローカル未設定時のみ、クラウド側の有効な加算データを採用
                   lFac.additions = cFac.additions;
-                  if (cFac.updatedAt) lFac.updatedAt = cFac.updatedAt;
+                  lFac.updatedAt = cFac.updatedAt;
                 }
               });
             }
@@ -19811,11 +19927,41 @@
               }
             });
 
-            // 各施設のアクティブ利用者を自動更新（同期した利用者を即座に画面・ダッシュボードへ反映）
+            // 4.5 【双方向同期】介護ソフト取込突合データ (AppState.softwareData) のマージ（他PC・上司PC共有）
+            const cloudSoftware = resJson.softwareData || {};
+            if (!AppState.softwareData) AppState.softwareData = {};
+            let importedSoftFromCloudCount = 0;
+
+            Object.keys(cloudSoftware).forEach(key => {
+              const cSoft = cloudSoftware[key];
+              if (!cSoft) return;
+              const lSoft = AppState.softwareData[key];
+
+              if (!lSoft) {
+                AppState.softwareData[key] = cSoft;
+                importedSoftFromCloudCount++;
+              } else {
+                const cTime = cSoft.importDate ? new Date(cSoft.importDate).getTime() : 0;
+                const lTime = lSoft.importDate ? new Date(lSoft.importDate).getTime() : 0;
+                if (cTime >= lTime) {
+                  AppState.softwareData[key] = cSoft;
+                  if (cTime > lTime) importedSoftFromCloudCount++;
+                }
+              }
+            });
+            if (resJson.lastImportSummary && !AppState.lastImportSummary) {
+              AppState.lastImportSummary = resJson.lastImportSummary;
+            }
+
+            // 各施設のアクティブ利用者の整合性維持（手動で除外した設定は100%保護し、勝手な上書きを完全防止）
             Object.keys(AppState.facilities).forEach(fId => {
-              const fUsers = AppState.userMaster.filter(u => getUserFacilityId(u) === fId);
-              if (fUsers.length > 0) {
+              if (!AppState.activeUsersPerFacility[fId] || !Array.isArray(AppState.activeUsersPerFacility[fId])) {
+                const fUsers = AppState.userMaster.filter(u => getUserFacilityId(u) === fId);
                 AppState.activeUsersPerFacility[fId] = fUsers.map(u => u.id);
+              } else {
+                // 既にマスタから削除されたIDがあればクリーンアップするのみとし、手動除外設定を100%維持
+                const validMasterIds = new Set((AppState.userMaster || []).map(u => format10DigitId(u.id)));
+                AppState.activeUsersPerFacility[fId] = AppState.activeUsersPerFacility[fId].filter(id => validMasterIds.has(format10DigitId(id)));
               }
             });
             ensureActiveUsersExist();
@@ -20014,6 +20160,8 @@
           const stateData = parsed.state || parsed;
           if (stateData.userMaster) AppState.userMaster = stateData.userMaster;
           if (stateData.activeUsersPerFacility) AppState.activeUsersPerFacility = stateData.activeUsersPerFacility;
+          if (stateData.activeUsersByMonth) AppState.activeUsersByMonth = stateData.activeUsersByMonth;
+          if (stateData.activeUsersUpdatedAt) AppState.activeUsersUpdatedAt = stateData.activeUsersUpdatedAt;
           if (stateData.facilities) AppState.facilities = stateData.facilities;
           if (stateData.additionMaster) AppState.additionMaster = stateData.additionMaster;
           if (stateData.records) AppState.records = stateData.records;
@@ -20039,6 +20187,8 @@
         const payload = {
           userMaster: AppState.userMaster,
           activeUsersPerFacility: AppState.activeUsersPerFacility,
+          activeUsersByMonth: AppState.activeUsersByMonth || {},
+          activeUsersUpdatedAt: AppState.activeUsersUpdatedAt || null,
           facilities: AppState.facilities,
           additionMaster: AppState.additionMaster,
           additionMasterUpdatedAt: AppState.additionMasterUpdatedAt,
@@ -20149,6 +20299,12 @@
         if (parsed.activeUsersPerFacility && typeof parsed.activeUsersPerFacility === 'object') {
           AppState.activeUsersPerFacility = JSON.parse(JSON.stringify(parsed.activeUsersPerFacility));
         }
+        if (parsed.activeUsersByMonth && typeof parsed.activeUsersByMonth === 'object') {
+          AppState.activeUsersByMonth = JSON.parse(JSON.stringify(parsed.activeUsersByMonth));
+        }
+        if (parsed.activeUsersUpdatedAt) {
+          AppState.activeUsersUpdatedAt = parsed.activeUsersUpdatedAt;
+        }
         if (parsed.facilities) {
           Object.assign(AppState.facilities, parsed.facilities);
           if (AppState.facilities['fac_kusunoki'] && AppState.facilities['fac_kusunoki'].utility === 21000) {
@@ -20169,60 +20325,28 @@
         if (parsed.softwareData) AppState.softwareData = parsed.softwareData || {};
         if (parsed.lockedMonths) AppState.lockedMonths = Object.assign({}, parsed.lockedMonths);
         if (parsed.currentFacilityId) AppState.currentFacilityId = parsed.currentFacilityId;
-        // 全施設・加算マスタバックアップからの保護復元
+        // 全施設・加算マスタバックアップからの保護復元（メインデータが空・欠落時のみフォールバック復元）
         try {
-          const allFacBackup = localStorage.getItem('care_sys_all_facilities_backup');
-          if (allFacBackup) {
-            const parsedAllFac = JSON.parse(allFacBackup);
-            if (parsedAllFac && typeof parsedAllFac === 'object') {
-              Object.keys(parsedAllFac).forEach(fId => {
-                if (AppState.facilities[fId] && parsedAllFac[fId] && parsedAllFac[fId].updatedAt) {
-                  const bTime = new Date(parsedAllFac[fId].updatedAt).getTime();
-                  const cTime = AppState.facilities[fId].updatedAt ? new Date(AppState.facilities[fId].updatedAt).getTime() : 0;
-                  if (bTime >= cTime && Array.isArray(parsedAllFac[fId].additions)) {
-                    AppState.facilities[fId].additions = parsedAllFac[fId].additions;
-                    AppState.facilities[fId].updatedAt = parsedAllFac[fId].updatedAt;
-                  }
-                }
-              });
+          if (!AppState.facilities || Object.keys(AppState.facilities).length === 0) {
+            const allFacBackup = localStorage.getItem('care_sys_all_facilities_backup');
+            if (allFacBackup) {
+              const parsedAllFac = JSON.parse(allFacBackup);
+              if (parsedAllFac && typeof parsedAllFac === 'object') {
+                AppState.facilities = parsedAllFac;
+              }
             }
           }
-          const addMasterBackup = localStorage.getItem('care_sys_addition_master_backup');
-          if (addMasterBackup) {
-            const parsedAddMaster = JSON.parse(addMasterBackup);
-            if (parsedAddMaster && typeof parsedAddMaster === 'object') {
-              Object.assign(AppState.additionMaster, parsedAddMaster);
+          if (!AppState.additionMaster || Object.keys(AppState.additionMaster).length === 0) {
+            const addMasterBackup = localStorage.getItem('care_sys_addition_master_backup');
+            if (addMasterBackup) {
+              const parsedAddMaster = JSON.parse(addMasterBackup);
+              if (parsedAddMaster && typeof parsedAddMaster === 'object') {
+                AppState.additionMaster = parsedAddMaster;
+              }
             }
           }
         } catch (facBackupErr) {
           console.warn('全施設加算バックアップ復元警告:', facBackupErr);
-        }
-
-        // ショートステイ専用バックアップからの保護復元（不意のリセットを100%防止）
-        try {
-          const shortAddsBackup = localStorage.getItem('care_sys_short_stay_additions_backup');
-          if (shortAddsBackup) {
-            const parsedAdds = JSON.parse(shortAddsBackup);
-            if (Array.isArray(parsedAdds) && parsedAdds.length > 0 && AppState.facilities['fac_short_mirai']) {
-              AppState.facilities['fac_short_mirai'].additions = parsedAdds;
-            }
-          }
-          const shortMasterBackup = localStorage.getItem('care_sys_short_stay_master_backup');
-          if (shortMasterBackup) {
-            const parsedMaster = JSON.parse(shortMasterBackup);
-            if (Array.isArray(parsedMaster) && parsedMaster.length > 0) {
-              AppState.additionMaster['ショートステイ'] = parsedMaster;
-            }
-          }
-          const shortFacBackup = localStorage.getItem('care_sys_short_stay_facility_backup');
-          if (shortFacBackup && AppState.facilities['fac_short_mirai']) {
-            const parsedFac = JSON.parse(shortFacBackup);
-            if (parsedFac && typeof parsedFac === 'object') {
-              Object.assign(AppState.facilities['fac_short_mirai'], parsedFac);
-            }
-          }
-        } catch (backupErr) {
-          console.warn('ショートステイバックアップ復元警告:', backupErr);
         }
 
         // 加算マスタのパーセント値を確実に正規化（0.228 -> 22.8等）
@@ -20254,19 +20378,22 @@
       if (!AppState.activeUsersPerFacility || typeof AppState.activeUsersPerFacility !== 'object') {
         AppState.activeUsersPerFacility = {};
       }
+      if (!AppState.activeUsersByMonth || typeof AppState.activeUsersByMonth !== 'object') {
+        AppState.activeUsersByMonth = {};
+      }
 
-      // 全施設のactiveUsersを点検・補完
+      // 全施設のactiveUsersを点検・補完（未初期化の場合のみ補完）
       Object.keys(AppState.facilities).forEach(fId => {
         let list = AppState.activeUsersPerFacility[fId];
-        if (!Array.isArray(list) || list.length === 0) {
+        if (!Array.isArray(list)) {
           const matched = AppState.userMaster.filter(u => getUserFacilityId(u) === fId);
           AppState.activeUsersPerFacility[fId] = matched.map(u => u.id);
         }
       });
 
-      // 現在の施設の確認
+      // 現在の施設の確認（未初期化の場合のみ補完）
       let currentActive = AppState.activeUsersPerFacility[facId];
-      if (!Array.isArray(currentActive) || currentActive.length === 0) {
+      if (!Array.isArray(currentActive)) {
         const facilityUsers = AppState.userMaster.filter(u => getUserFacilityId(u) === facId);
         AppState.activeUsersPerFacility[facId] = facilityUsers.map(u => u.id);
       }
@@ -20635,7 +20762,8 @@
     }
 
     function renderDashboard() {
-      const activeUserIds = AppState.activeUsersPerFacility[AppState.currentFacilityId] || [];
+      const targetM = AppState.targetMonth || '2026-07';
+      const activeUserIds = getActiveUserIds(AppState.currentFacilityId, targetM);
       const currentFac = AppState.facilities[AppState.currentFacilityId] || {};
       const serviceType = currentFac.type || '有料ホーム';
       const engine = CareEngines[serviceType] || CareEngines['有料ホーム'];
@@ -20655,8 +20783,6 @@
       let anySoftFileName = '';
       let isAnyKokuhoren = false;
       let isAnySelfPayImported = false;
-
-      const targetM = AppState.targetMonth || '2026-07';
 
       activeUserIds.forEach(uId => {
         const recKey = `${AppState.currentFacilityId}_${targetM}_${uId}`;
@@ -21324,7 +21450,7 @@
       tbody.innerHTML = '';
 
       const currentFacUsers = AppState.userMaster.filter(u => getUserFacilityId(u) === (AppState.currentFacilityId || 'fac_kusunoki'));
-      const activeUserIds = AppState.activeUsersPerFacility[AppState.currentFacilityId] || [];
+      const activeUserIds = getActiveUserIds(AppState.currentFacilityId, AppState.targetMonth);
 
       if (currentFacUsers.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center p-4 text-slate-400">登録されている利用者がいません。</td></tr>';
@@ -21359,12 +21485,11 @@
         selectedIds.push(chk.value);
       });
 
-      AppState.activeUsersPerFacility[AppState.currentFacilityId] = selectedIds;
+      setActiveUserIds(AppState.currentFacilityId, AppState.targetMonth, selectedIds);
       saveStateToLocalStorage();
       closeUserMasterSelectModal();
-      renderUserRecordForm();
-      renderDashboard();
-      showToast('当月の対象利用者を更新・反映しました', 'success');
+      renderAllViews();
+      showToast('当月の対象利用者を更新・反映しました（確認完了報告書にも即時反映されます）', 'success');
     }
 
     
@@ -21451,7 +21576,7 @@
       const currentFac = AppState.facilities[AppState.currentFacilityId] || {};
       const serviceType = currentFac.type || '有料ホーム';
       const isDayService = (serviceType === 'デイサービス');
-      const activeUserIds = AppState.activeUsersPerFacility[AppState.currentFacilityId] || [];
+      const activeUserIds = getActiveUserIds(AppState.currentFacilityId, AppState.targetMonth);
       userSelect.innerHTML = '';
 
       const scheduleBtn = document.getElementById('applyUserScheduleBtn');
@@ -21473,12 +21598,15 @@
         if (u) validUsers.push(u);
       });
 
-      // 万一 validUsers が空の場合は、現在の施設に属する（または無所属の）利用者を自動取得
-      if (validUsers.length === 0) {
+      // 万一 validUsers が空の場合、未設定（未保存）であれば現在の施設に属する全利用者を初期自動取得
+      // 【重要】手動で意図的にチェックを保存している月は勝手に全員復活させない
+      const monthKey = `${AppState.currentFacilityId || 'fac_kusunoki'}_${AppState.targetMonth || '2026-07'}`;
+      const hasExplicitMonthSetting = AppState.activeUsersByMonth && (monthKey in AppState.activeUsersByMonth);
+      if (validUsers.length === 0 && !hasExplicitMonthSetting) {
         const fallbackUsers = AppState.userMaster.filter(u => getUserFacilityId(u) === (AppState.currentFacilityId || 'fac_kusunoki'));
         if (fallbackUsers.length > 0) {
           validUsers = fallbackUsers;
-          AppState.activeUsersPerFacility[AppState.currentFacilityId] = fallbackUsers.map(u => u.id);
+          setActiveUserIds(AppState.currentFacilityId, AppState.targetMonth, fallbackUsers.map(u => u.id));
           saveStateToLocalStorage();
         }
       }
@@ -23598,30 +23726,25 @@
     }
 
     function renderMasterConfig(isTypeChange = false) {
-      const currentFac = AppState.facilities[AppState.currentFacilityId];
-      if (!currentFac) return;
+      const currentFac = AppState.facilities[AppState.currentFacilityId] || { name: '施設未設定', type: '有料ホーム' };
 
+      // 【ユーザー要望】サービス種別もログイン中の施設種別で常に固定・選択不可（disabled）にする
+      const selectedType = currentFac.type || '有料ホーム';
       const typeSelect = document.getElementById('facilityTypeSelect');
       if (typeSelect) {
-        if (!isTypeChange) {
-          typeSelect.value = currentFac.type || '有料ホーム';
-        }
-      }
-      const selectedType = typeSelect ? typeSelect.value : (currentFac.type || '有料ホーム');
-
-      // サービス種別に応じた施設オブジェクトを取得（ショートステイ選択時は確実にショートステイ未来月見台を対象とする）
-      let fac = currentFac;
-      if (selectedType === 'ショートステイ') {
-        fac = AppState.facilities['fac_short_mirai'] || currentFac;
-      } else if (selectedType === 'グループホーム') {
-        fac = AppState.facilities['fac_sakura'] || currentFac;
-      } else if (selectedType === 'デイサービス') {
-        fac = AppState.facilities['fac_mirai_nakaoka'] || currentFac;
-      } else if (selectedType === '有料ホーム') {
-        fac = AppState.facilities['fac_kusunoki'] || currentFac;
+        typeSelect.value = selectedType;
+        typeSelect.disabled = true;
       }
 
-      document.getElementById('facilityNameInput').value = fac.name;
+      // 施設設定用オブジェクトは常にログイン中の施設を使用
+      const fac = currentFac;
+
+      // 【ユーザー要望】施設名称は常にログイン中の施設名を表示し、編集不可（readonly）にする
+      const nameInput = document.getElementById('facilityNameInput');
+      if (nameInput) {
+        nameInput.value = currentFac.name || '施設未設定';
+        nameInput.readOnly = true;
+      }
 
       document.getElementById('unitRateInput').value = 10;
 
@@ -23753,24 +23876,15 @@
     }
 
     function saveFacilityMasterConfig() {
-      const typeSelect = document.getElementById('facilityTypeSelect');
-      const selectedType = typeSelect ? typeSelect.value : '有料ホーム';
+      const currentFac = AppState.facilities[AppState.currentFacilityId];
+      if (!currentFac) return;
 
-      let targetFacilityId = AppState.currentFacilityId;
-      if (selectedType === 'ショートステイ') {
-        targetFacilityId = 'fac_short_mirai';
-      } else if (selectedType === 'グループホーム') {
-        targetFacilityId = 'fac_sakura';
-      } else if (selectedType === 'デイサービス') {
-        targetFacilityId = 'fac_mirai_nakaoka';
-      } else if (selectedType === '有料ホーム') {
-        targetFacilityId = 'fac_kusunoki';
-      }
+      const selectedType = currentFac.type || '有料ホーム';
+      const targetFacilityId = AppState.currentFacilityId;
+      const fac = currentFac;
 
-      const fac = AppState.facilities[targetFacilityId];
-      if (!fac) return;
-
-      fac.name = document.getElementById('facilityNameInput').value;
+      // 施設名称はログイン中施設名を維持（編集不可のため変更しない）
+      fac.name = currentFac.name;
       fac.type = selectedType;
       fac.unitRate = 10;
 
@@ -23905,7 +24019,7 @@
       const daysInMonth = getDaysInTargetMonth(targetM);
       const serviceType = fac.type || '有料ホーム';
       const engine = CareEngines[serviceType] || CareEngines['有料ホーム'];
-      const activeUserIds = AppState.activeUsersPerFacility[AppState.currentFacilityId] || [];
+      const activeUserIds = getActiveUserIds(AppState.currentFacilityId, targetM);
 
       document.getElementById('repFacilityName').textContent = fac.name;
       const [rYear, rMonth] = targetM.split('-');
@@ -26470,16 +26584,100 @@
     function sanitizeExistingUserMaster() {
       if (!AppState.userMaster || !Array.isArray(AppState.userMaster)) return;
       const datePattern = /(?:^(?:19|20)\d{2}[-/年\.]\d{1,2}[-/月\.]\d{1,2}|^(?:M|T|S|H|R|明|大|昭|平|令)\d{1,2}[\./年\.]\d{1,2})/i;
+      const kanaPattern = /^[ァ-ヶー\s　]+$/;
       
       let changed = false;
       AppState.userMaster.forEach(u => {
-        // もし careLevel に生年月日（例: S08.03.30）が入っていたら、birth に移動して careLevel を要介護2に復元！
-        if (u.careLevel && datePattern.test(u.careLevel)) {
-          if (!u.birth || u.birth === '-' || /^\d{1,3}(?:歳|才)?$/.test(u.birth)) {
-            u.birth = u.careLevel;
+        // 1. 【列ズレ修復①】birth にカタカナ（フリガナ）が入っている場合、kana に移動して birth を復元
+        if (u.birth && kanaPattern.test(u.birth.trim())) {
+          if (!u.kana || u.kana === u.name) {
+            u.kana = u.birth.trim();
           }
-          u.careLevel = '要介護2';
+          u.birth = '-';
           changed = true;
+        }
+
+        // 2. 【列ズレ修復②】careLevel に生年月日（例: S17.02.14）が入っていたら、birth に正しく移動
+        if (u.careLevel && datePattern.test(u.careLevel.trim())) {
+          u.birth = u.careLevel.trim();
+          u.careLevel = ''; // 既知マスタ照合で再補完
+          changed = true;
+        }
+
+        // 3. 【赤津和子様 ピンポイント完全修復】
+        const cleanName = String(u.name || '').replace(/[\s　様]/g, '');
+        const id10 = format10DigitId(u.id);
+        if (id10 === '0000547310' || cleanName === '赤津和子') {
+          if (u.careLevel !== '要介護3' || u.birth !== 'S17.02.14') {
+            u.id = '0000547310';
+            u.name = '赤津　和子 様';
+            u.kana = 'アカツ カズコ';
+            u.birth = 'S17.02.14';
+            u.careLevel = '要介護3';
+            u.ratio = '1割';
+            u.facilityId = 'fac_kusunoki';
+            changed = true;
+          }
+        }
+
+        // 3-2. 【吉田友子様 ピンポイント完全修復（要支援2）】
+        if (id10 === '0002145821' || cleanName === '吉田友子') {
+          if (u.careLevel !== '要支援2' || u.ratio !== '3割' || u.birth !== 'S10.03.30') {
+            u.id = '0002145821';
+            u.name = '吉田　友子 様';
+            u.kana = 'ヨシダ トモコ';
+            u.birth = 'S10.03.30';
+            u.careLevel = '要支援2';
+            u.ratio = '3割';
+            u.facilityId = 'fac_kusunoki';
+            changed = true;
+          }
+        }
+
+        // 3-3. 【上野利茂様 ピンポイント完全修復（要支援1）】
+        if (id10 === '0000982334' || cleanName === '上野利茂') {
+          if (u.careLevel !== '要支援1' || u.birth !== 'S16.01.14') {
+            u.id = '0000982334';
+            u.name = '上野　利茂 様';
+            u.kana = 'ウエノ トシシゲ';
+            u.birth = 'S16.01.14';
+            u.careLevel = '要支援1';
+            u.ratio = '1割';
+            u.facilityId = 'fac_kusunoki';
+            changed = true;
+          }
+        }
+
+        // 3-4. 【中平武志様 ピンポイント完全修復（要支援2）】
+        if (cleanName === '中平武志') {
+          if (u.careLevel !== '要支援2') {
+            u.careLevel = '要支援2';
+            u.ratio = '1割';
+            u.facilityId = 'fac_kusunoki';
+            changed = true;
+          }
+        }
+
+        // 4. 【公式入居者マスタとの照合修復（要支援・要介護の混同完全防止）】
+        const initUser = INITIAL_MASTER_USERS.find(iu => format10DigitId(iu.id) === id10 || String(iu.name).replace(/[\s　様]/g, '') === cleanName);
+        if (initUser) {
+          if (!u.birth || u.birth === '-' || kanaPattern.test(u.birth)) {
+            u.birth = initUser.birth || '-';
+            changed = true;
+          }
+          // 公式マスタが「要支援」なのに現在「要介護」になっている場合、または要介護2になっている場合は公式マスタで完全復元
+          const curLvl = cleanCareLevelString(u.careLevel);
+          const offLvl = cleanCareLevelString(initUser.careLevel);
+          if (offLvl && curLvl !== offLvl) {
+            if (offLvl.includes('支援') || curLvl === '要介護2' || !curLvl) {
+              u.careLevel = offLvl;
+              changed = true;
+            }
+          }
+          if (initUser.ratio && (!u.ratio || u.ratio === '1割') && initUser.ratio !== '1割') {
+            u.ratio = initUser.ratio;
+            changed = true;
+          }
         }
 
         // もし birth に年齢数値が入っていたらクリア
@@ -26492,7 +26690,8 @@
         u.ratio = cleanRatioString(u.ratio);
         u.name = ensureHonorific(u.name);
         u.id = format10DigitId(u.id);
-        // フリガナが未設定、または名字のみ（半角スペースなし等）でフルネーム推測が可能な場合に自動強化
+        
+        // フリガナが未設定、または名字のみでフルネーム推測が可能な場合に自動強化
         if (u.name) {
           const betterKana = guessKanaFromName(u.name);
           if (betterKana && (!u.kana || (betterKana.includes(' ') && !u.kana.includes(' ')))) {
@@ -26896,6 +27095,19 @@
         renderDashboard();
         renderImportPreview();
 
+        // 【上司PC共有】取り込んだ介護ソフト突合データをスプレッドシートへ即時同期
+        if (AppState.gasUrl && AppState.gasUrl.includes('script.google.com')) {
+          sendGasPostRequest({
+            action: 'saveSoftwareData',
+            facilityId: AppState.currentFacilityId,
+            targetMonth: targetM,
+            softwareData: AppState.softwareData,
+            lastImportSummary: AppState.lastImportSummary
+          }, (ok) => {
+            console.log('[CloudSync] 介護ソフト突合データをスプレッドシート（他PC共有）へ送信完了:', ok);
+          });
+        }
+
         if (count > 0 || unmatchedRecords.length > 0) {
           if (unmatchedRecords.length > 0) {
             // 未突合の番号がある場合：マッピング照合アシスタントモーダルをポップアップ表示
@@ -26923,7 +27135,7 @@
 
       const currentFac = AppState.facilities[AppState.currentFacilityId] || {};
       const targetM = AppState.targetMonth || '2026-07';
-      const activeUserIds = AppState.activeUsersPerFacility[AppState.currentFacilityId] || [];
+      const activeUserIds = getActiveUserIds(AppState.currentFacilityId, targetM);
 
       let importedUserCount = 0;
       let totalUnitsSoft = 0;
@@ -27248,6 +27460,15 @@
       renderUserMasterTable();
       renderUserRecordForm();
 
+      if (AppState.gasUrl && AppState.gasUrl.includes('script.google.com')) {
+        sendGasPostRequest({
+          action: 'saveSoftwareData',
+          facilityId: fId,
+          targetMonth: targetM,
+          softwareData: AppState.softwareData
+        });
+      }
+
       showToast(`✅「${targetUser.name}」様の被保険者番号を「${formattedNewId}」に設定し、介護ソフト実績を突合しました！`, 'success');
     }
 
@@ -27272,7 +27493,7 @@
     function clearCurrentSoftwareData() {
       if (!confirm('現在選択中の施設・対象月の介護ソフト取込実績データをクリアしますか？')) return;
       const targetM = AppState.targetMonth || '2026-07';
-      const activeUserIds = AppState.activeUsersPerFacility[AppState.currentFacilityId] || [];
+      const activeUserIds = getActiveUserIds(AppState.currentFacilityId, targetM);
       activeUserIds.forEach(uId => {
         const recKey = `${AppState.currentFacilityId}_${targetM}_${uId}`;
         delete AppState.softwareData[recKey];
@@ -27281,6 +27502,15 @@
       saveStateToLocalStorage();
       renderDashboard();
       renderImportPreview();
+
+      if (AppState.gasUrl && AppState.gasUrl.includes('script.google.com')) {
+        sendGasPostRequest({
+          action: 'clearSoftwareData',
+          facilityId: AppState.currentFacilityId,
+          targetMonth: targetM
+        });
+      }
+
       showToast('介護ソフト実績データをクリアしました', 'info');
     }
 
@@ -27288,7 +27518,7 @@
     function downloadSampleImportCsv() {
       const currentFac = AppState.facilities[AppState.currentFacilityId] || {};
       const targetM = AppState.targetMonth || '2026-07';
-      const activeUserIds = AppState.activeUsersPerFacility[AppState.currentFacilityId] || [];
+      const activeUserIds = getActiveUserIds(AppState.currentFacilityId, targetM);
 
       let csvContent = '\uFEFF'; // UTF-8 BOM
       csvContent += '被保険者番号,氏名,単位数,自己負担額,利用日数\r\n';
