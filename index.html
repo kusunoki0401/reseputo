@@ -1032,6 +1032,11 @@
               <span>🛡️ 減免対象（生保・災害等）</span>
             </label>
             
+            <label class="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 border-2 border-purple-400 rounded-lg text-xs font-bold text-purple-900 cursor-pointer hover:bg-purple-100 transition shadow-sm select-none" title="要介護度の区分変更申請中など。チェックを入れると突合（照合）および確認完了報告書の集計・印刷から除外されます">
+              <input type="checkbox" id="chkUserPending" onchange="updateLiveUserRecordSummary()" class="w-4 h-4 text-purple-600 rounded cursor-pointer accent-purple-600">
+              <span>⚠️ 区分変更中（突合・報告書除外）</span>
+            </label>
+            
             <div class="user-unit-badge" id="userUnitBadge">
               <div class="badge-item">
                 <span class="text-slate-500">要介護度:</span>
@@ -20892,7 +20897,14 @@
 
     function renderDashboard() {
       const targetM = AppState.targetMonth || '2026-07';
-      const activeUserIds = getActiveUserIds(AppState.currentFacilityId, targetM);
+      const rawActiveUserIds = getActiveUserIds(AppState.currentFacilityId, targetM);
+      const activeUserIds = rawActiveUserIds.filter(uId => {
+        const user = findUserById(uId);
+        const recKey = `${AppState.currentFacilityId}_${targetM}_${uId}`;
+        const userRec = AppState.records[recKey];
+        const isPending = !!(userRec?.isPending ?? user?.isPendingCareLevel ?? user?.isPending);
+        return !isPending;
+      });
       const currentFac = AppState.facilities[AppState.currentFacilityId] || {};
       const serviceType = currentFac.type || '有料ホーム';
       const engine = CareEngines[serviceType] || CareEngines['有料ホーム'];
@@ -21864,6 +21876,10 @@
       if (chkUserExempt) {
         chkUserExempt.checked = !!(existingRec.isExempt ?? currentUser?.isExempt);
       }
+      const chkUserPending = document.getElementById('chkUserPending');
+      if (chkUserPending) {
+        chkUserPending.checked = !!(existingRec.isPending ?? currentUser?.isPendingCareLevel ?? currentUser?.isPending);
+      }
 
       // デイサービス用：口腔機能向上加算コントロールの表示・復元
       const daycareOralGroup = document.getElementById('daycareOralTrainingGroup');
@@ -22587,6 +22603,7 @@
       };
 
       const isExempt = !!document.getElementById('chkUserExempt')?.checked;
+      const isPending = !!document.getElementById('chkUserPending')?.checked;
       const units = engine.computeInsuranceUnits(user, useDays, currentFac, extraAdditions);
       const ratioNum = parseRatioToDecimal(user.ratio);
       // 【円換算後の3割計算】
@@ -22603,6 +22620,7 @@
       const careInfo = getUserCareInfo(user, serviceType, useDays);
 
       const exemptTag = isExempt ? ' <span class="bg-amber-100 text-amber-900 border border-amber-300 px-1.5 py-0.5 rounded text-[11px] font-bold">減免(公費)</span>' : '';
+      const pendingTag = isPending ? ' <span class="bg-purple-100 text-purple-900 border border-purple-300 px-1.5 py-0.5 rounded text-[11px] font-bold">⚠️区分変更中(突合除外)</span>' : '';
       let careInfoDisplay = `${careInfo.levelName} (${user.ratio})`;
       if (serviceType === 'ショートステイ') {
         const stageMap = {
@@ -22615,7 +22633,7 @@
         const stageStr = stageMap[user.foodLimitStage || 'none'] || '第4段階';
         careInfoDisplay = `${careInfo.levelName} (${user.ratio}・${stageStr})`;
       }
-      document.getElementById('userCareLevelInfo').innerHTML = `${careInfoDisplay}${exemptTag}`;
+      document.getElementById('userCareLevelInfo').innerHTML = `${careInfoDisplay}${exemptTag}${pendingTag}`;
       document.getElementById('userCalcUnits').textContent = `${formatNumber(units)} 単位`;
       document.getElementById('userEstAmount').innerHTML = isExempt 
         ? `<span class="line-through text-slate-400 mr-1 text-xs">¥${formatNumber(Math.floor(totalInsuranceYen * ratioNum))}</span><span class="text-amber-700 font-bold">¥0</span>`
@@ -23807,6 +23825,7 @@
         shortMealExcessDays: Number(document.getElementById('shortMealExcessDays')?.value || 0),
         priorContinuousDays: (document.getElementById('shortPriorContinuousDays')?.value !== '' ? Number(document.getElementById('shortPriorContinuousDays').value) : null),
         isExempt: !!document.getElementById('chkUserExempt')?.checked,
+        isPending: !!document.getElementById('chkUserPending')?.checked,
         useInitialFee: !!document.getElementById('chkSelfInitialFee')?.checked,
         familyLunchCost: Number(document.getElementById('kusunokiFamilyLunchCost')?.value || 0),
         facilityId: AppState.currentFacilityId,
@@ -23863,6 +23882,8 @@
       const matchedUser = findUserById(userId);
       if (matchedUser) {
         matchedUser.isExempt = recordObj.isExempt;
+        matchedUser.isPendingCareLevel = recordObj.isPending;
+        matchedUser.isPending = recordObj.isPending;
       }
       saveStateToLocalStorage();
       window._recordFormIsDirty = false;
@@ -24172,7 +24193,14 @@
       const daysInMonth = getDaysInTargetMonth(targetM);
       const serviceType = fac.type || '有料ホーム';
       const engine = CareEngines[serviceType] || CareEngines['有料ホーム'];
-      const activeUserIds = getActiveUserIds(AppState.currentFacilityId, targetM);
+      const rawActiveUserIds = getActiveUserIds(AppState.currentFacilityId, targetM);
+      const activeUserIds = rawActiveUserIds.filter(uId => {
+        const user = findUserById(uId);
+        const recKey = `${AppState.currentFacilityId}_${targetM}_${uId}`;
+        const userRec = AppState.records[recKey];
+        const isPending = !!(userRec?.isPending ?? user?.isPendingCareLevel ?? user?.isPending);
+        return !isPending;
+      });
 
       document.getElementById('repFacilityName').textContent = fac.name;
       const [rYear, rMonth] = targetM.split('-');
