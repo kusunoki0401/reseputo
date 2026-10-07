@@ -2611,12 +2611,12 @@
         { id: 'service_strength_3', name: 'サービス提供体制強化加算（Ⅲ）', unit: '6 単位/日', type: 'daily', rate: 6, target: 'common' },
         { id: 'productivity_1', name: '生産性向上推進体制加算（Ⅰ）', unit: '100 単位/月', type: 'monthly', rate: 100, target: 'common' },
         { id: 'productivity_2', name: '生産性向上推進体制加算（Ⅱ）', unit: '10 単位/月', type: 'monthly', rate: 10, target: 'common' },
-        { id: 'treatment_1_i_a', name: '介護職員等処遇改善加算Ⅰ（イ）', unit: '15.10%', type: 'percent', percent: 15.10, target: 'common' },
-        { id: 'treatment_1_i_b', name: '介護職員等処遇改善加算Ⅰ（ロ）', unit: '15.90%', type: 'percent', percent: 15.90, target: 'common' },
-        { id: 'treatment_2_i_a', name: '介護職員等処遇改善加算Ⅱ（イ）', unit: '14.30%', type: 'percent', percent: 14.30, target: 'common' },
-        { id: 'treatment_2_i_b', name: '介護職員等処遇改善加算Ⅱ（ロ）', unit: '15.10%', type: 'percent', percent: 15.10, target: 'common' },
-        { id: 'treatment_3', name: '介護職員等処遇改善加算Ⅲ', unit: '12.10%', type: 'percent', percent: 12.10, target: 'common' },
-        { id: 'treatment_4', name: '介護職員等処遇改善加算Ⅳ', unit: '10.10%', type: 'percent', percent: 10.10, target: 'common' },
+        { id: 'treatment_1_i_a', name: '介護職員等処遇改善加算Ⅰ（イ）', unit: '14.8%', type: 'percent', percent: 14.8, target: 'common' },
+        { id: 'treatment_1_i_b', name: '介護職員等処遇改善加算Ⅰ（ロ）', unit: '15.9%', type: 'percent', percent: 15.9, target: 'common' },
+        { id: 'treatment_2_i_a', name: '介護職員等処遇改善加算Ⅱ（イ）', unit: '14.2%', type: 'percent', percent: 14.2, target: 'common' },
+        { id: 'treatment_2_i_b', name: '介護職員等処遇改善加算Ⅱ（ロ）', unit: '15.3%', type: 'percent', percent: 15.3, target: 'common' },
+        { id: 'treatment_3', name: '介護職員等処遇改善加算Ⅲ', unit: '13.0%', type: 'percent', percent: 13.0, target: 'common' },
+        { id: 'treatment_4', name: '介護職員等処遇改善加算Ⅳ', unit: '10.8%', type: 'percent', percent: 10.8, target: 'common' },
         { id: 'bcp_not_formulated', name: '業務継続計画（BCP）未策定減算', unit: '-3.0%', type: 'percent', percent: -3.0, target: 'common' },
         { id: 'abuse_prevention_not_done', name: '高齢者虐待防止措置未実施減算', unit: '-1.0%', type: 'percent', percent: -1.0, target: 'common' },
         { id: 'restraint_not_done', name: '身体拘束廃止未実施減算', unit: '-1.0%', type: 'percent', percent: -1.0, target: 'common' }
@@ -2789,6 +2789,20 @@
               item.percent = 13.6; item.unit = '13.6%';
             } else if (item && item.id === 'short_treatment_4' && (item.percent === 9 || item.percent === 9.0)) {
               item.percent = 11.3; item.unit = '11.3%';
+            }
+            // 有料老人ホームくすの木 処遇改善加算の新基準（スプレッドシート完全整合）への自己修復
+            if (item && item.id === 'treatment_1_i_a' && (item.percent === 15.1 || item.percent === 15.10)) {
+              item.percent = 14.8; item.unit = '14.8%';
+            } else if (item && item.id === 'treatment_1_i_b' && (item.percent === 15.9 || item.percent === 15.90)) {
+              item.percent = 15.9; item.unit = '15.9%';
+            } else if (item && item.id === 'treatment_2_i_a' && (item.percent === 14.3 || item.percent === 14.30)) {
+              item.percent = 14.2; item.unit = '14.2%';
+            } else if (item && item.id === 'treatment_2_i_b' && (item.percent === 15.1 || item.percent === 15.10)) {
+              item.percent = 15.3; item.unit = '15.3%';
+            } else if (item && item.id === 'treatment_3' && (item.percent === 12.1 || item.percent === 12.10)) {
+              item.percent = 13.0; item.unit = '13.0%';
+            } else if (item && item.id === 'treatment_4' && (item.percent === 10.1 || item.percent === 10.10)) {
+              item.percent = 10.8; item.unit = '10.8%';
             }
           });
         }
@@ -19952,6 +19966,10 @@
                 // スプレッドシートに登録されている各加算項目で更新・追加
                 cloudList.forEach(cloudItem => {
                   if (!cloudItem || !cloudItem.id) return;
+                  if (cloudItem.type === 'percent' && cloudItem.percent !== undefined) {
+                    cloudItem.percent = normalizePercentValue(cloudItem.percent);
+                    cloudItem.unit = `${cloudItem.percent.toFixed(1)}%`;
+                  }
                   const existIdx = AppState.additionMaster[svcType].findIndex(a => a.id === cloudItem.id);
                   if (existIdx >= 0) {
                     // 既存項目をスプレッドシートの最新値（名前、単位、率、計算種別）で完全に上書き更新
@@ -19970,6 +19988,9 @@
               try {
                 localStorage.setItem('care_sys_addition_master_backup', JSON.stringify(AppState.additionMaster));
               } catch (e) {}
+              if (typeof renderMasterConfig === 'function') {
+                renderMasterConfig();
+              }
               console.log('[CloudSync] スプレッドシートの「加算マスタ」シートを完全参照し、加算マスタを最新値に更新しました');
             }
 
@@ -24125,9 +24146,9 @@
         }, (ok) => {
           console.log('[CloudSync] 施設加算設定をスプレッドシートへ送信完了:', ok);
         });
-        showToast(`✅ ${fac.name} の加算マスタ＆設定を保存し、スプレッドシートへ送信しました`, 'success');
+        showToast(`✅ ${fac.name} の加算マスタ（単位数・割合）＆届出設定を保存し、スプレッドシートへ送信・更新しました`, 'success');
       } else {
-        showToast(`✅ ${fac.name} の加算マスタ＆設定を保存しました`, 'success');
+        showToast(`✅ ${fac.name} の加算マスタ（単位数・割合）＆届出設定を保存しました`, 'success');
       }
 
       const configBadge = document.getElementById('masterConfigSyncBadge');
