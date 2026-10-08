@@ -1197,6 +1197,18 @@
                 </div>
                 <p class="text-[10px] text-slate-500 mt-1">※1個あたり698円で自費計算されます</p>
               </div>
+              <div class="form-group selfpay-short-item" id="shortTrialContainer">
+                <div class="flex justify-between items-center mb-1">
+                  <label class="font-bold text-slate-800 text-xs">🌱 体験利用 (1日 1,000円):</label>
+                  <span class="text-[10px] text-blue-700 font-normal">※回数(日数)を入力</span>
+                </div>
+                <div class="flex items-center gap-2 mt-1">
+                  <input type="number" id="shortTrialCount" class="form-control font-bold bg-white text-right w-24 h-9 border-blue-300 focus:border-blue-500 font-mono" value="" min="0" placeholder="0" oninput="updateLiveUserRecordSummary()">
+                  <span class="text-xs font-bold text-slate-600">回</span>
+                  <span id="shortTrialCalcText" class="text-xs font-bold text-blue-700 ml-1 font-mono"></span>
+                </div>
+                <p class="text-[10px] text-slate-500 mt-1">※1日あたり1,000円で自費計算されます</p>
+              </div>
               <div class="form-group selfpay-short-item">
                 <div class="flex justify-between items-center mb-1">
                   <label class="font-bold text-slate-800 text-xs">🍚 食事負担超過額 (436円/日):</label>
@@ -3542,6 +3554,8 @@
             if (tvCount > 0) extraSelfPay += tvCount * 150;
             const bentoCount = Number(rec.shortMiraiBentoCount || 0);
             if (bentoCount > 0) extraSelfPay += bentoCount * 698;
+            const trialCount = Number(rec.shortTrialCount || 0);
+            if (trialCount > 0) extraSelfPay += trialCount * 1000;
             if (rec.useHaircut) extraSelfPay += 2500;
             if (rec.useHairColor) extraSelfPay += 1000;
           }
@@ -19881,8 +19895,17 @@
                   if (!kana) {
                     kana = knownUser.kana || guessKanaFromName(nm);
                   }
-                  if (knownUser.ratio && (!rawRatio || rawRatio === '1割') && knownUser.ratio !== '1割') {
+                  // 【完全スプレッドシート優先】スプレッドシート側に値が存在する場合は100%最優先。空文字の場合のみ初期マスタで補完。
+                  if ((!rawRatio || rawRatio === '-') && knownUser.ratio) {
                     rawRatio = knownUser.ratio;
+                  }
+                }
+
+                // 配列受診時の列ズレ救済：行内に明示的な「2割」「3割」があれば優先採用
+                if (Array.isArray(u)) {
+                  const explicitRatioCell = u.find(c => typeof c === 'string' && /(?:[23]割|[23]0%|0\.[23]|^[23]$)/.test(c.trim()));
+                  if (explicitRatioCell) {
+                    rawRatio = explicitRatioCell;
                   }
                 }
 
@@ -19895,7 +19918,7 @@
                   kana: kana,
                   birth: rawBirth || '-',
                   careLevel: finalCareLevel,
-                  ratio: cleanRatioString(rawRatio) || (knownUser ? knownUser.ratio : '1割'),
+                  ratio: cleanRatioString(rawRatio),
                   facilityId: normalizeFacilityId(rawFac) || (knownUser ? knownUser.facilityId : 'fac_kusunoki')
                 });
               });
@@ -21673,8 +21696,8 @@
         allGroups.forEach(el => el.classList.remove('hidden'));
 
         if (serviceType === 'ショートステイ' || facId === 'fac_short_mirai') {
-          // 【ショートステイ未来月見台】未来弁当・テレビ貸出・食事負担超過額・理美容代を表示
-          if (titleEl) titleEl.innerHTML = '<span>💳</span> 個別自費項目設定 (ショートステイ未来月見台：未来弁当・テレビ貸出・食事負担超過額・理美容代)';
+          // 【ショートステイ未来月見台】未来弁当・体験利用・テレビ貸出・食事負担超過額・理美容代を表示
+          if (titleEl) titleEl.innerHTML = '<span>💳</span> 個別自費項目設定 (ショートステイ未来月見台：未来弁当・体験利用・テレビ貸出・食事負担超過額・理美容代)';
           allGroups.forEach(el => {
             if (el.classList.contains('selfpay-hair-item') || el.classList.contains('selfpay-short-item')) {
               el.classList.remove('hidden');
@@ -21943,6 +21966,12 @@
         document.getElementById('shortMiraiBentoCount').value = bentoCnt;
         const bentoCalcEl = document.getElementById('shortMiraiBentoCalcText');
         if (bentoCalcEl) bentoCalcEl.textContent = bentoCnt > 0 ? `(¥${formatNumber(bentoCnt * 698)})` : '';
+      }
+      if (document.getElementById('shortTrialCount')) {
+        const trialCnt = existingRec.shortTrialCount || '';
+        document.getElementById('shortTrialCount').value = trialCnt;
+        const trialCalcEl = document.getElementById('shortTrialCalcText');
+        if (trialCalcEl) trialCalcEl.textContent = (trialCnt > 0) ? `(¥${formatNumber(trialCnt * 1000)})` : '';
       }
       if (document.getElementById('shortMealExcessDays')) {
         const excessDays = (existingRec.shortMealExcessDays !== undefined && existingRec.shortMealExcessDays !== null) ? existingRec.shortMealExcessDays : '';
@@ -22478,6 +22507,7 @@
         useHairColor: !!document.getElementById('chkSelfHairColor')?.checked,
         shortTvRentalCount: Number(document.getElementById('shortTvRentalCount')?.value || 0),
         shortMiraiBentoCount: Number(document.getElementById('shortMiraiBentoCount')?.value || 0),
+        shortTrialCount: Number(document.getElementById('shortTrialCount')?.value || 0),
         shortMealExcessDays: Number(document.getElementById('shortMealExcessDays')?.value || 0),
         bathCount: Number(document.getElementById('selfBathCount')?.value || 0),
         useDischargeInfo: (serviceType === '有料ホーム') && !!document.getElementById('chkDischargeInfo')?.checked,
@@ -22493,6 +22523,10 @@
       const liveBentoCnt = tempRec.shortMiraiBentoCount || 0;
       const liveBentoCalcEl = document.getElementById('shortMiraiBentoCalcText');
       if (liveBentoCalcEl) liveBentoCalcEl.textContent = liveBentoCnt > 0 ? `(¥${formatNumber(liveBentoCnt * 698)})` : '';
+
+      const liveTrialCnt = tempRec.shortTrialCount || 0;
+      const liveTrialCalcEl = document.getElementById('shortTrialCalcText');
+      if (liveTrialCalcEl) liveTrialCalcEl.textContent = liveTrialCnt > 0 ? `(¥${formatNumber(liveTrialCnt * 1000)})` : '';
 
       let linkageCount = 0;
       for (let d = 1; d <= daysInMonth; d++) {
@@ -23355,6 +23389,9 @@
         const formBentoCount = Number(document.getElementById('shortMiraiBentoCount')?.value || 0);
         const miraiBentoCount = formBentoCount;
         const miraiBentoTotal = miraiBentoCount * 698;
+        const formTrialCount = Number(document.getElementById('shortTrialCount')?.value || 0);
+        const trialCount = formTrialCount;
+        const trialTotal = trialCount * 1000;
         const formExcessDays = Number(document.getElementById('shortMealExcessDays')?.value || 0);
         const mealExcessRate = fac.shortMealExcessRate !== undefined ? fac.shortMealExcessRate : 436;
         const mealExcessTotal = formExcessDays * mealExcessRate;
@@ -23362,7 +23399,7 @@
         const haircutTotal = formHaircut ? 2500 : 0;
         const formHairColor = !!document.getElementById('chkSelfHairColor')?.checked;
         const hairColorTotal = formHairColor ? 1000 : 0;
-        const extraSelfTotal = tvRentalTotal + miraiBentoTotal + haircutTotal + hairColorTotal;
+        const extraSelfTotal = tvRentalTotal + miraiBentoTotal + trialTotal + haircutTotal + hairColorTotal;
 
         // 画面上の最新カレンダー状態（利用日数・各日の部屋タイプ・食事チェック）を同期
         const liveDays = {};
@@ -23390,6 +23427,7 @@
           days: liveDays,
           shortTvRentalCount: tvRentalCount,
           shortMiraiBentoCount: miraiBentoCount,
+          shortTrialCount: trialCount,
           shortMealExcessDays: formExcessDays,
           useHaircut: haircutTotal > 0,
           useHairColor: hairColorTotal > 0
@@ -23464,6 +23502,13 @@
                 <td class="border border-slate-300 p-2 font-bold text-emerald-900 bg-emerald-50/50">🍱 未来弁当</td>
                 <td class="border border-slate-300 p-2 text-center text-emerald-900">@¥698 × ${miraiBentoCount}個</td>
                 <td class="border border-slate-300 p-2 text-right font-bold text-emerald-900">¥${formatNumber(miraiBentoTotal)}</td>
+              </tr>
+              ` : ''}
+              ${trialTotal > 0 ? `
+              <tr>
+                <td class="border border-slate-300 p-2 font-bold text-teal-900 bg-teal-50/50">🌱 体験利用</td>
+                <td class="border border-slate-300 p-2 text-center text-teal-900">@¥1,000 × ${trialCount}回（日）</td>
+                <td class="border border-slate-300 p-2 text-right font-bold text-teal-900">¥${formatNumber(trialTotal)}</td>
               </tr>
               ` : ''}
               ${haircutTotal > 0 ? `
@@ -23653,10 +23698,12 @@
       const savedRec = AppState.records[recKey];
       const formTvCnt = Number(document.getElementById('shortTvRentalCount')?.value || 0);
       const formBentoCnt = Number(document.getElementById('shortMiraiBentoCount')?.value || 0);
+      const formTrialCnt = Number(document.getElementById('shortTrialCount')?.value || 0);
       const currentRec = savedRec ? {
         ...savedRec,
         shortTvRentalCount: (savedRec.shortTvRentalCount !== undefined ? savedRec.shortTvRentalCount : formTvCnt),
         shortMiraiBentoCount: (savedRec.shortMiraiBentoCount !== undefined ? savedRec.shortMiraiBentoCount : formBentoCnt),
+        shortTrialCount: (savedRec.shortTrialCount !== undefined ? savedRec.shortTrialCount : formTrialCnt),
         familyLunchCost: Number(document.getElementById('kusunokiFamilyLunchCost')?.value || 0),
         useInitialFee: !!document.getElementById('chkSelfInitialFee')?.checked
       } : {
@@ -23672,6 +23719,7 @@
         useHairColor: !!document.getElementById('chkSelfHairColor')?.checked,
         shortTvRentalCount: formTvCnt,
         shortMiraiBentoCount: formBentoCnt,
+        shortTrialCount: formTrialCnt,
         bathCount: Number(document.getElementById('selfBathCount')?.value || 0),
         useInitialFee: !!document.getElementById('chkSelfInitialFee')?.checked,
         familyLunchCost: Number(document.getElementById('kusunokiFamilyLunchCost')?.value || 0)
@@ -23822,6 +23870,7 @@
         useHairColor: !!document.getElementById('chkSelfHairColor')?.checked,
         shortTvRentalCount: Number(document.getElementById('shortTvRentalCount')?.value || 0),
         shortMiraiBentoCount: Number(document.getElementById('shortMiraiBentoCount')?.value || 0),
+        shortTrialCount: Number(document.getElementById('shortTrialCount')?.value || 0),
         shortMealExcessDays: Number(document.getElementById('shortMealExcessDays')?.value || 0),
         priorContinuousDays: (document.getElementById('shortPriorContinuousDays')?.value !== '' ? Number(document.getElementById('shortPriorContinuousDays').value) : null),
         isExempt: !!document.getElementById('chkUserExempt')?.checked,
@@ -26600,11 +26649,13 @@
     }
 
     function cleanRatioString(rawVal) {
-      if (!rawVal) return '1割';
-      const str = String(rawVal).trim();
-      if (str.includes('3割') || str.includes('30%') || str === '3') return '3割';
-      if (str.includes('2割') || str.includes('20%') || str === '2') return '2割';
-      if (str.includes('1割') || str.includes('10%') || str === '1') return '1割';
+      if (rawVal === undefined || rawVal === null || rawVal === '') return '1割';
+      let str = String(rawVal).trim();
+      // 全角英数を半角に変換
+      str = str.replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xfee0)).replace(/％/g, '%');
+      if (str.includes('3割') || str.includes('30%') || str === '3' || str === '0.3' || str === '30') return '3割';
+      if (str.includes('2割') || str.includes('20%') || str === '2' || str === '0.2' || str === '20') return '2割';
+      if (str.includes('1割') || str.includes('10%') || str === '1' || str === '0.1' || str === '10') return '1割';
       return '1割';
     }
 
@@ -26873,9 +26924,12 @@
               changed = true;
             }
           }
-          if (initUser.ratio && (!u.ratio || u.ratio === '1割') && initUser.ratio !== '1割') {
-            u.ratio = initUser.ratio;
-            changed = true;
+          // 【スプレッドシート・ユーザー設定優先】u.ratioが未設定・空文字の場合のみ初期マスタで補完
+          if (!u.ratio || u.ratio === '-') {
+            if (initUser.ratio) {
+              u.ratio = initUser.ratio;
+              changed = true;
+            }
           }
         }
 
