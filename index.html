@@ -1177,6 +1177,18 @@
                   <input type="checkbox" id="chkSelfHairColor" onchange="updateLiveUserRecordSummary()"> 利用あり (1,000円/回)
                 </label>
               </div>
+              <div class="form-group selfpay-short-item" id="shortCustomSelfPayContainer">
+                <div class="flex justify-between items-center mb-1">
+                  <label class="font-bold text-slate-800 text-xs">💰 自費請求 (円):</label>
+                  <span class="text-[10px] text-amber-700 font-normal">※直接金額を入力</span>
+                </div>
+                <div class="flex items-center gap-2 mt-1">
+                  <input type="number" id="shortCustomSelfPayCost" class="form-control font-bold bg-white text-right w-32 h-9 border-amber-300 focus:border-amber-500 font-mono" value="" min="0" placeholder="0" oninput="updateLiveUserRecordSummary()">
+                  <span class="text-xs font-bold text-slate-600">円</span>
+                  <span id="shortCustomSelfPayCalcText" class="text-xs font-bold text-amber-700 ml-1 font-mono"></span>
+                </div>
+                <p class="text-[10px] text-slate-500 mt-1">※直接入力した金額が自費料金に追加されます</p>
+              </div>
               <div class="form-group selfpay-short-item">
                 <label class="font-bold text-slate-800 text-xs">📺 テレビ貸し出し (1回 150円):</label>
                 <div class="flex items-center gap-2 mt-2">
@@ -2953,10 +2965,11 @@
         }
       }
 
-      // 2. 当月カレンダーを日ごとに走査し、通算31日目以降の日数をカウント
+      // 2. 当月カレンダーを日ごとに走査し、通算31日目（全額自費日）および32日目以降（長期減算）を判定
       let streak = priorDays;
       let deductDays = 0;
       const dayStreaks = {};
+      const day31stSet = new Set();
 
       if (currentRec && currentRec.days) {
         for (let d = 1; d <= daysInM; d++) {
@@ -2965,7 +2978,11 @@
           if (isUse) {
             streak++;
             dayStreaks[d] = streak;
-            if (streak >= 31) {
+            if (streak === 31) {
+              // 【31日目】全額自己負担となる日（保険給付外・負担限度額対象外・通常の自費基準額満額）
+              day31stSet.add(d);
+            } else if (streak >= 32) {
+              // 【32日目以降】長期利用者減算（-30単位/日）適用（負担限度額は再適用）
               deductDays++;
             }
           } else {
@@ -2978,7 +2995,9 @@
       return {
         priorDays: priorDays,
         deductDays: deductDays,
-        dayStreaks: dayStreaks
+        dayStreaks: dayStreaks,
+        day31stSet: day31stSet,
+        day31Count: day31stSet.size
       };
     }
 
@@ -3371,7 +3390,11 @@
           const careInfo = getUserCareInfo(user, 'ショートステイ');
           let baseRate = careInfo.dailyRate;
 
-          let total = (useDays > 0) ? (baseRate * useDays) : 0;
+          // 【31日目全額自己負担】連続31日目は介護保険給付対象外のため、保険給付日数から除外
+          const day31Count = extraAdditions.day31Count || 0;
+          const insuranceUseDays = Math.max(0, useDays - day31Count);
+
+          let total = (insuranceUseDays > 0) ? (baseRate * insuranceUseDays) : 0;
 
           if (extraAdditions.shortTrainDays && extraAdditions.shortTrainDays > 0) {
             total += extraAdditions.shortTrainDays * 56;
@@ -3388,7 +3411,7 @@
           selectedAddIds.forEach(addId => {
             if (addId === 'short_indiv_training' || addId === 'short_transport') return;
 
-            // 【長期利用者減算】連続31日目以降の日数のみ減算（-30単位/日）
+            // 【長期利用者減算】連続32日目以降の日数のみ減算（-30単位/日）
             if (addId === 'short_long_term_user_deduct') {
               const deductDays = (extraAdditions && extraAdditions.longTermDeductDays !== undefined) ? extraAdditions.longTermDeductDays : 0;
               if (deductDays > 0) {
@@ -3400,7 +3423,7 @@
             const item = currentTypeAdditions.find(a => a.id === addId);
             if (item) {
               if (careInfo.isYoushien && item.target === 'kaigo_only') return;
-              if (item.type === 'daily') total += (item.rate || 0) * useDays;
+              if (item.type === 'daily') total += (item.rate || 0) * insuranceUseDays;
               else if (item.type === 'monthly') total += (item.rate || 0);
               else if (item.type === 'percent') percentRate += normalizePercentValue(item.percent || 0);
             }
@@ -3464,10 +3487,20 @@
             ptDays = roomCounts.privateDays;
           }
 
-          // 【滞在費22日上限ルール】一月内合計利用日数が22日を超えた場合、23日目以降の滞在費は徴収しない（毎月1日再起算）
+          // 【連続31日目（全額自己負担日）の検出】
+          const consecInfo = (user && rec && typeof calcShortStayConsecutiveDays === 'function')
+            ? calcShortStayConsecutiveDays(user.id, (rec.targetMonth || (typeof AppState !== 'undefined' ? AppState.targetMonth : '2026-07')), rec)
+            : null;
+          const day31stSet = (consecInfo && consecInfo.day31stSet) ? consecInfo.day31stSet : new Set();
+
+          // 【滞在費22日上限ルール ＆ 31日目全額自費基準額満額算定】
           let billablePtStayDays = 0;
           let billablePntStayDays = 0;
           let billableMStayDays = 0;
+          let stayDay31Total = 0; // 31日目の自費基準額満額
+
+          let burdenPrivateDays = 0;
+          let burdenMultiDays = 0;
 
           if (rec && rec.days && Object.keys(rec.days).length > 0) {
             let useCount = 0;
@@ -3475,12 +3508,26 @@
             for (let d = 1; d <= daysInM; d++) {
               const dayObj = rec.days[d];
               if (dayObj && (dayObj.status === '利用' || dayObj.active)) {
-                useCount++;
-                if (useCount <= 22) {
-                  const r = dayObj.room || 'private_toilet';
-                  if (r === 'multi') billableMStayDays++;
-                  else if (r === 'private_no_toilet') billablePntStayDays++;
-                  else billablePtStayDays++;
+                const r = dayObj.room || 'private_toilet';
+                const is31st = day31stSet.has(d);
+
+                if (is31st) {
+                  // 【31日目】負担限度額認定（補足給付）対象外！通常の自費基準額（満額）を支払う
+                  if (r === 'multi') stayDay31Total += multiRate;
+                  else if (r === 'private_no_toilet') stayDay31Total += privateNoToiletRate;
+                  else stayDay31Total += privateToiletRate;
+                } else {
+                  // 【31日目以外（30日目まで、および32日目以降）】
+                  // 1. 滞在費22日上限ルール適用
+                  useCount++;
+                  if (useCount <= 22) {
+                    if (r === 'multi') billableMStayDays++;
+                    else if (r === 'private_no_toilet') billablePntStayDays++;
+                    else billablePtStayDays++;
+                  }
+                  // 2. 居室負担額（限度額適用日）
+                  if (r === 'multi') burdenMultiDays++;
+                  else burdenPrivateDays++;
                 }
               }
             }
@@ -3491,14 +3538,16 @@
             billablePntStayDays = Math.min(pntDays, remainingCap);
             remainingCap -= billablePntStayDays;
             billableMStayDays = Math.min(mDays, remainingCap);
+            burdenPrivateDays = ptDays + pntDays;
+            burdenMultiDays = mDays;
           }
 
           const stayPrivateToiletTotal = (actualUseDays === 0) ? 0 : (billablePtStayDays * privateToiletRate);
           const stayPrivateNoToiletTotal = (actualUseDays === 0) ? 0 : (billablePntStayDays * privateNoToiletRate);
           const stayMultiTotal = (actualUseDays === 0) ? 0 : (billableMStayDays * multiRate);
 
-          const burdenPrivateTotal = (actualUseDays === 0) ? 0 : ((ptDays + pntDays) * burdenPrivateRate);
-          const burdenMultiTotal = (actualUseDays === 0) ? 0 : (mDays * burdenMultiRate);
+          const burdenPrivateTotal = (actualUseDays === 0) ? 0 : (burdenPrivateDays * burdenPrivateRate);
+          const burdenMultiTotal = (actualUseDays === 0) ? 0 : (burdenMultiDays * burdenMultiRate);
 
           const bfPrice = fac.breakfast !== undefined ? fac.breakfast : 513;
           const lnPrice = fac.lunch !== undefined ? fac.lunch : 803;
@@ -3511,6 +3560,7 @@
           if (actualUseDays !== 0) {
             if (rec && rec.days && Object.keys(rec.days).length > 0) {
               Object.keys(rec.days).forEach(d => {
+                const dayNum = Number(d);
                 const dayObj = rec.days[d];
                 if (dayObj && (dayObj.status === '利用' || dayObj.active)) {
                   let dayMealCost = 0;
@@ -3518,17 +3568,22 @@
                   if (dayObj.ln) dayMealCost += lnPrice;
                   if (dayObj.dn) dayMealCost += dnPrice;
 
-                  if (dayMealCost > 0 && dailyFoodCap !== null) {
-                    if (dayMealCost > dailyFoodCap) {
-                      // 上限に達した場合：上限額を請求
-                      dayMealCost = dailyFoodCap;
-                      // さらに上限に達し、かつ朝・昼・夕の3食を提供した日に限り食事負担超過額の対象（2食では加算しない）
-                      if (dayObj.bf && dayObj.ln && dayObj.dn) {
-                        autoExcessDays++;
+                  const is31st = day31stSet.has(dayNum);
+                  if (is31st) {
+                    // 【31日目】負担限度額認定（補足給付）の対象外！通常の自費基準額（満額）を算定
+                    mealTotal += dayMealCost;
+                  } else {
+                    // 【31日目以外（30日目まで、および32日目以降）】負担限度額認定（上限額）を適用
+                    if (dayMealCost > 0 && dailyFoodCap !== null) {
+                      if (dayMealCost > dailyFoodCap) {
+                        dayMealCost = dailyFoodCap;
+                        if (dayObj.bf && dayObj.ln && dayObj.dn) {
+                          autoExcessDays++;
+                        }
                       }
                     }
+                    mealTotal += dayMealCost;
                   }
-                  mealTotal += dayMealCost;
                 }
               });
             } else if (mealCounts) {
@@ -3558,9 +3613,11 @@
             if (trialCount > 0) extraSelfPay += trialCount * 1000;
             if (rec.useHaircut) extraSelfPay += 2500;
             if (rec.useHairColor) extraSelfPay += 1000;
+            const customCost = Number(rec.shortCustomSelfPayCost || rec.customSelfPayCost || 0);
+            if (customCost > 0) extraSelfPay += customCost;
           }
 
-          return stayPrivateToiletTotal + stayPrivateNoToiletTotal + stayMultiTotal + burdenPrivateTotal + burdenMultiTotal + mealTotal + mealExcessTotal + extraSelfPay;
+          return stayPrivateToiletTotal + stayPrivateNoToiletTotal + stayMultiTotal + stayDay31Total + burdenPrivateTotal + burdenMultiTotal + mealTotal + mealExcessTotal + extraSelfPay;
         }
       }
     };
@@ -4335,7 +4392,7 @@
             "name": "小池 英弘 様",
             "birth": "昭12.03.18",
             "careLevel": "要介護3",
-            "ratio": "1割",
+            "ratio": "2割",
             "facilityId": "fac_short_mirai",
             "kana": "コイケ ヒデヒロ"
       },
@@ -19855,7 +19912,34 @@
                 const uid = format10DigitId(u.id || u[0]);
                 if (!uid || deletedSet.has(uid)) return; // 明示的削除IDは除外
                 cloudUserIds.add(uid);
-                const nm = ensureHonorific(u.name || u[1]);
+                let nm = ensureHonorific(u.name || u[1]);
+
+                // 【文字化け自己修復辞書フィルター】
+                const KNOWN_NAME_FIX_MAP = {
+                  '0000548600': { name: '安西　久 様', kana: 'アンザイ ヒサシ' },
+                  '0000023132': { name: '佐藤　大右 様', kana: 'サトウ ダイスケ' },
+                  '0000720062': { name: '小野　ヒメ子 様', kana: 'オノ ヒメコ' },
+                  '0001028723': { name: '櫛田　文子 様', kana: 'クシダ フミコ' },
+                  '0000002064': { name: '森山　淳子 様', kana: 'モリヤマ ジュンコ' },
+                  '0000866598': { name: '青木　ナヲ 様', kana: 'アオキ ナオ' },
+                  '0002120682': { name: '岩間　嘉江 様', kana: 'イワマ ヨシエ' },
+                  '0000957216': { name: '川村　ハツエ 様', kana: 'カワムラ ハツエ' },
+                  '0003048624': { name: '樋口　ふみ子 様', kana: 'ヒグチ フミコ' },
+                  '0000719277': { name: '藤田　良子 様', kana: 'フジタ ヨシコ' },
+                  '0003683028': { name: '村越　保典 様', kana: 'ムラコシ ヤスノリ' },
+                  '0000657981': { name: '久野　康子 様', kana: 'クノ ヤスコ' },
+                  '0000644285': { name: '西田　サタ子 様', kana: 'ニシダ サタコ' },
+                  '0002853906': { name: '松﨑　英子 様', kana: 'マツザキ エイコ' }
+                };
+                if (KNOWN_NAME_FIX_MAP[uid]) {
+                  const fix = KNOWN_NAME_FIX_MAP[uid];
+                  if (nm.includes('\uFFFD') || nm.includes('?') || nm.includes('？') || !nm.trim()) {
+                    nm = fix.name;
+                  }
+                  if (!u.kana || u.kana.includes('\uFFFD') || u.kana.includes('?') || u.kana.includes('？')) {
+                    u.kana = fix.kana;
+                  }
+                }
 
                 let kana = u.kana ? normalizeToKatakana(u.kana) : '';
                 let rawBirth = String(u.birth || u[2] || '').trim();
@@ -19895,9 +19979,10 @@
                   if (!kana) {
                     kana = knownUser.kana || guessKanaFromName(nm);
                   }
-                  // 【完全スプレッドシート優先】スプレッドシート側に値が存在する場合は100%最優先。空文字の場合のみ初期マスタで補完。
-                  if ((!rawRatio || rawRatio === '-') && knownUser.ratio) {
-                    rawRatio = knownUser.ratio;
+                  // 【完全スプレッドシート優先・コード内固定管理の撤廃】
+                  // 負担割合はスプレッドシートの値を100%正として採用し、初期マスタ（knownUser.ratio）による上書きや補完は一切行わない。
+                  if (!rawRatio || rawRatio === '-') {
+                    rawRatio = '1割';
                   }
                 }
 
@@ -19916,7 +20001,7 @@
                   id: uid,
                   name: nm,
                   kana: kana,
-                  birth: rawBirth || '-',
+                  birth: formatBirthToWareki(rawBirth) || '-',
                   careLevel: finalCareLevel,
                   ratio: cleanRatioString(rawRatio),
                   facilityId: normalizeFacilityId(rawFac) || (knownUser ? knownUser.facilityId : 'fac_kusunoki')
@@ -19932,18 +20017,24 @@
                 }
               });
 
-              // 【重要・推測削除の完全撤廃】
-              // クラウド側にまだ存在しないローカル利用者は、新しくこのPCで登録された最新データ（または送信中データ）です。
-              // 勝手に「他PCで削除された」と誤認して削除することは絶対にせず、確実に保護・維持します。
+              // 【スプレッドシート完全追従・削除の自動反映】
+              // スプレッドシート（クラウド）に存在しない利用者は、他PCやスプレッドシート上で削除された利用者とみなし、ローカルからも完全に除去する。
+              // （※ただし、このPCで直近60秒以内に新規登録された利用者のみ、送信タイムラグのため一時保護する）
+              const now = Date.now();
               let hasLocalOnlyUsers = false;
               for (const [locId, locUser] of userMap.entries()) {
                 if (!cloudUserIds.has(locId)) {
-                  // この端末で登録された新規利用者
-                  hasLocalOnlyUsers = true;
-                  // 誤って削除済みリストに入っていた場合は救済解除
-                  if (deletedSet.has(locId)) {
-                    deletedSet.delete(locId);
-                    AppState.deletedUserIds = AppState.deletedUserIds.filter(did => format10DigitId(did) !== locId);
+                  const recentLocal = window._recentLocallyEditedUsers && window._recentLocallyEditedUsers.get(locId);
+                  const isRecentlyAdded = recentLocal && (now - recentLocal.editedAt < 60000);
+                  if (isRecentlyAdded) {
+                    hasLocalOnlyUsers = true;
+                  } else {
+                    // スプレッドシートから消えているため、ローカルからも完全に削除！
+                    userMap.delete(locId);
+                    if (!deletedSet.has(locId)) {
+                      deletedSet.add(locId);
+                      AppState.deletedUserIds.push(locId);
+                    }
                   }
                 }
               }
@@ -19952,14 +20043,33 @@
               incomingUsers.forEach(iu => {
                 if (!iu.id) return;
                 const existing = userMap.get(iu.id);
+
+                // 【ローカル即時編集の保護】このPCで直近60秒以内に編集・保存された利用者は、クラウド側の反映タイムラグによる巻き戻りを100%防止
+                if (window._recentLocallyEditedUsers && window._recentLocallyEditedUsers.has(iu.id)) {
+                  const localEntry = window._recentLocallyEditedUsers.get(iu.id);
+                  if (now - localEntry.editedAt < 60000) {
+                    if (iu.ratio === localEntry.user.ratio && iu.careLevel === localEntry.user.careLevel) {
+                      // クラウド側にも正しく反映されたことを確認できたので保護を解除
+                      window._recentLocallyEditedUsers.delete(iu.id);
+                    } else {
+                      // クラウド側がまだ古い値（反映待ち）のため、ローカルで修正した値を最優先維持
+                      iu.ratio = localEntry.user.ratio;
+                      iu.careLevel = localEntry.user.careLevel;
+                      iu.birth = localEntry.user.birth;
+                    }
+                  } else {
+                    window._recentLocallyEditedUsers.delete(iu.id);
+                  }
+                }
+
                 if (existing) {
                   userMap.set(iu.id, {
                     ...existing,
                     name: iu.name || existing.name,
                     kana: iu.kana || existing.kana || guessKanaFromName(iu.name),
-                    birth: (iu.birth && iu.birth !== '-') ? iu.birth : existing.birth,
+                    birth: (iu.birth && iu.birth !== '-') ? formatBirthToWareki(iu.birth) : (formatBirthToWareki(existing.birth) || '-'),
                     careLevel: iu.careLevel || existing.careLevel,
-                    ratio: iu.ratio || existing.ratio,
+                    ratio: iu.ratio || existing.ratio || '1割',
                     facilityId: iu.facilityId || existing.facilityId
                   });
                 } else {
@@ -19970,6 +20080,7 @@
 
               AppState.userMaster = Array.from(userMap.values());
               userCount = AppState.userMaster.length;
+              sanitizeExistingUserMaster();
               deduplicateUserMaster();
               saveUserMasterBackup();
 
@@ -21073,9 +21184,11 @@
         const vacantDays = daysInMonth - contractDays;
 
         let shortLongTermDeductDays = 0;
+        let shortDay31Count = 0;
         if (serviceType === 'ショートステイ') {
           const cInfo = calcShortStayConsecutiveDays(uId, AppState.targetMonth, userRec);
           shortLongTermDeductDays = cInfo.deductDays;
+          shortDay31Count = cInfo.day31Count || 0;
         }
 
         const extraAdditions = {
@@ -21088,6 +21201,7 @@
           shortTrainDays: shortTrainDays,
           shortTransportDays: shortTransportDays,
           longTermDeductDays: shortLongTermDeductDays,
+          day31Count: shortDay31Count,
           oralTrainingCount: (serviceType === 'デイサービス') ? Number(userRec?.oralTrainingCount ?? (user?.oralTrainingCount || 0)) : 0
         };
 
@@ -21696,8 +21810,8 @@
         allGroups.forEach(el => el.classList.remove('hidden'));
 
         if (serviceType === 'ショートステイ' || facId === 'fac_short_mirai') {
-          // 【ショートステイ未来月見台】未来弁当・体験利用・テレビ貸出・食事負担超過額・理美容代を表示
-          if (titleEl) titleEl.innerHTML = '<span>💳</span> 個別自費項目設定 (ショートステイ未来月見台：未来弁当・体験利用・テレビ貸出・食事負担超過額・理美容代)';
+          // 【ショートステイ未来月見台】自費請求・未来弁当・体験利用・テレビ貸出・食事負担超過額・理美容代を表示
+          if (titleEl) titleEl.innerHTML = '<span>💳</span> 個別自費項目設定 (ショートステイ未来月見台：自費請求・未来弁当・体験利用・テレビ貸出・食事負担超過額・理美容代)';
           allGroups.forEach(el => {
             if (el.classList.contains('selfpay-hair-item') || el.classList.contains('selfpay-short-item')) {
               el.classList.remove('hidden');
@@ -21955,6 +22069,12 @@
       if (document.getElementById('chkSelfHairColor')) document.getElementById('chkSelfHairColor').checked = !!existingRec.useHairColor;
       if (document.getElementById('chkSelfInitialFee')) document.getElementById('chkSelfInitialFee').checked = !!existingRec.useInitialFee;
       if (document.getElementById('kusunokiFamilyLunchCost')) document.getElementById('kusunokiFamilyLunchCost').value = existingRec.familyLunchCost || '';
+      if (document.getElementById('shortCustomSelfPayCost')) {
+        const customCost = (existingRec.shortCustomSelfPayCost !== undefined && existingRec.shortCustomSelfPayCost !== null) ? existingRec.shortCustomSelfPayCost : (existingRec.customSelfPayCost || '');
+        document.getElementById('shortCustomSelfPayCost').value = customCost;
+        const customCalcEl = document.getElementById('shortCustomSelfPayCalcText');
+        if (customCalcEl) customCalcEl.textContent = (customCost !== '' && Number(customCost) > 0) ? `(¥${formatNumber(Number(customCost))})` : '';
+      }
       if (document.getElementById('shortTvRentalCount')) {
         const tvCnt = existingRec.shortTvRentalCount || '';
         document.getElementById('shortTvRentalCount').value = tvCnt;
@@ -22505,6 +22625,7 @@
         useBedding: !!document.getElementById('chkSelfBedding')?.checked,
         useHaircut: !!document.getElementById('chkSelfHaircut')?.checked,
         useHairColor: !!document.getElementById('chkSelfHairColor')?.checked,
+        shortCustomSelfPayCost: Number(document.getElementById('shortCustomSelfPayCost')?.value || 0),
         shortTvRentalCount: Number(document.getElementById('shortTvRentalCount')?.value || 0),
         shortMiraiBentoCount: Number(document.getElementById('shortMiraiBentoCount')?.value || 0),
         shortTrialCount: Number(document.getElementById('shortTrialCount')?.value || 0),
@@ -22515,6 +22636,10 @@
         familyLunchCost: Number(document.getElementById('kusunokiFamilyLunchCost')?.value || 0),
         days: {}
       };
+
+      const liveCustomCost = tempRec.shortCustomSelfPayCost || 0;
+      const liveCustomCalcEl = document.getElementById('shortCustomSelfPayCalcText');
+      if (liveCustomCalcEl) liveCustomCalcEl.textContent = liveCustomCost > 0 ? `(¥${formatNumber(liveCustomCost)})` : '';
 
       const liveTvCnt = tempRec.shortTvRentalCount || 0;
       const liveTvCalcEl = document.getElementById('shortTvRentalCalcText');
@@ -22601,6 +22726,7 @@
       }
 
       let shortLongTermDeductDays = 0;
+      let shortDay31Count = 0;
       if (serviceType === 'ショートステイ') {
         const priorDaysInput = document.getElementById('shortPriorContinuousDays');
         let priorDaysVal = priorDaysInput ? priorDaysInput.value : '';
@@ -22610,16 +22736,15 @@
         };
         const consecutiveInfo = calcShortStayConsecutiveDays(userId, AppState.targetMonth, recWithPrior);
         shortLongTermDeductDays = consecutiveInfo.deductDays;
+        shortDay31Count = consecutiveInfo.day31Count || 0;
 
         const deductTextEl = document.getElementById('shortLongTermDeductText');
         if (deductTextEl) {
-          if (shortLongTermDeductDays > 0) {
-            deductTextEl.textContent = `(当月減算: ${shortLongTermDeductDays}日 / -${shortLongTermDeductDays * 30}u)`;
-          } else if (consecutiveInfo.priorDays > 0) {
-            deductTextEl.textContent = `(前月繰越: ${consecutiveInfo.priorDays}日)`;
-          } else {
-            deductTextEl.textContent = '';
-          }
+          const parts = [];
+          if (shortDay31Count > 0) parts.push(`31日目:全額自費(限度額対象外)`);
+          if (shortLongTermDeductDays > 0) parts.push(`32日目以降減算:${shortLongTermDeductDays}日(-${shortLongTermDeductDays * 30}u)`);
+          else if (consecutiveInfo.priorDays > 0) parts.push(`前月繰越:${consecutiveInfo.priorDays}日`);
+          deductTextEl.textContent = parts.length > 0 ? `(${parts.join(' / ')})` : '';
         }
       }
 
@@ -22633,6 +22758,7 @@
         shortTrainDays: shortTrainDays,
         shortTransportDays: shortTransportDays,
         longTermDeductDays: shortLongTermDeductDays,
+        day31Count: shortDay31Count,
         oralTrainingCount: liveOralCount
       };
 
@@ -23352,55 +23478,6 @@
         else if (limitStage === 'stage3_2') { burdenPrivateRate = 980; burdenMultiRate = 530; }
 
         // 【滞在費22日上限ルール】一月内合計利用日数が22日を超えた場合、23日目以降の滞在費は徴収しない（毎月1日再起算）
-        let billablePtStayDays = 0;
-        let billablePntStayDays = 0;
-        let billableMStayDays = 0;
-        let liveUseCount = 0;
-
-        for (let d = 1; d <= daysInMonth; d++) {
-          const badge = document.querySelector(`#dayCard_${d} .day-status-badge`);
-          const status = badge ? badge.textContent.trim() : '未利用';
-          if (status === '利用') {
-            liveUseCount++;
-            if (liveUseCount <= 22) {
-              const r = document.getElementById(`room_${d}`)?.value || 'private_toilet';
-              if (r === 'multi') billableMStayDays++;
-              else if (r === 'private_no_toilet') billablePntStayDays++;
-              else billablePtStayDays++;
-            }
-          }
-        }
-
-        const stayPtTotal = (useDays === 0) ? 0 : (billablePtStayDays * stayPtRate);
-        const stayPntTotal = (useDays === 0) ? 0 : (billablePntStayDays * stayPntRate);
-        const stayMultiTotal = (useDays === 0) ? 0 : (billableMStayDays * stayMultiRate);
-        const totalPrivateDays = privateToiletDays + privateNoToiletDays;
-        const burdenPrivateTotal = (useDays === 0) ? 0 : (totalPrivateDays * burdenPrivateRate);
-        const burdenMultiTotal = (useDays === 0) ? 0 : (multiDays * burdenMultiRate);
-
-        const engine = CareEngines['ショートステイ'];
-        const recKey = `${AppState.currentFacilityId}_${AppState.targetMonth}_${user ? user.id : ''}`;
-        const currentRec = AppState.records[recKey] || null;
-
-        // 画面の最新入力値を最優先で反映（保存前・編集中のズレを防止）
-        const formTvCount = Number(document.getElementById('shortTvRentalCount')?.value || 0);
-        const tvRentalCount = formTvCount;
-        const tvRentalTotal = tvRentalCount * 150;
-        const formBentoCount = Number(document.getElementById('shortMiraiBentoCount')?.value || 0);
-        const miraiBentoCount = formBentoCount;
-        const miraiBentoTotal = miraiBentoCount * 698;
-        const formTrialCount = Number(document.getElementById('shortTrialCount')?.value || 0);
-        const trialCount = formTrialCount;
-        const trialTotal = trialCount * 1000;
-        const formExcessDays = Number(document.getElementById('shortMealExcessDays')?.value || 0);
-        const mealExcessRate = fac.shortMealExcessRate !== undefined ? fac.shortMealExcessRate : 436;
-        const mealExcessTotal = formExcessDays * mealExcessRate;
-        const formHaircut = !!document.getElementById('chkSelfHaircut')?.checked;
-        const haircutTotal = formHaircut ? 2500 : 0;
-        const formHairColor = !!document.getElementById('chkSelfHairColor')?.checked;
-        const hairColorTotal = formHairColor ? 1000 : 0;
-        const extraSelfTotal = tvRentalTotal + miraiBentoTotal + trialTotal + haircutTotal + hairColorTotal;
-
         // 画面上の最新カレンダー状態（利用日数・各日の部屋タイプ・食事チェック）を同期
         const liveDays = {};
         for (let d = 1; d <= daysInMonth; d++) {
@@ -23422,9 +23499,80 @@
           };
         }
 
+        const priorDaysVal = document.getElementById('shortPriorContinuousDays')?.value;
+        const consecutiveInfo = calcShortStayConsecutiveDays(user ? user.id : '', AppState.targetMonth, {
+          days: liveDays,
+          priorContinuousDays: (priorDaysVal !== '' && priorDaysVal !== undefined) ? Number(priorDaysVal) : null
+        });
+        const day31stSet = consecutiveInfo.day31stSet || new Set();
+        const has31stDay = day31stSet.size > 0;
+
+        let billablePtStayDays = 0;
+        let billablePntStayDays = 0;
+        let billableMStayDays = 0;
+        let stayDay31Total = 0;
+        let liveUseCount = 0;
+        let non31PrivateDays = 0;
+        let non31MultiDays = 0;
+
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dayObj = liveDays[d];
+          if (dayObj && dayObj.active) {
+            const r = dayObj.room;
+            const is31st = day31stSet.has(d);
+            if (is31st) {
+              // 31日目: 満額自費基準額
+              if (r === 'multi') stayDay31Total += stayMultiRate;
+              else if (r === 'private_no_toilet') stayDay31Total += stayPntRate;
+              else stayDay31Total += stayPtRate;
+            } else {
+              liveUseCount++;
+              if (liveUseCount <= 22) {
+                if (r === 'multi') billableMStayDays++;
+                else if (r === 'private_no_toilet') billablePntStayDays++;
+                else billablePtStayDays++;
+              }
+              if (r === 'multi') non31MultiDays++;
+              else non31PrivateDays++;
+            }
+          }
+        }
+
+        const stayPtTotal = billablePtStayDays * stayPtRate;
+        const stayPntTotal = billablePntStayDays * stayPntRate;
+        const stayMultiTotal = billableMStayDays * stayMultiRate;
+        const burdenPrivateTotal = non31PrivateDays * burdenPrivateRate;
+        const burdenMultiTotal = non31MultiDays * burdenMultiRate;
+
+        const engine = CareEngines['ショートステイ'];
+        const recKey = `${AppState.currentFacilityId}_${AppState.targetMonth}_${user ? user.id : ''}`;
+        const currentRec = AppState.records[recKey] || null;
+
+        // 画面の最新入力値を最優先で反映（保存前・編集中のズレを防止）
+        const formCustomSelfPay = Number(document.getElementById('shortCustomSelfPayCost')?.value || 0);
+        const customSelfPayTotal = formCustomSelfPay;
+        const formTvCount = Number(document.getElementById('shortTvRentalCount')?.value || 0);
+        const tvRentalCount = formTvCount;
+        const tvRentalTotal = tvRentalCount * 150;
+        const formBentoCount = Number(document.getElementById('shortMiraiBentoCount')?.value || 0);
+        const miraiBentoCount = formBentoCount;
+        const miraiBentoTotal = miraiBentoCount * 698;
+        const formTrialCount = Number(document.getElementById('shortTrialCount')?.value || 0);
+        const trialCount = formTrialCount;
+        const trialTotal = trialCount * 1000;
+        const formExcessDays = Number(document.getElementById('shortMealExcessDays')?.value || 0);
+        const mealExcessRate = fac.shortMealExcessRate !== undefined ? fac.shortMealExcessRate : 436;
+        const mealExcessTotal = formExcessDays * mealExcessRate;
+        const formHaircut = !!document.getElementById('chkSelfHaircut')?.checked;
+        const haircutTotal = formHaircut ? 2500 : 0;
+        const formHairColor = !!document.getElementById('chkSelfHairColor')?.checked;
+        const hairColorTotal = formHairColor ? 1000 : 0;
+        const extraSelfTotal = tvRentalTotal + miraiBentoTotal + trialTotal + haircutTotal + hairColorTotal + customSelfPayTotal;
+
         const evalRec = {
           ...(currentRec || {}),
           days: liveDays,
+          shortCustomSelfPayCost: customSelfPayTotal,
           shortTvRentalCount: tvRentalCount,
           shortMiraiBentoCount: miraiBentoCount,
           shortTrialCount: trialCount,
@@ -23435,14 +23583,15 @@
 
         const roomCounts = { privateToiletDays, privateNoToiletDays, multiDays, privateDays: totalPrivateDays };
         const grandSelfTotal = engine.computeSelfPay(evalRec, fac, daysInMonth, useDays, (daysInMonth - useDays), { bf: bfCount, ln: lnCount, dn: dnCount }, roomCounts, user, useDays);
-        const mealSelfTotal = grandSelfTotal - (stayPtTotal + stayPntTotal + stayMultiTotal + burdenPrivateTotal + burdenMultiTotal + extraSelfTotal + mealExcessTotal);
+        const mealSelfTotal = grandSelfTotal - (stayPtTotal + stayPntTotal + stayMultiTotal + stayDay31Total + burdenPrivateTotal + burdenMultiTotal + extraSelfTotal + mealExcessTotal);
 
         modalContent.innerHTML = `
           <div class="bg-amber-50 p-3 rounded border border-amber-200 mb-3">
             <p>対象者: <strong>${user ? user.name : '-'}</strong> (${fac.name})</p>
             <p class="text-xs text-amber-800 font-bold mt-1">ショートステイ 自費算定内訳（滞在費・居室負担額・食費・個別自費）</p>
             <p class="text-[11px] text-amber-700 font-bold mt-0.5">適用区分: <span class="bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded font-bold">${stageStr}</span></p>
-            ${useDays > 22 ? `<p class="text-[11px] text-emerald-800 font-bold mt-1 bg-emerald-100 p-1 rounded border border-emerald-300">💡 滞在費22日上限ルール適用: 利用${useDays}日中、23日目以降（${useDays - 22}泊分）の滞在費は全額免除（¥0）となっています。</p>` : ''}
+            ${has31stDay ? `<p class="text-[11px] text-amber-950 font-bold mt-1 bg-amber-100 p-1.5 rounded border border-amber-300">⚠️ 連続31日目ルール適用: 通算連続31日目は全額自己負担日（介護保険外・補足給付対象外）となるため、食費・滞在費は事業所の通常自費基準額（満額）で算定されています（※32日目以降は限度額再適用＆長期減算）。</p>` : ''}
+            ${useDays > 22 ? `<p class="text-[11px] text-emerald-800 font-bold mt-1 bg-emerald-100 p-1 rounded border border-emerald-300">💡 滞在費22日上限ルール適用: 利用${useDays}日中、23日目以降の滞在費は全額免除（¥0）となっています（※31日目全額自費分を除く）。</p>` : ''}
           </div>
           <table class="w-full text-xs border-collapse border border-slate-300">
             <thead>
@@ -23468,6 +23617,13 @@
                 <td class="border border-slate-300 p-2 text-center">@¥${formatNumber(stayMultiRate)} × ${billableMStayDays}泊${multiDays > billableMStayDays ? ` <span class="text-emerald-700 font-bold">(${multiDays - billableMStayDays}泊上限免除)</span>` : ''}</td>
                 <td class="border border-slate-300 p-2 text-right font-semibold">¥${formatNumber(stayMultiTotal)}</td>
               </tr>
+              ${stayDay31Total > 0 ? `
+              <tr>
+                <td class="border border-slate-300 p-2 font-bold text-amber-950 bg-amber-50/70">🏠 31日目滞在費（全額自費）</td>
+                <td class="border border-slate-300 p-2 text-center text-amber-900 font-semibold">@¥${formatNumber(stayDay31Total)} × 1日（限度額対象外・満額自費）</td>
+                <td class="border border-slate-300 p-2 text-right font-bold text-amber-950">¥${formatNumber(stayDay31Total)}</td>
+              </tr>
+              ` : ''}
               <tr>
                 <td class="border border-slate-300 p-2 font-bold text-amber-950">個室負担額${limitStage !== 'none' ? '（限度額適用）' : ''}</td>
                 <td class="border border-slate-300 p-2 text-center text-amber-900">@¥${formatNumber(burdenPrivateRate)} × ${totalPrivateDays}泊</td>
@@ -23488,6 +23644,13 @@
                 <td class="border border-slate-300 p-2 font-bold text-amber-900 bg-amber-50/50">🍚 食事負担超過額</td>
                 <td class="border border-slate-300 p-2 text-center text-amber-900">@¥${formatNumber(mealExcessRate)} × ${formExcessDays}日（限度超過＆3食提供）</td>
                 <td class="border border-slate-300 p-2 text-right font-bold text-amber-900">¥${formatNumber(mealExcessTotal)}</td>
+              </tr>
+              ` : ''}
+              ${customSelfPayTotal > 0 ? `
+              <tr>
+                <td class="border border-slate-300 p-2 font-bold text-amber-900 bg-amber-50/50">💰 自費請求</td>
+                <td class="border border-slate-300 p-2 text-center text-amber-900">直接入力金額</td>
+                <td class="border border-slate-300 p-2 text-right font-bold text-amber-900">¥${formatNumber(customSelfPayTotal)}</td>
               </tr>
               ` : ''}
               ${tvRentalTotal > 0 ? `
@@ -23654,6 +23817,7 @@
       }
 
       let modalLongTermDeductDays = 0;
+      let modalDay31Count = 0;
       if (serviceType === 'ショートステイ') {
         const priorDaysInput = document.getElementById('shortPriorContinuousDays');
         let priorDaysVal = priorDaysInput ? priorDaysInput.value : '';
@@ -23672,6 +23836,7 @@
         };
         const cInfo = calcShortStayConsecutiveDays(userId, AppState.targetMonth, recWithPrior);
         modalLongTermDeductDays = cInfo.deductDays;
+        modalDay31Count = cInfo.day31Count || 0;
       }
 
       const engine = CareEngines[serviceType] || CareEngines['有料ホーム'];
@@ -23685,6 +23850,7 @@
         shortTrainDays: shortTrainDays,
         shortTransportDays: shortTransportDays,
         longTermDeductDays: modalLongTermDeductDays,
+        day31Count: modalDay31Count,
         oralTrainingCount: modalBillingOralCount
       };
 
@@ -23696,11 +23862,13 @@
 
       const recKey = `${AppState.currentFacilityId}_${AppState.targetMonth}_${user ? user.id : ''}`;
       const savedRec = AppState.records[recKey];
+      const formCustomCost = Number(document.getElementById('shortCustomSelfPayCost')?.value || 0);
       const formTvCnt = Number(document.getElementById('shortTvRentalCount')?.value || 0);
       const formBentoCnt = Number(document.getElementById('shortMiraiBentoCount')?.value || 0);
       const formTrialCnt = Number(document.getElementById('shortTrialCount')?.value || 0);
       const currentRec = savedRec ? {
         ...savedRec,
+        shortCustomSelfPayCost: (savedRec.shortCustomSelfPayCost !== undefined ? savedRec.shortCustomSelfPayCost : formCustomCost),
         shortTvRentalCount: (savedRec.shortTvRentalCount !== undefined ? savedRec.shortTvRentalCount : formTvCnt),
         shortMiraiBentoCount: (savedRec.shortMiraiBentoCount !== undefined ? savedRec.shortMiraiBentoCount : formBentoCnt),
         shortTrialCount: (savedRec.shortTrialCount !== undefined ? savedRec.shortTrialCount : formTrialCnt),
@@ -23717,6 +23885,7 @@
         useBedding: !!document.getElementById('chkSelfBedding')?.checked,
         useHaircut: !!document.getElementById('chkSelfHaircut')?.checked,
         useHairColor: !!document.getElementById('chkSelfHairColor')?.checked,
+        shortCustomSelfPayCost: formCustomCost,
         shortTvRentalCount: formTvCnt,
         shortMiraiBentoCount: formBentoCnt,
         shortTrialCount: formTrialCnt,
@@ -23868,6 +24037,7 @@
         useBedding: !!document.getElementById('chkSelfBedding')?.checked,
         useHaircut: !!document.getElementById('chkSelfHaircut')?.checked,
         useHairColor: !!document.getElementById('chkSelfHairColor')?.checked,
+        shortCustomSelfPayCost: Number(document.getElementById('shortCustomSelfPayCost')?.value || 0),
         shortTvRentalCount: Number(document.getElementById('shortTvRentalCount')?.value || 0),
         shortMiraiBentoCount: Number(document.getElementById('shortMiraiBentoCount')?.value || 0),
         shortTrialCount: Number(document.getElementById('shortTrialCount')?.value || 0),
@@ -24349,9 +24519,11 @@
         const vacantDays = daysInMonth - contractDays;
 
         let shortLongTermDeductDays = 0;
+        let shortDay31Count = 0;
         if (serviceType === 'ショートステイ') {
           const cInfo = calcShortStayConsecutiveDays(uId, targetM, userRec);
           shortLongTermDeductDays = cInfo.deductDays;
+          shortDay31Count = cInfo.day31Count || 0;
         }
 
         const extraAdditions = {
@@ -24364,6 +24536,7 @@
           shortTrainDays: shortTrainDays,
           shortTransportDays: shortTransportDays,
           longTermDeductDays: shortLongTermDeductDays,
+          day31Count: shortDay31Count,
           oralTrainingCount: (serviceType === 'デイサービス') ? Number(userRec?.oralTrainingCount ?? (user?.oralTrainingCount || 0)) : 0
         };
 
@@ -24693,6 +24866,30 @@
           seirekiYear = Number(mSeirekiDigits[1]);
           month = Number(mSeirekiDigits[2]);
           day = Number(mSeirekiDigits[3]);
+        }
+      }
+
+      // パターン5: 英語日付文字列 / Dateオブジェクト文字列表現 (例: "Tue Dec 29 1925 00:00:00 GMT+0900 (日本標準時)", "Dec 29 1925", ISO日付)
+      if (!seirekiYear) {
+        const engMonths = { jan:1, feb:2, mar:3, apr:4, may:5, jun:6, jul:7, aug:8, sep:9, oct:10, nov:11, dec:12 };
+        const mEng1 = s.match(/(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{1,2})\D+((?:18|19|20)\d{2})/i);
+        const mEng2 = s.match(/(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\D+((?:18|19|20)\d{2})/i);
+        if (mEng1) {
+          month = engMonths[mEng1[1].toLowerCase()];
+          day = Number(mEng1[2]);
+          seirekiYear = Number(mEng1[3]);
+        } else if (mEng2) {
+          day = Number(mEng2[1]);
+          month = engMonths[mEng2[2].toLowerCase()];
+          seirekiYear = Number(mEng2[3]);
+        } else {
+          const cleanDateStr = s.replace(/\s*\([^)]*\)/g, '').trim();
+          const dObj = new Date(cleanDateStr);
+          if (!isNaN(dObj.getTime())) {
+            seirekiYear = dObj.getFullYear();
+            month = dObj.getMonth() + 1;
+            day = dObj.getDate();
+          }
         }
       }
 
@@ -25286,6 +25483,52 @@
       document.getElementById('editUserMasterModal').classList.add('hidden');
     }
 
+    // 【単一利用者の即時ピンポイント・スプレッドシート書き換え】
+    // 1名分の修正時は全250名ではなく、対象者のみを即座にPOST（約1〜2秒でスプレッドシート行を即時更新）
+    function syncSingleUserMasterToGas(userObj, callback) {
+      if (!AppState.gasUrl || !AppState.gasUrl.includes('script.google.com') || !userObj) {
+        if (typeof callback === 'function') callback(false);
+        return;
+      }
+
+      window._isUserMasterSavingToCloud = true;
+      window._lastUserMasterSaveTime = Date.now();
+
+      const badgeEl = document.getElementById('userMasterSyncBadge');
+      if (badgeEl) {
+        badgeEl.innerHTML = '⏳ <span class="text-blue-600 font-bold">スプレッドシートへ即時同期中...</span>';
+      }
+
+      const u = {
+        id: format10DigitId(userObj.id),
+        name: ensureHonorific(userObj.name),
+        kana: userObj.kana || '',
+        birth: userObj.birth || '-',
+        careLevel: userObj.careLevel || '要介護2',
+        ratio: userObj.ratio || '1割',
+        facilityId: getUserFacilityId(userObj)
+      };
+
+      const payload = {
+        action: 'saveUserMaster',
+        userMaster: [u],
+        users: [u]
+      };
+
+      sendGasPostRequest(payload, (ok) => {
+        console.log(`[CloudSync] 利用者「${u.name}」の更新（負担割合: ${u.ratio}）をスプレッドシートへ即時保存しました (成功: ${ok})`);
+        const now = new Date();
+        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        if (badgeEl) {
+          badgeEl.innerHTML = `✅ <span class="text-emerald-700 font-bold">保存・クラウド同期完了</span> <span class="text-slate-400 text-xs">(${timeStr})</span>`;
+        }
+        setTimeout(() => {
+          window._isUserMasterSavingToCloud = false;
+        }, 5000);
+        if (typeof callback === 'function') callback(ok);
+      });
+    }
+
     function autoSyncUserMasterToGas(callback) {
       if (!AppState.gasUrl || !AppState.gasUrl.includes('script.google.com')) {
         if (typeof callback === 'function') callback(false);
@@ -25306,17 +25549,20 @@
         badgeEl.innerHTML = '⏳ <span class="text-blue-600 font-bold">スプレッドシートへ保存・同期中...</span>';
       }
 
+      const mappedUsers = users.map(u => ({
+        id: format10DigitId(u.id),
+        name: ensureHonorific(u.name),
+        kana: u.kana || '',
+        birth: u.birth || '-',
+        careLevel: u.careLevel || '要介護2',
+        ratio: u.ratio || '1割',
+        facilityId: getUserFacilityId(u)
+      }));
+
       const payload = {
         action: 'saveUserMaster',
-        users: users.map(u => ({
-          id: format10DigitId(u.id),
-          name: ensureHonorific(u.name),
-          kana: u.kana || '',
-          birth: u.birth || '-',
-          careLevel: u.careLevel || '要介護2',
-          ratio: u.ratio || '1割',
-          facilityId: getUserFacilityId(u)
-        })),
+        userMaster: mappedUsers,
+        users: mappedUsers,
         deletedUserIds: AppState.deletedUserIds || []
       };
 
@@ -25352,17 +25598,20 @@
 
       showToast(`スプレッドシートへ全${users.length}名を送信中...`, 'info');
 
+      const mappedUsers = users.map(u => ({
+        id: format10DigitId(u.id),
+        name: ensureHonorific(u.name),
+        kana: u.kana || '',
+        birth: u.birth || '-',
+        careLevel: u.careLevel || '要介護2',
+        ratio: u.ratio || '1割',
+        facilityId: getUserFacilityId(u)
+      }));
+
       const payload = {
         action: 'saveUserMaster',
-        users: users.map(u => ({
-          id: format10DigitId(u.id),
-          name: ensureHonorific(u.name),
-          kana: u.kana || '',
-          birth: u.birth || '-',
-          careLevel: u.careLevel || '要介護2',
-          ratio: u.ratio || '1割',
-          facilityId: getUserFacilityId(u)
-        }))
+        userMaster: mappedUsers,
+        users: mappedUsers
       };
 
       sendGasPostRequest(payload, (res) => {
@@ -25498,6 +25747,15 @@
       renderAllViews();
       showToast('利用者マスタを更新・保存しました', 'success');
 
+      // 直近ローカル編集マップに登録（照合ダッシュボードや定期同期での上書き巻き戻りを完全にブロック）
+      const updatedUserObj = findUserById(id) || AppState.userMaster.find(u => format10DigitId(u.id) === id);
+      if (updatedUserObj) {
+        window._recentLocallyEditedUsers = window._recentLocallyEditedUsers || new Map();
+        window._recentLocallyEditedUsers.set(id, { user: { ...updatedUserObj }, editedAt: Date.now() });
+        // ピンポイント即時クラウド書き換え（1〜2秒でスプレッドシートの行を更新）
+        syncSingleUserMasterToGas(updatedUserObj);
+      }
+
       // クラウド自動同期（他PCへ即時共有）
       autoSyncUserMasterToGas();
     }
@@ -25540,7 +25798,12 @@
       renderAllViews();
       showToast(`利用者「${userName}」を削除しました（直前バックアップ保存済）`, 'info');
 
-      // 4. クラウド自動同期（Googleスプレッドシートの「利用者マスタ」へ即時反映し、他PCにも削除を同期）
+      // 4. クラウド自動同期（Googleスプレッドシートから該当行を即時物理削除し、他PCにも削除を同期）
+      if (AppState.gasUrl && AppState.gasUrl.includes('script.google.com')) {
+        sendGasPostRequest({ action: 'deleteUserMaster', userId: uid10 }, (ok) => {
+          console.log(`[CloudSync] 利用者「${userName}」(ID: ${uid10})の行削除リクエストを送信しました (結果: ${ok})`);
+        });
+      }
       autoSyncUserMasterToGas();
     }
 
@@ -26924,12 +27187,11 @@
               changed = true;
             }
           }
-          // 【スプレッドシート・ユーザー設定優先】u.ratioが未設定・空文字の場合のみ初期マスタで補完
+          // 【完全スプレッドシート・ユーザー設定優先（コード内固定管理の撤廃）】
+          // u.ratioが未設定・空文字の場合のみデフォルト「1割」とする（コード内のinitUser.ratioによる上書きは一切行わない）
           if (!u.ratio || u.ratio === '-') {
-            if (initUser.ratio) {
-              u.ratio = initUser.ratio;
-              changed = true;
-            }
+            u.ratio = '1割';
+            changed = true;
           }
         }
 
