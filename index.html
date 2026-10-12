@@ -1399,7 +1399,7 @@
                   <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs mb-3">
                     <div class="form-group">
                       <label class="font-bold text-slate-800">個室（ト有）滞在費 (円/日):</label>
-                      <input type="number" id="costShortStayPrivateToilet" class="form-control font-bold font-mono" value="1231" min="0">
+                      <input type="number" id="costShortStayPrivateToilet" class="form-control font-bold font-mono" value="2422" min="0">
                       <span class="text-[10px] text-slate-500">※トイレ付き個室の滞在費</span>
                     </div>
                     <div class="form-group">
@@ -3553,14 +3553,16 @@
             : null;
           const day31stSet = (consecInfo && consecInfo.day31stSet) ? consecInfo.day31stSet : new Set();
 
-          // 【滞在費22日上限ルール ＆ 31日目全額自費基準額満額算定】
+          // 【滞在費22日上限ルール ＆ 居室負担額（限度額適用＋31日目基準額満額）算定】
           let billablePtStayDays = 0;
           let billablePntStayDays = 0;
           let billableMStayDays = 0;
-          let stayDay31Total = 0; // 31日目の自費基準額満額
+          let stayDay31Total = 0; // 31日目の余計な重複計上を廃止（居室負担額に合算）
 
           let burdenPrivateDays = 0;
           let burdenMultiDays = 0;
+          let day31PrivateCount = 0;
+          let day31MultiCount = 0;
 
           if (rec && rec.days && Object.keys(rec.days).length > 0) {
             let useCount = 0;
@@ -3571,21 +3573,19 @@
                 const r = dayObj.room || 'private_toilet';
                 const is31st = day31stSet.has(d);
 
+                // 1. 滞在費22日上限ルール（22日目まで算定、23日目以降は免除）
+                useCount++;
+                if (useCount <= 22) {
+                  if (r === 'multi') billableMStayDays++;
+                  else if (r === 'private_no_toilet') billablePntStayDays++;
+                  else billablePtStayDays++;
+                }
+
+                // 2. 居室負担額（31日目は基準費用額1,231円/915円、31日目以外は限度額適用）
                 if (is31st) {
-                  // 【31日目】負担限度額認定（補足給付）対象外！通常の自費基準額（満額）を支払う
-                  if (r === 'multi') stayDay31Total += multiRate;
-                  else if (r === 'private_no_toilet') stayDay31Total += privateNoToiletRate;
-                  else stayDay31Total += privateToiletRate;
+                  if (r === 'multi') day31MultiCount++;
+                  else day31PrivateCount++;
                 } else {
-                  // 【31日目以外（30日目まで、および32日目以降）】
-                  // 1. 滞在費22日上限ルール適用
-                  useCount++;
-                  if (useCount <= 22) {
-                    if (r === 'multi') billableMStayDays++;
-                    else if (r === 'private_no_toilet') billablePntStayDays++;
-                    else billablePtStayDays++;
-                  }
-                  // 2. 居室負担額（限度額適用日）
                   if (r === 'multi') burdenMultiDays++;
                   else burdenPrivateDays++;
                 }
@@ -3606,8 +3606,11 @@
           const stayPrivateNoToiletTotal = (actualUseDays === 0) ? 0 : (billablePntStayDays * privateNoToiletRate);
           const stayMultiTotal = (actualUseDays === 0) ? 0 : (billableMStayDays * multiRate);
 
-          const burdenPrivateTotal = (actualUseDays === 0) ? 0 : (burdenPrivateDays * burdenPrivateRate);
-          const burdenMultiTotal = (actualUseDays === 0) ? 0 : (burdenMultiDays * burdenMultiRate);
+          // 居室負担額: 限度額適用日分 + 31日目基準費用額満額分（従来型個室1,231円、多床室915円）
+          const baseStdPrivate = 1231;
+          const baseStdMulti = 915;
+          const burdenPrivateTotal = (actualUseDays === 0) ? 0 : ((burdenPrivateDays * burdenPrivateRate) + (day31PrivateCount * baseStdPrivate));
+          const burdenMultiTotal = (actualUseDays === 0) ? 0 : ((burdenMultiDays * burdenMultiRate) + (day31MultiCount * baseStdMulti));
 
           const bfPrice = fac.breakfast !== undefined ? fac.breakfast : 513;
           const lnPrice = fac.lunch !== undefined ? fac.lunch : 803;
@@ -19754,7 +19757,7 @@
           additions: ['gh_night_support_1', 'gh_med_collab_1_a', 'gh_treatment_1_i_a'] 
         },
         'fac_mirai_nakaoka': { name: 'デイサービス未来中岡', type: 'デイサービス', unitRate: 10, rent: 0, utility: 0, admin: 0, breakfast: 0, lunch: 0, snack: 0, dinner: 0, additions: ['living_consultant_1'] },
-        'fac_short_mirai': { name: 'ショートステイ未来月見台', type: 'ショートステイ', unitRate: 10, rent: 1231, utility: 915, shortStayPrivateToilet: 1231, shortStayPrivateNoToilet: 1231, shortStayMulti: 915, shortRoomBurdenPrivate: 0, shortRoomBurdenMulti: 0, admin: 0, breakfast: 513, lunch: 803, snack: 0, dinner: 665, shortMealExcessRate: 436, additions: ['short_func_training', 'short_service_strength_2', 'short_nursing_2', 'short_treatment_1_i_b', 'short_long_term_user_deduct', 'short_transport'] }
+        'fac_short_mirai': { name: 'ショートステイ未来月見台', type: 'ショートステイ', unitRate: 10, rent: 2422, utility: 915, shortStayPrivateToilet: 2422, shortStayPrivateNoToilet: 1231, shortStayMulti: 915, shortRoomBurdenPrivate: 0, shortRoomBurdenMulti: 0, admin: 0, breakfast: 513, lunch: 803, snack: 0, dinner: 665, shortMealExcessRate: 436, additions: ['short_func_training', 'short_service_strength_2', 'short_nursing_2', 'short_treatment_1_i_b', 'short_long_term_user_deduct', 'short_transport'] }
       },
       additionMaster: JSON.parse(JSON.stringify(DEFAULT_ADDITION_MASTER)),
       userMaster: JSON.parse(JSON.stringify(INITIAL_MASTER_USERS)),
@@ -22830,6 +22833,7 @@
 
       let shortLongTermDeductDays = 0;
       let shortDay31Count = 0;
+      let consecutiveInfo = null;
       if (serviceType === 'ショートステイ') {
         const priorDaysInput = document.getElementById('shortPriorContinuousDays');
         let priorDaysVal = priorDaysInput ? priorDaysInput.value : '';
@@ -22837,7 +22841,7 @@
           ...tempRec,
           priorContinuousDays: (priorDaysVal !== '' ? Number(priorDaysVal) : null)
         };
-        const consecutiveInfo = calcShortStayConsecutiveDays(userId, AppState.targetMonth, recWithPrior);
+        consecutiveInfo = calcShortStayConsecutiveDays(userId, AppState.targetMonth, recWithPrior);
         shortLongTermDeductDays = consecutiveInfo.deductDays;
         shortDay31Count = consecutiveInfo.day31Count || 0;
 
@@ -23035,6 +23039,7 @@
       let insuranceUseDays = useDays;
       let shortStayDay31Count = 0;
       let shortStayInsuranceDeductDays = 0;
+      let shortStayTotalDeductDays = 0;
       if (serviceType === 'ショートステイ') {
         const priorDaysInput = document.getElementById('shortPriorContinuousDays');
         let priorDaysVal = priorDaysInput ? priorDaysInput.value : '';
@@ -23054,6 +23059,7 @@
         const cInfo = calcShortStayConsecutiveDays(userId, targetM, recWithPrior);
         shortStayDay31Count = cInfo.day31Count || 0;
         shortStayInsuranceDeductDays = cInfo.insuranceDeductDays;
+        shortStayTotalDeductDays = cInfo.deductDays || 0;
         insuranceUseDays = Math.max(0, useDays - shortStayDay31Count);
       }
 
@@ -23078,8 +23084,9 @@
           }
         }
       } else if (serviceType === 'ショートステイ') {
-        baseUnits = insuranceUseDays * careInfo.dailyRate;
-        baseFormula = `@${careInfo.dailyRate} 単位 × ${insuranceUseDays} 日${shortStayDay31Count > 0 ? ` (31日目全額自費除外)` : ''}`;
+        const billDays = shortStayDay31Count > 0 ? useDays : insuranceUseDays;
+        baseUnits = billDays * careInfo.dailyRate;
+        baseFormula = `@${careInfo.dailyRate} 単位 × ${billDays} 日`;
       } else {
         baseUnits = useDays * careInfo.dailyRate;
         baseFormula = `@${careInfo.dailyRate} 単位 × ${useDays} 日`;
@@ -23162,15 +23169,15 @@
         if (addId === 'oral_func_1' || addId === 'indiv_training_1_i' || addId === 'indiv_training_1_ro' || addId === 'short_indiv_training' || addId === 'short_transport' || addId === 'gh_hospital_stay' || addId === 'gh_initial_add') return;
         if (serviceType === 'デイサービス' && careInfo.isYoushien && (addId === 'indiv_training_2' || addId.includes('indiv_training'))) return;
 
-        // 【ショートステイ 長期利用者減算】連続32日目以降の保険給付日数のみ減算（-30単位/日）
+        // 【ショートステイ 長期利用者減算】
         if (addId === 'short_long_term_user_deduct') {
-          const deductDays = shortStayInsuranceDeductDays;
+          const deductDays = (serviceType === 'ショートステイ' && shortStayDay31Count > 0) ? shortStayTotalDeductDays : shortStayInsuranceDeductDays;
           if (deductDays > 0) {
             const u = -30 * deductDays;
             subtotalUnits += u;
             detailLines.push({
               name: '長期利用者減算',
-              formula: `@-30 単位 × ${deductDays} 日 (連続32日目以降)`,
+              formula: `@-30 単位 × ${deductDays} 日`,
               units: u
             });
           }
@@ -23178,7 +23185,7 @@
         }
 
         if (item.type === 'daily') {
-          const billDays = (serviceType === 'ショートステイ') ? insuranceUseDays : useDays;
+          const billDays = (serviceType === 'ショートステイ' && shortStayDay31Count === 0) ? insuranceUseDays : useDays;
           const u = (item.rate || 0) * billDays;
           subtotalUnits += u;
           detailLines.push({ name: item.name, formula: `@${item.rate} 単位 × ${billDays} 日`, units: u });
@@ -23203,7 +23210,18 @@
         percentUnits = Math.round(subtotalUnits * (percentRate / 100));
       }
 
-      const totalUnits = Math.max(0, subtotalUnits + percentUnits);
+      let day31DeductUnits = 0;
+      if (serviceType === 'ショートステイ' && shortStayDay31Count > 0) {
+        const fee31 = calcShortStayDay31CareFee(user, fac, shortStayDay31Count);
+        day31DeductUnits = fee31.units;
+        detailLines.push({
+          name: '⚠️ 31日目全額自費振替分（控除）',
+          formula: `1日分全額自己負担へ振替（※自費請求¥${formatNumber(fee31.totalYen)}へ移行 / 請求書控除*印）`,
+          units: -day31DeductUnits
+        });
+      }
+
+      const totalUnits = Math.max(0, subtotalUnits + percentUnits - day31DeductUnits);
       const unitRate = fac.unitRate || 10;
       const totalAmount100 = Math.floor(totalUnits * unitRate);
 
@@ -23631,6 +23649,8 @@
         let liveUseCount = 0;
         let non31PrivateDays = 0;
         let non31MultiDays = 0;
+        let day31PrivateDays = 0;
+        let day31MultiDays = 0;
 
         for (let d = 1; d <= daysInMonth; d++) {
           const dayObj = liveDays[d];
@@ -23638,19 +23658,17 @@
             const r = dayObj.room;
             const is31st = day31stSet.has(d);
             if (is31st) {
-              // 31日目: 満額自費基準額
-              if (r === 'multi') stayDay31Total += stayMultiRate;
-              else if (r === 'private_no_toilet') stayDay31Total += stayPntRate;
-              else stayDay31Total += stayPtRate;
+              if (r === 'multi') day31MultiDays++;
+              else day31PrivateDays++;
             } else {
-              liveUseCount++;
-              if (liveUseCount <= 22) {
-                if (r === 'multi') billableMStayDays++;
-                else if (r === 'private_no_toilet') billablePntStayDays++;
-                else billablePtStayDays++;
-              }
               if (r === 'multi') non31MultiDays++;
               else non31PrivateDays++;
+            }
+            liveUseCount++;
+            if (liveUseCount <= 22) {
+              if (r === 'multi') billableMStayDays++;
+              else if (r === 'private_no_toilet') billablePntStayDays++;
+              else billablePtStayDays++;
             }
           }
         }
@@ -23658,8 +23676,8 @@
         const stayPtTotal = billablePtStayDays * stayPtRate;
         const stayPntTotal = billablePntStayDays * stayPntRate;
         const stayMultiTotal = billableMStayDays * stayMultiRate;
-        const burdenPrivateTotal = non31PrivateDays * burdenPrivateRate;
-        const burdenMultiTotal = non31MultiDays * burdenMultiRate;
+        const burdenPrivateTotal = (non31PrivateDays * burdenPrivateRate) + (day31PrivateDays * 1231);
+        const burdenMultiTotal = (non31MultiDays * burdenMultiRate) + (day31MultiDays * 915);
 
         const engine = CareEngines['ショートステイ'];
         const recKey = `${AppState.currentFacilityId}_${AppState.targetMonth}_${user ? user.id : ''}`;
@@ -23698,6 +23716,7 @@
           useHairColor: hairColorTotal > 0
         };
 
+        const totalPrivateDays = privateToiletDays + privateNoToiletDays;
         const roomCounts = { privateToiletDays, privateNoToiletDays, multiDays, privateDays: totalPrivateDays };
         const grandSelfTotal = engine.computeSelfPay(evalRec, fac, daysInMonth, useDays, (daysInMonth - useDays), { bf: bfCount, ln: lnCount, dn: dnCount }, roomCounts, user, useDays);
 
@@ -23748,21 +23767,14 @@
                 <td class="border border-slate-300 p-2 text-center">@¥${formatNumber(stayMultiRate)} × ${billableMStayDays}泊${multiDays > billableMStayDays ? ` <span class="text-emerald-700 font-bold">(${multiDays - billableMStayDays}泊上限免除)</span>` : ''}</td>
                 <td class="border border-slate-300 p-2 text-right font-semibold">¥${formatNumber(stayMultiTotal)}</td>
               </tr>
-              ${stayDay31Total > 0 ? `
-              <tr>
-                <td class="border border-slate-300 p-2 font-bold text-amber-950 bg-amber-50/70">🏠 31日目滞在費（全額自費）</td>
-                <td class="border border-slate-300 p-2 text-center text-amber-900 font-semibold">@¥${formatNumber(stayDay31Total)} × 1日（限度額対象外・満額自費）</td>
-                <td class="border border-slate-300 p-2 text-right font-bold text-amber-950">¥${formatNumber(stayDay31Total)}</td>
-              </tr>
-              ` : ''}
               <tr>
                 <td class="border border-slate-300 p-2 font-bold text-amber-950">個室負担額${limitStage !== 'none' ? '（限度額適用）' : ''}</td>
-                <td class="border border-slate-300 p-2 text-center text-amber-900">@¥${formatNumber(burdenPrivateRate)} × ${totalPrivateDays}泊</td>
+                <td class="border border-slate-300 p-2 text-center text-amber-900">@¥${formatNumber(burdenPrivateRate)} × ${non31PrivateDays}泊${day31PrivateDays > 0 ? ` ＋ 31日目基準額 @¥1,231 × ${day31PrivateDays}泊` : ''}</td>
                 <td class="border border-slate-300 p-2 text-right font-semibold text-amber-950">¥${formatNumber(burdenPrivateTotal)}</td>
               </tr>
               <tr>
                 <td class="border border-slate-300 p-2 font-bold text-amber-950">多床室負担額${limitStage !== 'none' ? '（限度額適用）' : ''}</td>
-                <td class="border border-slate-300 p-2 text-center text-amber-900">@¥${formatNumber(burdenMultiRate)} × ${multiDays}泊</td>
+                <td class="border border-slate-300 p-2 text-center text-amber-900">@¥${formatNumber(burdenMultiRate)} × ${non31MultiDays}泊${day31MultiDays > 0 ? ` ＋ 31日目基準額 @¥915 × ${day31MultiDays}泊` : ''}</td>
                 <td class="border border-slate-300 p-2 text-right font-semibold text-amber-950">¥${formatNumber(burdenMultiTotal)}</td>
               </tr>
               <tr>
@@ -23949,6 +23961,7 @@
 
       let modalLongTermDeductDays = 0;
       let modalDay31Count = 0;
+      let modalInsuranceDeductDays = 0;
       if (serviceType === 'ショートステイ') {
         const priorDaysInput = document.getElementById('shortPriorContinuousDays');
         let priorDaysVal = priorDaysInput ? priorDaysInput.value : '';
@@ -23965,7 +23978,6 @@
           days: liveDays,
           priorContinuousDays: (priorDaysVal !== '' ? Number(priorDaysVal) : (savedRec.priorContinuousDays !== undefined ? savedRec.priorContinuousDays : null))
         };
-        let modalInsuranceDeductDays = 0;
         const cInfo = calcShortStayConsecutiveDays(userId, AppState.targetMonth, recWithPrior);
         modalLongTermDeductDays = cInfo.deductDays;
         modalInsuranceDeductDays = cInfo.insuranceDeductDays;
@@ -24121,6 +24133,13 @@
     function closeUserBillingDetailModal() {
       document.getElementById('userBillingDetailModal').classList.add('hidden');
     }
+
+    window.openInsuranceDetailModal = openInsuranceDetailModal;
+    window.closeInsuranceDetailModal = closeInsuranceDetailModal;
+    window.openSelfPayDetailModal = openSelfPayDetailModal;
+    window.closeSelfPayDetailModal = closeSelfPayDetailModal;
+    window.openUserBillingDetailModal = openUserBillingDetailModal;
+    window.closeUserBillingDetailModal = closeUserBillingDetailModal;
 
     function saveCurrentRecordForm() {
       if (isCurrentMonthLocked()) {
