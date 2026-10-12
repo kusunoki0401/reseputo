@@ -2965,9 +2965,10 @@
         }
       }
 
-      // 2. 当月カレンダーを日ごとに走査し、通算31日目（全額自費日）および32日目以降（長期減算）を判定
+      // 2. 当月カレンダーを日ごとに走査し、通算31日目（全額自費日）および長期利用者減算（31日目以降）を判定
       let streak = priorDays;
-      let deductDays = 0;
+      let deductDays = 0; // 31日目以降の通算減算日数（31日目自費 + 32日目以降保険）
+      let insuranceDeductDays = 0; // 32日目以降の保険給付分減算日数
       const dayStreaks = {};
       const day31stSet = new Set();
 
@@ -2980,10 +2981,13 @@
             dayStreaks[d] = streak;
             if (streak === 31) {
               // 【31日目】全額自己負担となる日（保険給付外・負担限度額対象外・通常の自費基準額満額）
+              // ※31日目から長期利用者減算（-30単位）が適用開始され、自費請求の単位数に含まれる
               day31stSet.add(d);
-            } else if (streak >= 32) {
-              // 【32日目以降】長期利用者減算（-30単位/日）適用（負担限度額は再適用）
               deductDays++;
+            } else if (streak >= 32) {
+              // 【32日目以降】保険給付再開・長期利用者減算（-30単位/日）継続適用（負担限度額も再適用）
+              deductDays++;
+              insuranceDeductDays++;
             }
           } else {
             streak = 0;
@@ -2995,9 +2999,61 @@
       return {
         priorDays: priorDays,
         deductDays: deductDays,
+        insuranceDeductDays: insuranceDeductDays,
         dayStreaks: dayStreaks,
         day31stSet: day31stSet,
         day31Count: day31stSet.size
+      };
+    }
+
+    // 【ショートステイ 31日目介護サービス費（10割全額自己負担額）計算】
+    // 要介護度基本単位 + 施設日額加算合計 - 30単位(長期減算) + 処遇改善加算% (※月額加算は除く) × 施設地域単価(10円)
+    function calcShortStayDay31CareFee(user, fac, day31Count = 1) {
+      if (!user || day31Count <= 0) return { units: 0, unitYen: 0, totalYen: 0, baseRate: 0, dailyAddUnits: 0, deductUnits: -30, percentRate: 0, subtotalUnits: 0 };
+      const careInfo = getUserCareInfo(user, 'ショートステイ');
+      const baseRate = careInfo.dailyRate;
+
+      const currentTypeAdditions = (typeof AppState !== 'undefined' && AppState.additionMaster)
+        ? (AppState.additionMaster['ショートステイ'] || [])
+        : [];
+      const selectedAddIds = (fac && fac.additions) ? fac.additions : [];
+
+      let dailyAddUnits = 0;
+      let percentRate = 0;
+
+      selectedAddIds.forEach(addId => {
+        if (addId === 'short_indiv_training' || addId === 'short_transport' || addId === 'emergency_short' || addId === 'short_long_term_user_deduct') return;
+        const item = currentTypeAdditions.find(a => a.id === addId);
+        if (item) {
+          if (careInfo.isYoushien && item.target === 'kaigo_only') return;
+          if (item.type === 'daily') {
+            dailyAddUnits += (item.rate || 0);
+          } else if (item.type === 'percent') {
+            percentRate += normalizePercentValue(item.percent || 0);
+          }
+        }
+      });
+
+      // 31日目の状態から長期利用者減算（-30単位）を適用
+      const deductUnits = -30;
+      const subtotalUnits = Math.max(0, baseRate + dailyAddUnits + deductUnits);
+      let totalUnits = subtotalUnits;
+      if (percentRate !== 0) {
+        totalUnits = Math.round(subtotalUnits * (1 + percentRate / 100));
+      }
+      const unitRate = (fac && fac.unitRate) ? fac.unitRate : 10;
+      const unitYen = Math.floor(totalUnits * unitRate);
+      const totalYen = unitYen * day31Count;
+
+      return {
+        units: totalUnits,
+        unitYen: unitYen,
+        totalYen: totalYen,
+        baseRate: baseRate,
+        dailyAddUnits: dailyAddUnits,
+        deductUnits: deductUnits,
+        percentRate: percentRate,
+        subtotalUnits: subtotalUnits
       };
     }
 
@@ -3411,11 +3467,15 @@
           selectedAddIds.forEach(addId => {
             if (addId === 'short_indiv_training' || addId === 'short_transport') return;
 
-            // 【長期利用者減算】連続32日目以降の日数のみ減算（-30単位/日）
+            // 【長期利用者減算】連続32日目以降の保険給付日数のみ減算（-30単位/日）
+            // ※31日目は自費請求側で減算（-30単位）が適用されるため、保険側は32日目以降の保険給付日数に減算を適用
             if (addId === 'short_long_term_user_deduct') {
               const deductDays = (extraAdditions && extraAdditions.longTermDeductDays !== undefined) ? extraAdditions.longTermDeductDays : 0;
-              if (deductDays > 0) {
-                total += -30 * deductDays;
+              const insDeductDays = (extraAdditions && extraAdditions.insuranceDeductDays !== undefined)
+                ? extraAdditions.insuranceDeductDays
+                : Math.max(0, deductDays - day31Count);
+              if (insDeductDays > 0) {
+                total += -30 * insDeductDays;
               }
               return;
             }
@@ -3617,7 +3677,16 @@
             if (customCost > 0) extraSelfPay += customCost;
           }
 
-          return stayPrivateToiletTotal + stayPrivateNoToiletTotal + stayMultiTotal + stayDay31Total + burdenPrivateTotal + burdenMultiTotal + mealTotal + mealExcessTotal + extraSelfPay;
+          // 【31日目介護サービス費（10割全額自己負担）の算定】
+          // 連続31日目は介護保険給付外となるため、介護報酬相当分（基本単価＋日額加算−長期減算30u＋処遇改善%）を10割全額自己負担として自費請求に算入
+          let day31CareFeeTotal = 0;
+          const day31Count = day31stSet.size;
+          if (day31Count > 0 && user) {
+            const feeInfo = calcShortStayDay31CareFee(user, fac, day31Count);
+            day31CareFeeTotal = feeInfo.totalYen;
+          }
+
+          return stayPrivateToiletTotal + stayPrivateNoToiletTotal + stayMultiTotal + stayDay31Total + burdenPrivateTotal + burdenMultiTotal + mealTotal + mealExcessTotal + extraSelfPay + day31CareFeeTotal;
         }
       }
     };
@@ -19685,7 +19754,7 @@
           additions: ['gh_night_support_1', 'gh_med_collab_1_a', 'gh_treatment_1_i_a'] 
         },
         'fac_mirai_nakaoka': { name: 'デイサービス未来中岡', type: 'デイサービス', unitRate: 10, rent: 0, utility: 0, admin: 0, breakfast: 0, lunch: 0, snack: 0, dinner: 0, additions: ['living_consultant_1'] },
-        'fac_short_mirai': { name: 'ショートステイ未来月見台', type: 'ショートステイ', unitRate: 10, rent: 1231, utility: 915, shortStayPrivateToilet: 1231, shortStayPrivateNoToilet: 1231, shortStayMulti: 915, shortRoomBurdenPrivate: 0, shortRoomBurdenMulti: 0, admin: 0, breakfast: 513, lunch: 803, snack: 0, dinner: 665, shortMealExcessRate: 436, additions: ['emergency_short', 'short_transport'] }
+        'fac_short_mirai': { name: 'ショートステイ未来月見台', type: 'ショートステイ', unitRate: 10, rent: 1231, utility: 915, shortStayPrivateToilet: 1231, shortStayPrivateNoToilet: 1231, shortStayMulti: 915, shortRoomBurdenPrivate: 0, shortRoomBurdenMulti: 0, admin: 0, breakfast: 513, lunch: 803, snack: 0, dinner: 665, shortMealExcessRate: 436, additions: ['short_func_training', 'short_service_strength_2', 'short_nursing_2', 'short_treatment_1_i_b', 'short_long_term_user_deduct', 'short_transport'] }
       },
       additionMaster: JSON.parse(JSON.stringify(DEFAULT_ADDITION_MASTER)),
       userMaster: JSON.parse(JSON.stringify(INITIAL_MASTER_USERS)),
@@ -20582,6 +20651,10 @@
             if (sm.lunch === 650 || sm.lunch === undefined) sm.lunch = 803;
             if (sm.dinner === 580 || sm.dinner === undefined) sm.dinner = 665;
             if (sm.shortMealExcessRate === undefined) sm.shortMealExcessRate = 436;
+            if (!sm.additions || sm.additions.length <= 2) {
+              const defaultShortAdds = ['short_func_training', 'short_service_strength_2', 'short_nursing_2', 'short_treatment_1_i_b', 'short_long_term_user_deduct', 'short_transport'];
+              sm.additions = Array.from(new Set([...(sm.additions || []), ...defaultShortAdds]));
+            }
           }
         }
         if (parsed.additionMaster) Object.assign(AppState.additionMaster, parsed.additionMaster);
@@ -20864,6 +20937,10 @@
       });
 
       document.getElementById('targetMonth').addEventListener('change', (e) => {
+        const currentInputUser = document.getElementById('inputUserSelect')?.value;
+        if (currentInputUser) {
+          window._lastActiveUserId = currentInputUser;
+        }
         AppState.targetMonth = e.target.value;
         window._recordFormIsDirty = false; // 月切り替え時は未保存状態を安全リセット
         saveStateToLocalStorage();
@@ -20998,6 +21075,10 @@
     });
 
     function renderAllViews() {
+      const currentInputUser = document.getElementById('inputUserSelect')?.value;
+      if (currentInputUser) {
+        window._lastActiveUserId = currentInputUser;
+      }
       deduplicateUserMaster();
       ensureActiveUsersExist();
       updateMonthLockDisplay();
@@ -21184,10 +21265,12 @@
         const vacantDays = daysInMonth - contractDays;
 
         let shortLongTermDeductDays = 0;
+        let shortInsuranceDeductDays = 0;
         let shortDay31Count = 0;
         if (serviceType === 'ショートステイ') {
           const cInfo = calcShortStayConsecutiveDays(uId, AppState.targetMonth, userRec);
           shortLongTermDeductDays = cInfo.deductDays;
+          shortInsuranceDeductDays = cInfo.insuranceDeductDays;
           shortDay31Count = cInfo.day31Count || 0;
         }
 
@@ -21201,6 +21284,7 @@
           shortTrainDays: shortTrainDays,
           shortTransportDays: shortTransportDays,
           longTermDeductDays: shortLongTermDeductDays,
+          insuranceDeductDays: shortInsuranceDeductDays,
           day31Count: shortDay31Count,
           oralTrainingCount: (serviceType === 'デイサービス') ? Number(userRec?.oralTrainingCount ?? (user?.oralTrainingCount || 0)) : 0
         };
@@ -21856,6 +21940,9 @@
       const userSelect = document.getElementById('inputUserSelect');
       if (!container || !userSelect) return;
 
+      // 【重要】innerHTML をクリアする前に、現在選択されている利用者IDを最優先で退避・保持！
+      const prevSelectedUserId = userSelect.value || window._lastActiveUserId || '';
+
       const currentFac = AppState.facilities[AppState.currentFacilityId] || {};
       const serviceType = currentFac.type || '有料ホーム';
       const isDayService = (serviceType === 'デイサービス');
@@ -21903,7 +21990,6 @@
         return;
       }
 
-      const prevSelectedUserId = userSelect.value;
       validUsers.forEach(u => {
         const opt = document.createElement('option');
         opt.value = u.id;
@@ -21912,11 +21998,28 @@
       });
 
       // 前回選択されていた利用者が存在すれば維持、なければ先頭を選択
+      let targetUserId = null;
       if (prevSelectedUserId && validUsers.some(u => u.id === prevSelectedUserId)) {
-        userSelect.value = prevSelectedUserId;
+        targetUserId = prevSelectedUserId;
+      } else if (prevSelectedUserId) {
+        // 万一、当月アクティブリストに含まれていないが同一施設マスタ内に存在する利用者の場合、選択肢に追加して維持
+        const fallbackUser = AppState.userMaster.find(u => u.id === prevSelectedUserId && getUserFacilityId(u) === AppState.currentFacilityId);
+        if (fallbackUser) {
+          const opt = document.createElement('option');
+          opt.value = fallbackUser.id;
+          opt.textContent = fallbackUser.name;
+          userSelect.appendChild(opt);
+          targetUserId = fallbackUser.id;
+        }
+      }
+
+      if (targetUserId) {
+        userSelect.value = targetUserId;
+        window._lastActiveUserId = targetUserId;
       } else if (userSelect.options.length > 0) {
         userSelect.selectedIndex = 0;
         userSelect.value = userSelect.options[0].value;
+        window._lastActiveUserId = userSelect.value;
       }
 
       userSelect.onchange = () => {
@@ -22741,8 +22844,8 @@
         const deductTextEl = document.getElementById('shortLongTermDeductText');
         if (deductTextEl) {
           const parts = [];
-          if (shortDay31Count > 0) parts.push(`31日目:全額自費(限度額対象外)`);
-          if (shortLongTermDeductDays > 0) parts.push(`32日目以降減算:${shortLongTermDeductDays}日(-${shortLongTermDeductDays * 30}u)`);
+          if (shortDay31Count > 0) parts.push(`31日目:10割自費+自費満額`);
+          if (shortLongTermDeductDays > 0) parts.push(`31日目以降減算:${shortLongTermDeductDays}日(-${shortLongTermDeductDays * 30}u)`);
           else if (consecutiveInfo.priorDays > 0) parts.push(`前月繰越:${consecutiveInfo.priorDays}日`);
           deductTextEl.textContent = parts.length > 0 ? `(${parts.join(' / ')})` : '';
         }
@@ -22758,6 +22861,7 @@
         shortTrainDays: shortTrainDays,
         shortTransportDays: shortTransportDays,
         longTermDeductDays: shortLongTermDeductDays,
+        insuranceDeductDays: consecutiveInfo?.insuranceDeductDays,
         day31Count: shortDay31Count,
         oralTrainingCount: liveOralCount
       };
@@ -22928,6 +23032,31 @@
       const detailLines = [];
       let subtotalUnits = 0;
 
+      let insuranceUseDays = useDays;
+      let shortStayDay31Count = 0;
+      let shortStayInsuranceDeductDays = 0;
+      if (serviceType === 'ショートステイ') {
+        const priorDaysInput = document.getElementById('shortPriorContinuousDays');
+        let priorDaysVal = priorDaysInput ? priorDaysInput.value : '';
+        const recKey = `${AppState.currentFacilityId}_${targetM}_${userId}`;
+        const savedRec = AppState.records[recKey] || {};
+        const liveDays = {};
+        for (let d = 1; d <= daysInMonth; d++) {
+          const badge = document.querySelector(`#dayCard_${d} .day-status-badge`);
+          const status = badge ? badge.textContent.trim() : '未利用';
+          liveDays[d] = { status: status, active: (status === '利用') };
+        }
+        const recWithPrior = {
+          ...savedRec,
+          days: liveDays,
+          priorContinuousDays: (priorDaysVal !== '' ? Number(priorDaysVal) : (savedRec.priorContinuousDays !== undefined ? savedRec.priorContinuousDays : null))
+        };
+        const cInfo = calcShortStayConsecutiveDays(userId, targetM, recWithPrior);
+        shortStayDay31Count = cInfo.day31Count || 0;
+        shortStayInsuranceDeductDays = cInfo.insuranceDeductDays;
+        insuranceUseDays = Math.max(0, useDays - shortStayDay31Count);
+      }
+
       let baseUnits = 0;
       let baseFormula = '';
       if (serviceType === 'デイサービス' && careInfo.isYoushien) {
@@ -22948,6 +23077,9 @@
             baseFormula = `@447 単位 × ${useDays} 回`;
           }
         }
+      } else if (serviceType === 'ショートステイ') {
+        baseUnits = insuranceUseDays * careInfo.dailyRate;
+        baseFormula = `@${careInfo.dailyRate} 単位 × ${insuranceUseDays} 日${shortStayDay31Count > 0 ? ` (31日目全額自費除外)` : ''}`;
       } else {
         baseUnits = useDays * careInfo.dailyRate;
         baseFormula = `@${careInfo.dailyRate} 単位 × ${useDays} 日`;
@@ -23030,31 +23162,15 @@
         if (addId === 'oral_func_1' || addId === 'indiv_training_1_i' || addId === 'indiv_training_1_ro' || addId === 'short_indiv_training' || addId === 'short_transport' || addId === 'gh_hospital_stay' || addId === 'gh_initial_add') return;
         if (serviceType === 'デイサービス' && careInfo.isYoushien && (addId === 'indiv_training_2' || addId.includes('indiv_training'))) return;
 
-        // 【ショートステイ 長期利用者減算】連続31日目以降の日数のみ減算（-30単位/日）
+        // 【ショートステイ 長期利用者減算】連続32日目以降の保険給付日数のみ減算（-30単位/日）
         if (addId === 'short_long_term_user_deduct') {
-          const priorDaysInput = document.getElementById('shortPriorContinuousDays');
-          let priorDaysVal = priorDaysInput ? priorDaysInput.value : '';
-          const recKey = `${AppState.currentFacilityId}_${targetM}_${userId}`;
-          const savedRec = AppState.records[recKey] || {};
-          const liveDays = {};
-          for (let d = 1; d <= daysInMonth; d++) {
-            const badge = document.querySelector(`#dayCard_${d} .day-status-badge`);
-            const status = badge ? badge.textContent.trim() : '未利用';
-            liveDays[d] = { status: status, active: (status === '利用') };
-          }
-          const recWithPrior = {
-            ...savedRec,
-            days: liveDays,
-            priorContinuousDays: (priorDaysVal !== '' ? Number(priorDaysVal) : (savedRec.priorContinuousDays !== undefined ? savedRec.priorContinuousDays : null))
-          };
-          const deductInfo = calcShortStayConsecutiveDays(userId, targetM, recWithPrior);
-          const deductDays = deductInfo.deductDays;
+          const deductDays = shortStayInsuranceDeductDays;
           if (deductDays > 0) {
             const u = -30 * deductDays;
             subtotalUnits += u;
             detailLines.push({
               name: '長期利用者減算',
-              formula: `@-30 単位 × ${deductDays} 日 (連続31日目以降)`,
+              formula: `@-30 単位 × ${deductDays} 日 (連続32日目以降)`,
               units: u
             });
           }
@@ -23062,9 +23178,10 @@
         }
 
         if (item.type === 'daily') {
-          const u = (item.rate || 0) * useDays;
+          const billDays = (serviceType === 'ショートステイ') ? insuranceUseDays : useDays;
+          const u = (item.rate || 0) * billDays;
           subtotalUnits += u;
-          detailLines.push({ name: item.name, formula: `@${item.rate} 単位 × ${useDays} 日`, units: u });
+          detailLines.push({ name: item.name, formula: `@${item.rate} 単位 × ${billDays} 日`, units: u });
         } else if (item.type === 'monthly') {
           let u = item.rate || 0;
           let form = '月額加算';
@@ -23583,14 +23700,21 @@
 
         const roomCounts = { privateToiletDays, privateNoToiletDays, multiDays, privateDays: totalPrivateDays };
         const grandSelfTotal = engine.computeSelfPay(evalRec, fac, daysInMonth, useDays, (daysInMonth - useDays), { bf: bfCount, ln: lnCount, dn: dnCount }, roomCounts, user, useDays);
-        const mealSelfTotal = grandSelfTotal - (stayPtTotal + stayPntTotal + stayMultiTotal + stayDay31Total + burdenPrivateTotal + burdenMultiTotal + extraSelfTotal + mealExcessTotal);
+
+        let day31CareFeeInfo = { totalYen: 0, units: 0, unitYen: 0 };
+        if (day31stSet.size > 0 && user) {
+          day31CareFeeInfo = calcShortStayDay31CareFee(user, fac, day31stSet.size);
+        }
+        const day31CareFeeTotal = day31CareFeeInfo.totalYen;
+
+        const mealSelfTotal = grandSelfTotal - (stayPtTotal + stayPntTotal + stayMultiTotal + stayDay31Total + burdenPrivateTotal + burdenMultiTotal + extraSelfTotal + mealExcessTotal + day31CareFeeTotal);
 
         modalContent.innerHTML = `
           <div class="bg-amber-50 p-3 rounded border border-amber-200 mb-3">
             <p>対象者: <strong>${user ? user.name : '-'}</strong> (${fac.name})</p>
-            <p class="text-xs text-amber-800 font-bold mt-1">ショートステイ 自費算定内訳（滞在費・居室負担額・食費・個別自費）</p>
+            <p class="text-xs text-amber-800 font-bold mt-1">ショートステイ 自費算定内訳（滞在費・居室負担額・食費・個別自費・31日目介護費）</p>
             <p class="text-[11px] text-amber-700 font-bold mt-0.5">適用区分: <span class="bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded font-bold">${stageStr}</span></p>
-            ${has31stDay ? `<p class="text-[11px] text-amber-950 font-bold mt-1 bg-amber-100 p-1.5 rounded border border-amber-300">⚠️ 連続31日目ルール適用: 通算連続31日目は全額自己負担日（介護保険外・補足給付対象外）となるため、食費・滞在費は事業所の通常自費基準額（満額）で算定されています（※32日目以降は限度額再適用＆長期減算）。</p>` : ''}
+            ${has31stDay ? `<p class="text-[11px] text-amber-950 font-bold mt-1 bg-amber-100 p-1.5 rounded border border-amber-300">⚠️ 連続31日目ルール適用: 通算連続31日目は全額自己負担日（介護保険外・補足給付対象外）となるため、介護報酬相当分（10割自費: ¥${formatNumber(day31CareFeeTotal)}）および食費・滞在費は事業所の通常自費基準額（満額）で自費算定されています（※31日目より長期減算-30u適用、32日目以降は保険給付再開・限度額再適用）。</p>` : ''}
             ${useDays > 22 ? `<p class="text-[11px] text-emerald-800 font-bold mt-1 bg-emerald-100 p-1 rounded border border-emerald-300">💡 滞在費22日上限ルール適用: 利用${useDays}日中、23日目以降の滞在費は全額免除（¥0）となっています（※31日目全額自費分を除く）。</p>` : ''}
           </div>
           <table class="w-full text-xs border-collapse border border-slate-300">
@@ -23602,6 +23726,13 @@
               </tr>
             </thead>
             <tbody>
+              ${day31CareFeeTotal > 0 ? `
+              <tr class="bg-amber-100/70">
+                <td class="border border-slate-300 p-2 font-bold text-amber-950">📋 31日目介護サービス費（10割全額自費）</td>
+                <td class="border border-slate-300 p-2 text-center text-amber-900 font-semibold">@${day31CareFeeInfo.units}単位 × ¥10 × ${day31stSet.size}日（基本+体制加算-30u+処遇改善%）</td>
+                <td class="border border-slate-300 p-2 text-right font-bold text-amber-950">¥${formatNumber(day31CareFeeTotal)}</td>
+              </tr>
+              ` : ''}
               <tr>
                 <td class="border border-slate-300 p-2 font-bold">個室（ト有）滞在費</td>
                 <td class="border border-slate-300 p-2 text-center">@¥${formatNumber(stayPtRate)} × ${billablePtStayDays}泊${privateToiletDays > billablePtStayDays ? ` <span class="text-emerald-700 font-bold">(${privateToiletDays - billablePtStayDays}泊上限免除)</span>` : ''}</td>
@@ -23834,8 +23965,10 @@
           days: liveDays,
           priorContinuousDays: (priorDaysVal !== '' ? Number(priorDaysVal) : (savedRec.priorContinuousDays !== undefined ? savedRec.priorContinuousDays : null))
         };
+        let modalInsuranceDeductDays = 0;
         const cInfo = calcShortStayConsecutiveDays(userId, AppState.targetMonth, recWithPrior);
         modalLongTermDeductDays = cInfo.deductDays;
+        modalInsuranceDeductDays = cInfo.insuranceDeductDays;
         modalDay31Count = cInfo.day31Count || 0;
       }
 
@@ -23850,6 +23983,7 @@
         shortTrainDays: shortTrainDays,
         shortTransportDays: shortTransportDays,
         longTermDeductDays: modalLongTermDeductDays,
+        insuranceDeductDays: modalInsuranceDeductDays,
         day31Count: modalDay31Count,
         oralTrainingCount: modalBillingOralCount
       };
@@ -24391,6 +24525,10 @@
 
     window.changeReportTargetMonth = function(newMonth) {
       if (!newMonth) return;
+      const currentInputUser = document.getElementById('inputUserSelect')?.value;
+      if (currentInputUser) {
+        window._lastActiveUserId = currentInputUser;
+      }
       AppState.targetMonth = newMonth;
       saveStateToLocalStorage();
       renderAllViews();
@@ -24519,10 +24657,12 @@
         const vacantDays = daysInMonth - contractDays;
 
         let shortLongTermDeductDays = 0;
+        let shortInsuranceDeductDays = 0;
         let shortDay31Count = 0;
         if (serviceType === 'ショートステイ') {
           const cInfo = calcShortStayConsecutiveDays(uId, targetM, userRec);
           shortLongTermDeductDays = cInfo.deductDays;
+          shortInsuranceDeductDays = cInfo.insuranceDeductDays;
           shortDay31Count = cInfo.day31Count || 0;
         }
 
@@ -24536,6 +24676,7 @@
           shortTrainDays: shortTrainDays,
           shortTransportDays: shortTransportDays,
           longTermDeductDays: shortLongTermDeductDays,
+          insuranceDeductDays: shortInsuranceDeductDays,
           day31Count: shortDay31Count,
           oralTrainingCount: (serviceType === 'デイサービス') ? Number(userRec?.oralTrainingCount ?? (user?.oralTrainingCount || 0)) : 0
         };
