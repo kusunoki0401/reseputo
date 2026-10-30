@@ -1818,9 +1818,15 @@
       </div>
       <p class="card-desc">今月サービスを利用する方にチェックを入れてください。</p>
 
-      <div class="flex gap-2 my-3">
-        <button id="selectAllMasterUsersBtn" class="btn btn-sm btn-secondary">全選択</button>
-        <button id="deselectAllMasterUsersBtn" class="btn btn-sm btn-secondary">全解除</button>
+      <div class="flex items-center justify-between gap-2 my-3 flex-wrap">
+        <div class="flex gap-2">
+          <button id="selectAllMasterUsersBtn" class="btn btn-sm btn-secondary">全選択</button>
+          <button id="deselectAllMasterUsersBtn" class="btn btn-sm btn-secondary">全解除</button>
+        </div>
+        <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-lg cursor-pointer border border-slate-300 transition shadow-sm select-none" title="退所済みの利用者も一覧に表示して、必要に応じて当月の対象者として一時的に選択できます">
+          <input type="checkbox" id="chkShowDischargedInUserModal" onchange="renderUserMasterModalTable()" class="w-4 h-4 text-slate-700 rounded cursor-pointer accent-slate-700">
+          <span>📦 終了者BOXの利用者も表示</span>
+        </label>
       </div>
 
       <div class="table-container">
@@ -3118,43 +3124,45 @@
       return 'fac_kusunoki';
     }
 
-    // 【退所判定ヘルパー】対象月より前に退所済みの利用者かどうか判定
+    // 【退所判定ヘルパー】対象月において利用終了（退所）済みかどうか判定
     function isUserDischargedInOrBeforeMonth(user, targetMonth) {
       if (!user || !user.isDischarged) return false;
       const ym = targetMonth || (AppState && AppState.targetMonth) || (typeof getCurrentYearMonth === 'function' ? getCurrentYearMonth() : '2026-10');
       if (!user.dischargedAt) return true; // 退所日未入力の場合は退所扱い
-      const monthStart = `${ym}-01`;
-      // 退所日が対象月の初日より前であれば、その月は完全に退所済み（例: 9/30退所 ➔ 10月は退所済、9月は在籍）
-      return user.dischargedAt < monthStart;
+      // 退所月（例: 2026-09-30退所 ➔ 2026-09）以降の月は、すべて退所済みとして扱う
+      // （※退所月より前の過去月、例: 2026-08 は在籍中として判定）
+      const dMonth = String(user.dischargedAt).trim().substring(0, 7);
+      return ym >= dMonth;
     }
 
     // 【当月の対象利用者（アクティブ利用者）の取得】
-    // 「今月の対象者を選択」で区分変更等により除外された設定を月別で確実に保護・取得
+    // 「今月の対象者を選択」で区分変更等により除外・選択された設定を月別で確実に保護・取得
     function getActiveUserIds(facilityId, targetMonth) {
       const fId = facilityId || AppState.currentFacilityId || 'fac_kusunoki';
       const tMonth = targetMonth || (AppState && AppState.targetMonth) || (typeof getCurrentYearMonth === 'function' ? getCurrentYearMonth() : '2026-07');
       const monthKey = `${fId}_${tMonth}`;
 
-      let rawList = [];
-      // 1. 月別の明示的保存リストがあれば最優先（区分変更等の月別除外設定）
+      // 1. 月別の明示的保存リストがあれば最優先（ユーザーが「今月の対象者を選択」でチェックした人を100%忠実に採用！）
       if (AppState && AppState.activeUsersByMonth && Array.isArray(AppState.activeUsersByMonth[monthKey])) {
-        rawList = [...AppState.activeUsersByMonth[monthKey]];
-      } else {
-        // 2. 当月が未設定の場合：施設に属する全利用者を初期リストとする（他月の区分変更除外に引きずられない）
-        const matched = (AppState && AppState.userMaster ? AppState.userMaster : []).filter(u => getUserFacilityId(u) === fId);
-        if (matched.length > 0) {
-          rawList = matched.map(u => u.id);
-        } else if (AppState && AppState.activeUsersPerFacility && Array.isArray(AppState.activeUsersPerFacility[fId])) {
-          rawList = [...AppState.activeUsersPerFacility[fId]];
-        }
+        return AppState.activeUsersByMonth[monthKey].filter(id => !!findRawUserById(id));
       }
 
-      // ★【退所者自動フィルタ】対象月より前に退所した利用者を100%除外
-      return rawList.filter(id => {
-        const raw = findRawUserById(id);
-        if (!raw) return false;
-        return !isUserDischargedInOrBeforeMonth(raw, tMonth);
+      // 2. 当月が未設定の場合：施設に属する現役利用者（退所していない人）を初期リストとする
+      const matched = (AppState && AppState.userMaster ? AppState.userMaster : []).filter(u => {
+        return getUserFacilityId(u) === fId && !isUserDischargedInOrBeforeMonth(u, tMonth);
       });
+      if (matched.length > 0) {
+        return matched.map(u => u.id);
+      }
+
+      // 3. 後方互換性：過去の施設単位アクティブリストがあれば採用
+      if (AppState && AppState.activeUsersPerFacility && Array.isArray(AppState.activeUsersPerFacility[fId])) {
+        return AppState.activeUsersPerFacility[fId].filter(id => {
+          const raw = findRawUserById(id);
+          return raw && !isUserDischargedInOrBeforeMonth(raw, tMonth);
+        });
+      }
+      return [];
     }
 
     // 【当月の対象利用者（アクティブ利用者）の保存】
@@ -20665,6 +20673,26 @@
                   } catch (e) {}
                 }
 
+                // 【有効期限クラウド補完】履歴JSONがなくてもスプレッドシートの認定開始日・終了日列から自動復元
+                if (cHist.length === 0 && (iu.careStartDate || iu.careEndDate)) {
+                  cHist.push({
+                    id: 'carehist_cloud_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+                    careLevel: iu.careLevel || '要介護2',
+                    startDate: iu.careStartDate || '',
+                    endDate: iu.careEndDate || '',
+                    memo: 'クラウド同期'
+                  });
+                }
+                if (rHist.length === 0 && (iu.ratioStartDate || iu.ratioEndDate || iu.ratio)) {
+                  rHist.push({
+                    id: 'ratiohist_cloud_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+                    ratio: iu.ratio || '1割',
+                    startDate: iu.ratioStartDate || '',
+                    endDate: iu.ratioEndDate || '',
+                    memo: 'クラウド同期'
+                  });
+                }
+
                 if (existing) {
                   userMap.set(iu.id, {
                     ...existing,
@@ -20674,12 +20702,23 @@
                     careLevel: iu.careLevel || existing.careLevel,
                     ratio: iu.ratio || existing.ratio || '1割',
                     facilityId: iu.facilityId || existing.facilityId,
+                    careStartDate: iu.careStartDate || existing.careStartDate || '',
+                    careEndDate: iu.careEndDate || existing.careEndDate || '',
+                    ratioStartDate: iu.ratioStartDate || existing.ratioStartDate || '',
+                    ratioEndDate: iu.ratioEndDate || existing.ratioEndDate || '',
                     careHistory: cHist,
-                    ratioHistory: rHist
+                    ratioHistory: rHist,
+                    isDischarged: (iu.isDischarged !== undefined) ? !!iu.isDischarged : !!existing.isDischarged,
+                    dischargedAt: iu.dischargedAt || existing.dischargedAt || '',
+                    dischargeReason: iu.dischargeReason || existing.dischargeReason || ''
                   });
                 } else {
                   iu.careHistory = cHist;
                   iu.ratioHistory = rHist;
+                  iu.careStartDate = iu.careStartDate || '';
+                  iu.careEndDate = iu.careEndDate || '';
+                  iu.ratioStartDate = iu.ratioStartDate || '';
+                  iu.ratioEndDate = iu.ratioEndDate || '';
                   userMap.set(iu.id, iu);
                   newFromCloudCount++;
                 }
@@ -22355,10 +22394,12 @@
       tbody.innerHTML = '';
 
       const curFacId = AppState.currentFacilityId || 'fac_kusunoki';
+      const showDischarged = !!document.getElementById('chkShowDischargedInUserModal')?.checked;
+
       const currentFacUsers = AppState.userMaster.filter(u => {
         if (getUserFacilityId(u) !== curFacId) return false;
-        // 当月より前に退所した利用者は、当月の選択対象から除外（終了者BOXに保管）
-        if (isUserDischargedInOrBeforeMonth(u, AppState.targetMonth)) return false;
+        // 「終了者BOXの利用者も表示」チェックがOFFの場合は、退所者を非表示
+        if (!showDischarged && isUserDischargedInOrBeforeMonth(u, AppState.targetMonth)) return false;
         return true;
       });
       sortUserMasterByName(currentFacUsers);
@@ -22373,15 +22414,17 @@
       currentFacUsers.forEach(u => {
         const isChecked = activeUserIds.some(id => format10DigitId(id) === format10DigitId(u.id));
         const tr = document.createElement('tr');
-        const dischargeNote = (u.isDischarged && u.dischargedAt) ? ` <span class="bg-rose-100 text-rose-800 text-[10px] px-1 py-0.2 rounded font-bold ml-1">🚪 月内退所(${u.dischargedAt})</span>` : '';
+        const dischargeNote = (u.isDischarged) 
+          ? ` <span class="bg-rose-100 text-rose-800 text-[10px] px-1 py-0.2 rounded font-bold ml-1">🚪 退所済(${u.dischargedAt || '利用終了'})</span>` 
+          : '';
         tr.innerHTML = `
           <td class="text-center">
             <input type="checkbox" class="user-active-chk cursor-pointer" value="${u.id}" ${isChecked ? 'checked' : ''}>
           </td>
-          <td class="font-bold">${format10DigitId(u.id)}</td>
+          <td class="font-bold font-mono text-slate-700">${format10DigitId(u.id)}</td>
           <td class="font-bold text-slate-900">${u.name}${dischargeNote}</td>
           <td><span class="badge badge-warning font-bold">${u.careLevel || '-'}</span></td>
-          <td><span class="font-bold">${u.ratio || '1割'}</span></td>
+          <td><span class="font-bold text-slate-800">${u.ratio || '1割'}</span></td>
         `;
         tbody.appendChild(tr);
       });
@@ -22403,7 +22446,7 @@
       saveStateToLocalStorage();
       closeUserMasterSelectModal();
 
-      // ★【最重要修正】モーダルで確定した当月対象者を即座に実績一括入力フォーム＆プルダウンへ反映！
+      // ★【最重要修正】モーダルで確定した当月対象者を即座に実績一括入力フォーム＆プルダウンへ確実に反映！
       window._recordFormIsDirty = false;
       renderUserRecordForm(true);
       renderAllViews(true);
@@ -22516,7 +22559,7 @@
       let validUsers = [];
       activeUserIds.forEach(uId => {
         const u = findUserById(uId, AppState.targetMonth);
-        if (u && !isUserDischargedInOrBeforeMonth(u, AppState.targetMonth)) {
+        if (u) {
           validUsers.push(u);
         }
       });
@@ -26377,6 +26420,9 @@
       if (!rawUser) return;
       const user = findUserById(userId);
 
+      // 元のIDを保持（ID編集時の安全な追跡用）
+      window._currentEditingOriginalUserId = user.id;
+
       const currentFac = AppState.facilities[AppState.currentFacilityId] || {};
       const serviceType = currentFac.type || '有料ホーム';
       const isDayService = (serviceType === 'デイサービス');
@@ -26444,15 +26490,14 @@
       if (window._currentEditingUserCareHistory.length === 0 && rawUser.careLevel) {
         window._currentEditingUserCareHistory.push({
           id: 'carehist_init_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-          startDate: `${curYm}-01`,
-          endDate: '',
+          startDate: rawUser.careStartDate || `${curYm}-01`,
+          endDate: rawUser.careEndDate || '',
           careLevel: rawUser.careLevel || '要介護2',
           memo: 'マスタ初期登録'
         });
         rawUser.careHistory = JSON.parse(JSON.stringify(window._currentEditingUserCareHistory));
         saveStateToLocalStorage();
       }
-      window._editingCareHistoryId = null;
 
       window._currentEditingUserRatioHistory = (rawUser.ratioHistory && Array.isArray(rawUser.ratioHistory))
         ? JSON.parse(JSON.stringify(rawUser.ratioHistory))
@@ -26463,11 +26508,11 @@
         const rPer = (typeof getRatioPeriodForMonth === 'function') ? getRatioPeriodForMonth(curYm) : { startDate: '2026-08-01', endDate: '2027-07-31' };
         window._currentEditingUserRatioHistory.push({
           id: 'ratiohist_init_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-          startDate: rPer.startDate,
-          endDate: rPer.endDate,
+          startDate: rawUser.ratioStartDate || rPer.startDate,
+          endDate: rawUser.ratioEndDate || rPer.endDate,
           ratio: rawUser.ratio || '1割',
           memo: 'マスタ初期登録',
-          nendoLabel: rPer.startDate.substring(0, 4) + '年度'
+          nendoLabel: (rawUser.ratioStartDate || rPer.startDate).substring(0, 4) + '年度'
         });
         rawUser.ratioHistory = JSON.parse(JSON.stringify(window._currentEditingUserRatioHistory));
         saveStateToLocalStorage();
@@ -26487,12 +26532,48 @@
           }
         });
       }
-      window._editingRatioHistoryId = null;
 
-      resetCareHistoryFormInputs();
+      // 履歴テーブルを描画
       renderModalCareHistoryTable();
-      resetRatioHistoryFormInputs();
       renderModalRatioHistoryTable();
+
+      // 【直感的操作の実現】現在適用中の認定期間・負担割合を入力欄に初期セット！
+      // （※空欄だと「手入力したのに保存されない」トラブルになるため）
+      const effCare = getEffectiveCareInfoForMonth({ careHistory: window._currentEditingUserCareHistory, careLevel: user.careLevel }, curYm);
+      const activeCareItem = effCare.matchedCareEntry || window._currentEditingUserCareHistory[0];
+      if (activeCareItem) {
+        window._editingCareHistoryId = activeCareItem.id;
+        const sEl = document.getElementById('modalCareStartDate');
+        const eEl = document.getElementById('modalCareEndDate');
+        const cEl = document.getElementById('modalEditCareLevel');
+        const mEl = document.getElementById('modalCareMemo');
+        if (sEl) sEl.value = activeCareItem.startDate || '';
+        if (eEl) eEl.value = activeCareItem.endDate || '';
+        if (cEl) cEl.value = activeCareItem.careLevel || user.careLevel || '要介護2';
+        if (mEl) mEl.value = activeCareItem.memo || '';
+        updateCareDateHints();
+      } else {
+        window._editingCareHistoryId = null;
+        resetCareHistoryFormInputs();
+      }
+
+      const effRatio = getEffectiveCareInfoForMonth({ ratioHistory: window._currentEditingUserRatioHistory, ratio: user.ratio }, curYm);
+      const activeRatioItem = effRatio.matchedRatioEntry || window._currentEditingUserRatioHistory[0];
+      if (activeRatioItem) {
+        window._editingRatioHistoryId = activeRatioItem.id;
+        const rsEl = document.getElementById('modalRatioStartDate');
+        const reEl = document.getElementById('modalRatioEndDate');
+        const rEl = document.getElementById('modalEditRatio');
+        const rmEl = document.getElementById('modalRatioMemo');
+        if (rsEl) rsEl.value = activeRatioItem.startDate || '';
+        if (reEl) reEl.value = activeRatioItem.endDate || '';
+        if (rEl) rEl.value = activeRatioItem.ratio || user.ratio || '1割';
+        if (rmEl) rmEl.value = activeRatioItem.memo || '';
+        updateRatioDateHints();
+      } else {
+        window._editingRatioHistoryId = null;
+        resetRatioHistoryFormInputs();
+      }
 
       document.getElementById('closeEditUserMasterModalBtn').onclick = closeEditUserModal;
       document.getElementById('cancelEditUserMasterModalBtn').onclick = closeEditUserModal;
@@ -27448,10 +27529,15 @@
         return;
       }
 
+      const origId = window._currentEditingOriginalUserId || id;
       const editFacilityEl = document.getElementById('modalEditFacility');
       const targetFacilityId = editFacilityEl ? (normalizeFacilityId(editFacilityEl.value) || AppState.currentFacilityId) : (AppState.currentFacilityId || 'fac_kusunoki');
 
-      const existingIndex = AppState.userMaster.findIndex(u => format10DigitId(u.id) === id);
+      // 既存利用者の特定（元IDまたは新ID）
+      let existingIndex = AppState.userMaster.findIndex(u => format10DigitId(u.id) === format10DigitId(origId));
+      if (existingIndex < 0) {
+        existingIndex = AppState.userMaster.findIndex(u => format10DigitId(u.id) === id);
+      }
 
       // 認定要介護度 ＆ 負担割合 各改定履歴の保存データ確定
       let careHistoryToSave = Array.isArray(window._currentEditingUserCareHistory) 
@@ -27461,11 +27547,103 @@
         ? [...window._currentEditingUserRatioHistory]
         : [];
 
+      // 【重要】画面入力欄（要介護度・有効期間・負担割合）の変更を履歴へ100%自動反映
+      // （※「追加・更新」小ボタンを押さずに「保存・マスタ更新」を押しても確実に反映されるようにする）
+      const careStart = document.getElementById('modalCareStartDate')?.value.trim() || '';
+      const careEnd = document.getElementById('modalCareEndDate')?.value.trim() || '';
+      const careMemo = document.getElementById('modalCareMemo')?.value.trim() || '';
+
+      if (window._editingCareHistoryId) {
+        const cIdx = careHistoryToSave.findIndex(h => h.id === window._editingCareHistoryId);
+        if (cIdx >= 0) {
+          careHistoryToSave[cIdx] = {
+            ...careHistoryToSave[cIdx],
+            careLevel: careLevel,
+            startDate: careStart || careHistoryToSave[cIdx].startDate,
+            endDate: careEnd,
+            memo: careMemo
+          };
+        }
+      } else if (careStart) {
+        careHistoryToSave.push({
+          id: 'carehist_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+          startDate: careStart,
+          endDate: careEnd,
+          careLevel: careLevel,
+          memo: careMemo
+        });
+      } else if (careHistoryToSave.length > 0) {
+        const curYm = AppState.targetMonth || '2026-10';
+        const matchedCare = careHistoryToSave.find(h => (!h.startDate || h.startDate <= `${curYm}-31`) && (!h.endDate || h.endDate >= `${curYm}-01`)) || careHistoryToSave[0];
+        if (matchedCare) {
+          matchedCare.careLevel = careLevel;
+          if (careEnd) matchedCare.endDate = careEnd;
+          if (careMemo) matchedCare.memo = careMemo;
+        }
+      } else {
+        const curYm = AppState.targetMonth || '2026-10';
+        careHistoryToSave.push({
+          id: 'carehist_auto_' + Date.now(),
+          startDate: careStart || `${curYm}-01`,
+          endDate: careEnd || '',
+          careLevel: careLevel,
+          memo: careMemo || '編集保存時自動設定'
+        });
+      }
+
+      // 負担割合の自動反映
+      const ratioStart = document.getElementById('modalRatioStartDate')?.value.trim() || '';
+      const ratioEnd = document.getElementById('modalRatioEndDate')?.value.trim() || '';
+      const ratioMemo = document.getElementById('modalRatioMemo')?.value.trim() || '';
+
+      if (window._editingRatioHistoryId) {
+        const rIdx = ratioHistoryToSave.findIndex(h => h.id === window._editingRatioHistoryId);
+        if (rIdx >= 0) {
+          ratioHistoryToSave[rIdx] = {
+            ...ratioHistoryToSave[rIdx],
+            ratio: ratio,
+            startDate: ratioStart || ratioHistoryToSave[rIdx].startDate,
+            endDate: ratioEnd || ratioHistoryToSave[rIdx].endDate,
+            memo: ratioMemo
+          };
+        }
+      } else if (ratioStart) {
+        ratioHistoryToSave.push({
+          id: 'ratiohist_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+          startDate: ratioStart,
+          endDate: ratioEnd,
+          ratio: ratio,
+          memo: ratioMemo
+        });
+      } else if (ratioHistoryToSave.length > 0) {
+        const curYm = AppState.targetMonth || '2026-10';
+        const matchedRatio = ratioHistoryToSave.find(h => (!h.startDate || h.startDate <= `${curYm}-31`) && (!h.endDate || h.endDate >= `${curYm}-01`)) || ratioHistoryToSave[0];
+        if (matchedRatio) {
+          matchedRatio.ratio = ratio;
+          if (ratioEnd) matchedRatio.endDate = ratioEnd;
+          if (ratioMemo) matchedRatio.memo = ratioMemo;
+        }
+      } else {
+        const curYm = AppState.targetMonth || '2026-10';
+        const rPer = (typeof getRatioPeriodForMonth === 'function') ? getRatioPeriodForMonth(curYm) : { startDate: '2026-08-01', endDate: '2027-07-31' };
+        ratioHistoryToSave.push({
+          id: 'ratiohist_auto_' + Date.now(),
+          startDate: ratioStart || rPer.startDate,
+          endDate: ratioEnd || rPer.endDate,
+          ratio: ratio,
+          memo: ratioMemo || '編集保存時自動設定'
+        });
+      }
+
+      // 履歴の日付降順ソート
+      careHistoryToSave.sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''));
+      ratioHistoryToSave.sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''));
+
       let savedCareLevel = careLevel;
       let savedRatio = ratio;
       let savedFoodLimitStage = foodLimitStage;
 
-      // 現在の対象月における実効値（要介護度・負担割合）を自動算出
+      // 現在の対象月における実効値（要介護度・負担割合）を最新履歴から自動算出
       const dummyUser = { 
         careHistory: careHistoryToSave, 
         ratioHistory: ratioHistoryToSave, 
@@ -27478,9 +27656,36 @@
       if (effectiveNow.ratio) savedRatio = effectiveNow.ratio;
       if (effectiveNow.foodLimitStage) savedFoodLimitStage = effectiveNow.foodLimitStage;
 
+      // ID変更に伴う関連データのキー付け替え
+      if (format10DigitId(origId) !== id) {
+        const oldId10 = format10DigitId(origId);
+        Object.keys(AppState.facilities).forEach(fId => {
+          if (Array.isArray(AppState.activeUsersPerFacility[fId])) {
+            AppState.activeUsersPerFacility[fId] = AppState.activeUsersPerFacility[fId].map(uid => uid === oldId10 ? id : uid);
+          }
+        });
+        if (AppState.activeUsersByMonth) {
+          Object.keys(AppState.activeUsersByMonth).forEach(mKey => {
+            if (Array.isArray(AppState.activeUsersByMonth[mKey])) {
+              AppState.activeUsersByMonth[mKey] = AppState.activeUsersByMonth[mKey].map(uid => uid === oldId10 ? id : uid);
+            }
+          });
+        }
+        if (AppState.monthlyRecords) {
+          Object.keys(AppState.monthlyRecords).forEach(recKey => {
+            if (recKey.endsWith('_' + oldId10)) {
+              const newRecKey = recKey.replace('_' + oldId10, '_' + id);
+              AppState.monthlyRecords[newRecKey] = AppState.monthlyRecords[recKey];
+              delete AppState.monthlyRecords[recKey];
+            }
+          });
+        }
+      }
+
       if (existingIndex >= 0) {
         const oldUser = AppState.userMaster[existingIndex];
         const details = [];
+        if (oldUser.id !== id) details.push({ field: '被保険者番号', before: oldUser.id, after: id });
         if (oldUser.name !== name) details.push({ field: '氏名', before: oldUser.name, after: name });
         if (oldUser.kana !== kana) details.push({ field: 'フリガナ', before: oldUser.kana, after: kana });
         if (oldUser.careLevel !== savedCareLevel) details.push({ field: '要介護度', before: oldUser.careLevel, after: savedCareLevel });
@@ -27510,6 +27715,7 @@
 
         AppState.userMaster[existingIndex] = {
           ...AppState.userMaster[existingIndex],
+          id: id,
           name: name,
           kana: kana,
           birth: birth,
@@ -27523,7 +27729,11 @@
           oralTrainingCount: oralTrainingCount,
           facilityId: targetFacilityId,
           careHistory: careHistoryToSave,
-          ratioHistory: ratioHistoryToSave
+          ratioHistory: ratioHistoryToSave,
+          careStartDate: careStart || careHistoryToSave[0]?.startDate || '',
+          careEndDate: careEnd || careHistoryToSave[0]?.endDate || '',
+          ratioStartDate: ratioStart || ratioHistoryToSave[0]?.startDate || '',
+          ratioEndDate: ratioEnd || ratioHistoryToSave[0]?.endDate || ''
         };
       } else {
         recordOperationLog({
@@ -27549,7 +27759,11 @@
           oralTrainingCount: oralTrainingCount,
           facilityId: targetFacilityId,
           careHistory: careHistoryToSave,
-          ratioHistory: ratioHistoryToSave
+          ratioHistory: ratioHistoryToSave,
+          careStartDate: careStart || careHistoryToSave[0]?.startDate || '',
+          careEndDate: careEnd || careHistoryToSave[0]?.endDate || '',
+          ratioStartDate: ratioStart || ratioHistoryToSave[0]?.startDate || '',
+          ratioEndDate: ratioEnd || ratioHistoryToSave[0]?.endDate || ''
         });
       }
 
@@ -30402,6 +30616,18 @@
         if (AppState.activeUsersPerFacility && Array.isArray(AppState.activeUsersPerFacility[curFacId])) {
           AppState.activeUsersPerFacility[curFacId] = AppState.activeUsersPerFacility[curFacId].filter(id => format10DigitId(id) !== id10);
         }
+        // ★【全月クリーンアップ】退所者は全月の activeUsersByMonth からも完全除外！
+        if (AppState.activeUsersByMonth && typeof AppState.activeUsersByMonth === 'object') {
+          Object.keys(AppState.activeUsersByMonth).forEach(mKey => {
+            if (mKey.startsWith(curFacId) && Array.isArray(AppState.activeUsersByMonth[mKey])) {
+              AppState.activeUsersByMonth[mKey] = AppState.activeUsersByMonth[mKey].filter(id => format10DigitId(id) !== id10);
+            }
+          });
+        }
+        // 直近選択中利用者が退所者ならクリア
+        if (window._lastActiveUserId && format10DigitId(window._lastActiveUserId) === id10) {
+          window._lastActiveUserId = null;
+        }
       } else {
         // 利用再開時：所属施設のアクティブ利用者リストへ復帰
         if (!AppState.activeUsersPerFacility) AppState.activeUsersPerFacility = {};
@@ -30425,6 +30651,10 @@
       saveStateToLocalStorage();
       syncSingleUserMasterToGas(rawUser);
       renderUserMasterTable();
+      // ★【即時画面反映】実績一括入力画面・プルダウンからも退所者を即座に消去！
+      window._recordFormIsDirty = false;
+      renderUserRecordForm(true);
+      renderAllViews(true);
       return true;
     }
 
