@@ -3532,10 +3532,10 @@
         careLevel: resolvedCareLevel,
         ratio: resolvedRatio,
         foodLimitStage: user.foodLimitStage || 'none',
-        careStartDate: matchedCareEntry ? (matchedCareEntry.startDate || '') : '',
-        careEndDate: matchedCareEntry ? (matchedCareEntry.endDate || '') : '',
-        ratioStartDate: matchedRatioEntry ? (matchedRatioEntry.startDate || '') : '',
-        ratioEndDate: matchedRatioEntry ? (matchedRatioEntry.endDate || '') : '',
+        careStartDate: matchedCareEntry ? (matchedCareEntry.startDate || '') : (user.careStartDate || (careHistory[0]?.startDate || '')),
+        careEndDate: matchedCareEntry ? (matchedCareEntry.endDate || '') : (user.careEndDate || (careHistory[0]?.endDate || '')),
+        ratioStartDate: matchedRatioEntry ? (matchedRatioEntry.startDate || '') : (user.ratioStartDate || (ratioHistory[0]?.startDate || '')),
+        ratioEndDate: matchedRatioEntry ? (matchedRatioEntry.endDate || '') : (user.ratioEndDate || (ratioHistory[0]?.endDate || '')),
         memo: (matchedCareEntry?.memo || matchedRatioEntry?.memo || ''),
         isFromHistory: !!(matchedCareEntry || matchedRatioEntry),
         matchedCareEntry,
@@ -20494,6 +20494,7 @@
             // 1. 利用者マスタの双方向マージ（他PCでの追加・編集を安全統合、ローカル登録を100%保護）
             let userCount = 0;
             let newFromCloudCount = 0;
+            let deletedFromCloudCount = 0;
             if (resJson.userMaster && Array.isArray(resJson.userMaster) && resJson.userMaster.length > 0) {
               if (!Array.isArray(AppState.deletedUserIds)) AppState.deletedUserIds = [];
               const deletedSet = new Set(AppState.deletedUserIds.map(id => format10DigitId(id)));
@@ -20599,7 +20600,16 @@
                   birth: formatBirthToWareki(rawBirth) || '-',
                   careLevel: finalCareLevel,
                   ratio: cleanRatioString(rawRatio),
-                  facilityId: normalizeFacilityId(rawFac) || (knownUser ? knownUser.facilityId : 'fac_kusunoki')
+                  facilityId: normalizeFacilityId(rawFac) || (knownUser ? knownUser.facilityId : 'fac_kusunoki'),
+                  careStartDate: u.careStartDate || (Array.isArray(u) ? u[6] : '') || '',
+                  careEndDate: u.careEndDate || (Array.isArray(u) ? u[7] : '') || '',
+                  ratioStartDate: u.ratioStartDate || (Array.isArray(u) ? u[8] : '') || '',
+                  ratioEndDate: u.ratioEndDate || (Array.isArray(u) ? u[9] : '') || '',
+                  careHistory: u.careHistory || (Array.isArray(u) ? u[10] : '') || '',
+                  ratioHistory: u.ratioHistory || (Array.isArray(u) ? u[11] : '') || '',
+                  isDischarged: (u.isDischarged !== undefined) ? !!u.isDischarged : false,
+                  dischargedAt: u.dischargedAt || '',
+                  dischargeReason: u.dischargeReason || ''
                 });
               });
 
@@ -25506,16 +25516,19 @@
           }
         }
 
-        // 当月（AppState.targetMonth）における実効値・有効期間を算出
+        // 当月（AppState.targetMonth）における実効値・有効期間を算出（多層フェールセーフ）
         const eff = getEffectiveCareInfoForMonth(u, AppState.targetMonth);
         let validityHtml = '';
-        if (eff.careStartDate || eff.careEndDate) {
-          const sDate = eff.careStartDate ? formatDateWithWareki(eff.careStartDate) : '〜';
-          const eDate = eff.careEndDate ? formatDateWithWareki(eff.careEndDate) : '継続';
+        const effectiveStartDate = eff.careStartDate || u.careStartDate || (u.careHistory && u.careHistory[0]?.startDate) || '';
+        const effectiveEndDate = eff.careEndDate || u.careEndDate || (u.careHistory && u.careHistory[0]?.endDate) || '';
+
+        if (effectiveStartDate || effectiveEndDate) {
+          const sDate = effectiveStartDate ? formatDateWithWareki(effectiveStartDate) : '〜';
+          const eDate = effectiveEndDate ? formatDateWithWareki(effectiveEndDate) : '継続';
 
           const targetM = AppState.targetMonth || '2026-10';
-          const isExpired = eff.careEndDate && eff.careEndDate < `${targetM}-01`;
-          const isExpiringSoon = eff.careEndDate && !isExpired && eff.careEndDate <= `${targetM}-31`;
+          const isExpired = effectiveEndDate && effectiveEndDate < `${targetM}-01`;
+          const isExpiringSoon = effectiveEndDate && !isExpired && effectiveEndDate <= `${targetM}-31`;
 
           let alertBadge = '';
           if (isExpired) {
@@ -25526,7 +25539,7 @@
 
           validityHtml = `
             <div class="cursor-pointer hover:bg-blue-50/60 p-1 rounded transition" onclick="openEditUserModal('${u.id}')" title="クリックして認定期間・履歴を編集">
-              <div class="font-mono text-xs font-bold text-slate-800 whitespace-nowrap">${eff.careStartDate} 〜 ${eff.careEndDate || '継続'}${alertBadge}</div>
+              <div class="font-mono text-xs font-bold text-slate-800 whitespace-nowrap">${effectiveStartDate || '〜'} 〜 ${effectiveEndDate || '継続'}${alertBadge}</div>
               <div class="text-[10px] text-slate-500 whitespace-nowrap">${sDate} 〜 ${eDate}</div>
             </div>
           `;
@@ -27252,6 +27265,10 @@
         const eff = getEffectiveCareInfoForMonth(ex, AppState.targetMonth);
         if (eff.careLevel) ex.careLevel = eff.careLevel;
         if (eff.ratio) ex.ratio = eff.ratio;
+        ex.careStartDate = candCareStart || ex.careStartDate || '';
+        ex.careEndDate = candCareEnd || ex.careEndDate || '';
+        ex.ratioStartDate = candRatioStart || ex.ratioStartDate || '';
+        ex.ratioEndDate = candRatioEnd || ex.ratioEndDate || '';
       });
 
       // 2. 新規利用者の登録 ＆ 【全自動履歴生成・同期】
@@ -27286,6 +27303,10 @@
           careLevel: nu.careLevel || '要介護2',
           ratio: nu.ratio || '1割',
           facilityId: curFacId,
+          careStartDate: nu.careStartDate || `${fallbackTargetYm}-01`,
+          careEndDate: nu.careEndDate || '',
+          ratioStartDate: nu.ratioStartDate || defaultRatioPer.startDate,
+          ratioEndDate: nu.ratioEndDate || defaultRatioPer.endDate,
           careHistory,
           ratioHistory,
           isPendingCareLevel: false,
@@ -27357,10 +27378,10 @@
         careLevel: eff.careLevel || userObj.careLevel || '要介護2',
         ratio: eff.ratio || userObj.ratio || '1割',
         facilityId: getUserFacilityId(userObj),
-        careStartDate: eff.careStartDate || '',
-        careEndDate: eff.careEndDate || '',
-        ratioStartDate: eff.ratioStartDate || '',
-        ratioEndDate: eff.ratioEndDate || '',
+        careStartDate: eff.careStartDate || userObj.careStartDate || (userObj.careHistory && userObj.careHistory[0]?.startDate) || '',
+        careEndDate: eff.careEndDate || userObj.careEndDate || (userObj.careHistory && userObj.careHistory[0]?.endDate) || '',
+        ratioStartDate: eff.ratioStartDate || userObj.ratioStartDate || (userObj.ratioHistory && userObj.ratioHistory[0]?.startDate) || '',
+        ratioEndDate: eff.ratioEndDate || userObj.ratioEndDate || (userObj.ratioHistory && userObj.ratioHistory[0]?.endDate) || '',
         careHistory: JSON.stringify(userObj.careHistory || []),
         ratioHistory: JSON.stringify(userObj.ratioHistory || []),
         isDischarged: !!userObj.isDischarged,
@@ -27418,10 +27439,10 @@
           careLevel: eff.careLevel || u.careLevel || '要介護2',
           ratio: eff.ratio || u.ratio || '1割',
           facilityId: getUserFacilityId(u),
-          careStartDate: eff.careStartDate || '',
-          careEndDate: eff.careEndDate || '',
-          ratioStartDate: eff.ratioStartDate || '',
-          ratioEndDate: eff.ratioEndDate || '',
+          careStartDate: eff.careStartDate || u.careStartDate || (u.careHistory && u.careHistory[0]?.startDate) || '',
+          careEndDate: eff.careEndDate || u.careEndDate || (u.careHistory && u.careHistory[0]?.endDate) || '',
+          ratioStartDate: eff.ratioStartDate || u.ratioStartDate || (u.ratioHistory && u.ratioHistory[0]?.startDate) || '',
+          ratioEndDate: eff.ratioEndDate || u.ratioEndDate || (u.ratioHistory && u.ratioHistory[0]?.endDate) || '',
           careHistory: JSON.stringify(u.careHistory || []),
           ratioHistory: JSON.stringify(u.ratioHistory || []),
           isDischarged: !!u.isDischarged,
@@ -27469,15 +27490,27 @@
 
       showToast(`スプレッドシートへ全${users.length}名を送信中...`, 'info');
 
-      const mappedUsers = users.map(u => ({
-        id: format10DigitId(u.id),
-        name: ensureHonorific(u.name),
-        kana: u.kana || '',
-        birth: u.birth || '-',
-        careLevel: u.careLevel || '要介護2',
-        ratio: u.ratio || '1割',
-        facilityId: getUserFacilityId(u)
-      }));
+      const mappedUsers = users.map(u => {
+        const eff = getEffectiveCareInfoForMonth(u, AppState.targetMonth);
+        return {
+          id: format10DigitId(u.id),
+          name: ensureHonorific(u.name),
+          kana: u.kana || '',
+          birth: u.birth || '-',
+          careLevel: eff.careLevel || u.careLevel || '要介護2',
+          ratio: eff.ratio || u.ratio || '1割',
+          facilityId: getUserFacilityId(u),
+          careStartDate: eff.careStartDate || u.careStartDate || (u.careHistory && u.careHistory[0]?.startDate) || '',
+          careEndDate: eff.careEndDate || u.careEndDate || (u.careHistory && u.careHistory[0]?.endDate) || '',
+          ratioStartDate: eff.ratioStartDate || u.ratioStartDate || (u.ratioHistory && u.ratioHistory[0]?.startDate) || '',
+          ratioEndDate: eff.ratioEndDate || u.ratioEndDate || (u.ratioHistory && u.ratioHistory[0]?.endDate) || '',
+          careHistory: JSON.stringify(u.careHistory || []),
+          ratioHistory: JSON.stringify(u.ratioHistory || []),
+          isDischarged: !!u.isDischarged,
+          dischargedAt: u.dischargedAt || '',
+          dischargeReason: u.dischargeReason || ''
+        };
+      });
 
       const payload = {
         action: 'saveUserMaster',
