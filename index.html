@@ -27414,7 +27414,8 @@
         if (typeof callback === 'function') callback(false);
         return;
       }
-      const users = AppState.userMaster || [];
+      // 【他施設保護】今ログイン中の施設の利用者だけを送信対象にする（他施設分の古いキャッシュを誤って上書きしないため）
+      const users = (AppState.userMaster || []).filter(u => getUserFacilityId(u) === AppState.currentFacilityId);
       if (users.length === 0) {
         if (typeof callback === 'function') callback(false);
         return;
@@ -27453,6 +27454,7 @@
 
       const payload = {
         action: 'saveUserMaster',
+        facilityId: AppState.currentFacilityId,
         userMaster: mappedUsers,
         users: mappedUsers,
         deletedUserIds: AppState.deletedUserIds || []
@@ -27479,13 +27481,14 @@
         showToast('GASのWeb App URLを設定してください', 'warning');
         return;
       }
-      const users = AppState.userMaster || [];
+      // 【他施設保護】今ログイン中の施設の利用者だけを書き出し対象にする（他施設分の古いキャッシュを誤って上書きしないため）
+      const users = (AppState.userMaster || []).filter(u => getUserFacilityId(u) === AppState.currentFacilityId);
       if (users.length === 0) {
         showToast('保存する利用者がマスタに存在しません', 'warning');
         return;
       }
 
-      const confirmed = window.confirm(`📤【スプレッドシートへの一括書き出し】\n\n現在システムに登録されている全 ${users.length} 名の利用者マスタ（氏名・フリガナ・要介護度・負担割合・所属施設）を、Googleスプレッドシートの「利用者マスタ」シートへ全件保存（上書き同期）しますか？\n\n※スプレッドシート側でいつでも一覧確認できるようになります。`);
+      const confirmed = window.confirm(`📤【スプレッドシートへの一括書き出し】\n\n現在の施設「${AppState.facilities?.[AppState.currentFacilityId]?.name || ''}」に登録されている ${users.length} 名の利用者マスタ（氏名・フリガナ・要介護度・負担割合・所属施設）を、Googleスプレッドシートへ全件保存（上書き同期）しますか？\n\n※他の施設のデータには影響しません。`);
       if (!confirmed) return;
 
       showToast(`スプレッドシートへ全${users.length}名を送信中...`, 'info');
@@ -27514,6 +27517,7 @@
 
       const payload = {
         action: 'saveUserMaster',
+        facilityId: AppState.currentFacilityId,
         userMaster: mappedUsers,
         users: mappedUsers
       };
