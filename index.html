@@ -3162,6 +3162,14 @@
       return 'fac_kusunoki';
     }
 
+    // 【複数施設対応】同じ被保険者番号の方が複数施設を利用しているケースに対応するための複合キー。
+    // 「施設ID＋被保険者番号」の組み合わせで利用者を一意に識別する（被保険者番号だけだと、
+    // 2施設目の登録が「重複」とみなされて消えてしまうため）
+    function userCompositeKey(facilityId, userId) {
+      const fId = normalizeFacilityId(facilityId) || 'fac_kusunoki';
+      return fId + '_' + format10DigitId(userId);
+    }
+
     // 【退所判定ヘルパー】対象月において利用終了（退所）済みかどうか判定
     function isUserDischargedInOrBeforeMonth(user, targetMonth) {
       if (!user || !user.isDischarged) return false;
@@ -3182,7 +3190,7 @@
 
       // 1. 月別の明示的保存リストがあれば最優先（ユーザーが「今月の対象者を選択」でチェックした人を100%忠実に採用！）
       if (AppState && AppState.activeUsersByMonth && Array.isArray(AppState.activeUsersByMonth[monthKey])) {
-        return AppState.activeUsersByMonth[monthKey].filter(id => !!findRawUserById(id));
+        return AppState.activeUsersByMonth[monthKey].filter(id => !!findRawUserById(id, fId));
       }
 
       // 2. 当月が未設定の場合：施設に属する現役利用者（退所していない人）を初期リストとする
@@ -3196,7 +3204,7 @@
       // 3. 後方互換性：過去の施設単位アクティブリストがあれば採用
       if (AppState && AppState.activeUsersPerFacility && Array.isArray(AppState.activeUsersPerFacility[fId])) {
         return AppState.activeUsersPerFacility[fId].filter(id => {
-          const raw = findRawUserById(id);
+          const raw = findRawUserById(id, fId);
           return raw && !isUserDischargedInOrBeforeMonth(raw, tMonth);
         });
       }
@@ -3710,17 +3718,24 @@
       return { isYoushien, levelName, dailyRate, isPending };
     }
 
-    function findRawUserById(userId) {
+    // 【複数施設対応】facilityIdを渡すと、その施設に所属する方だけを対象に検索する
+    // （同じ被保険者番号が複数施設にまたがって登録されている場合の取り違えを防ぐ）。
+    // facilityId省略時は従来通りID一致で最初に見つかった方を返す（既存呼び出し元との後方互換）。
+    function findRawUserById(userId, facilityId) {
       if (!userId) return null;
       const cleanTarget = String(userId).trim().replace(/^'/, '');
+      const wantFacId = facilityId ? (normalizeFacilityId(facilityId) || 'fac_kusunoki') : null;
       return AppState.userMaster.find(u => {
         const uClean = String(u.id || '').trim().replace(/^'/, '');
-        return uClean === cleanTarget || uClean.padStart(10, '0') === cleanTarget.padStart(10, '0');
+        const idMatches = uClean === cleanTarget || uClean.padStart(10, '0') === cleanTarget.padStart(10, '0');
+        if (!idMatches) return false;
+        if (wantFacId && getUserFacilityId(u) !== wantFacId) return false;
+        return true;
       }) || null;
     }
 
-    function findUserById(userId, targetMonth = null) {
-      const rawUser = findRawUserById(userId);
+    function findUserById(userId, targetMonth = null, facilityId) {
+      const rawUser = findRawUserById(userId, facilityId);
       if (!rawUser) return null;
       return getEffectiveUser(rawUser, targetMonth);
     }
@@ -20535,7 +20550,9 @@
             let deletedFromCloudCount = 0;
             if (resJson.userMaster && Array.isArray(resJson.userMaster) && resJson.userMaster.length > 0) {
               if (!Array.isArray(AppState.deletedUserIds)) AppState.deletedUserIds = [];
-              const deletedSet = new Set(AppState.deletedUserIds.map(id => format10DigitId(id)));
+              // 【複数施設対応】deletedUserIdsには新形式（施設ID_保険番号の複合キー）と
+              // 旧形式（保険番号単体）が混在しうるため、両方そのままSetに入れて両対応で判定する
+              const deletedSet = new Set(AppState.deletedUserIds);
 
               const incomingUsers = [];
               const cloudUserIds = new Set();
@@ -20544,8 +20561,12 @@
 
               resJson.userMaster.forEach(u => {
                 const uid = format10DigitId(u.id || u[0]);
-                if (!uid || deletedSet.has(uid)) return; // 明示的削除IDは除外
-                cloudUserIds.add(uid);
+                if (!uid) return;
+                // 【複数施設対応】同じ保険番号でも施設が違えば別人として扱うため、複合キーで重複・削除判定する
+                const uFacId = normalizeFacilityId(u.facilityId || u[5]) || 'fac_kusunoki';
+                const uKey = userCompositeKey(uFacId, uid);
+                if (deletedSet.has(uKey) || deletedSet.has(uid)) return; // 複合キー一致、または（後方互換）旧形式のID単体一致を除外
+                cloudUserIds.add(uKey);
                 let nm = ensureHonorific(u.name || u[1]);
 
                 // 【文字化け自己修復辞書フィルター】
@@ -20651,12 +20672,11 @@
                 });
               });
 
-              // 既存ローカルマスタをマップ化
+              // 既存ローカルマスタをマップ化（複数施設対応のため「施設ID＋保険番号」の複合キーで管理）
               const userMap = new Map();
               (AppState.userMaster || []).forEach(u => {
                 if (u.id) {
-                  const uid10 = format10DigitId(u.id);
-                  userMap.set(uid10, u);
+                  userMap.set(userCompositeKey(getUserFacilityId(u), u.id), u);
                 }
               });
 
@@ -20685,18 +20705,20 @@
               // クラウドから届いた最新データをマージ
               incomingUsers.forEach(iu => {
                 if (!iu.id) return;
-                const existing = userMap.get(iu.id);
+                // 【複数施設対応】以降の照合・保護マップは全て「施設ID＋保険番号」の複合キーで扱う
+                const iuKey = userCompositeKey(iu.facilityId, iu.id);
+                const existing = userMap.get(iuKey);
 
                 // 【ローカル即時編集の保護】このPCで直近60秒以内に編集・保存された利用者は、クラウド側の反映タイムラグによる巻き戻りを防止
                 // （※ratio/careLevelだけでなく、編集した全項目を対象にする。氏名・フリガナ・所属施設・認定履歴等だけを変更した
                 // 場合にratio/careLevelの一致判定だけで保護が解除され、クラウド側の古い値に巻き戻るのを防ぐため）
                 let recentLocalEntry = null;
-                if (window._recentLocallyEditedUsers && window._recentLocallyEditedUsers.has(iu.id)) {
-                  const localEntry = window._recentLocallyEditedUsers.get(iu.id);
+                if (window._recentLocallyEditedUsers && window._recentLocallyEditedUsers.has(iuKey)) {
+                  const localEntry = window._recentLocallyEditedUsers.get(iuKey);
                   if (now - localEntry.editedAt < 60000) {
                     recentLocalEntry = localEntry.user;
                   } else {
-                    window._recentLocallyEditedUsers.delete(iu.id);
+                    window._recentLocallyEditedUsers.delete(iuKey);
                   }
                 }
 
@@ -20739,12 +20761,12 @@
                 if (existing) {
                   // 【退所状態の保護】ローカルで退所操作後、まだスプレッドシート保存が確認できていない間は
                   // クラウド側の古い値で上書きせず、ローカルの退所状態を優先する
-                  const pendingSince = window._pendingDischargeOverrides && window._pendingDischargeOverrides[iu.id];
+                  const pendingSince = window._pendingDischargeOverrides && window._pendingDischargeOverrides[iuKey];
                   const hasPendingDischargeOverride = !!pendingSince && (Date.now() - pendingSince < 600000); // 10分で安全に失効
                   const lu = recentLocalEntry; // 直近60秒以内のローカル編集値（あれば最優先）
                   const luCareHist = lu && Array.isArray(lu.careHistory) && lu.careHistory.length > 0 ? lu.careHistory : null;
                   const luRatioHist = lu && Array.isArray(lu.ratioHistory) && lu.ratioHistory.length > 0 ? lu.ratioHistory : null;
-                  userMap.set(iu.id, {
+                  userMap.set(iuKey, {
                     ...existing,
                     name: lu ? (lu.name || existing.name) : (iu.name || existing.name),
                     kana: lu ? (lu.kana || existing.kana) : (iu.kana || existing.kana || guessKanaFromName(iu.name)),
@@ -20769,7 +20791,7 @@
                   iu.careEndDate = iu.careEndDate || '';
                   iu.ratioStartDate = iu.ratioStartDate || '';
                   iu.ratioEndDate = iu.ratioEndDate || '';
-                  userMap.set(iu.id, iu);
+                  userMap.set(iuKey, iu);
                   newFromCloudCount++;
                 }
               });
@@ -21173,7 +21195,12 @@
       try {
         if (!Array.isArray(AppState.userMaster)) AppState.userMaster = [];
         if (!Array.isArray(AppState.deletedUserIds)) AppState.deletedUserIds = [];
-        const deletedSet = new Set((AppState.deletedUserIds || []).map(id => format10DigitId(id)));
+        // 【複数施設対応】新形式（複合キー）・旧形式（ID単体）の両方を見る
+        const deletedSet = new Set(AppState.deletedUserIds);
+        const isDeletedFor = (facilityId, userId) => {
+          const bare = format10DigitId(userId);
+          return deletedSet.has(bare) || deletedSet.has(userCompositeKey(facilityId, userId));
+        };
 
         // すでに利用者が存在するか、一度でもマスタ操作（削除など）が行われて初期化済みの場合は
         // 削除済み利用者の勝手な復活を絶対に防止する
@@ -21181,11 +21208,11 @@
         if (isAlreadyInitialized) {
           // 削除済み利用者が万が一残っていればクリーンアップ
           if (deletedSet.size > 0) {
-            AppState.userMaster = AppState.userMaster.filter(u => !deletedSet.has(format10DigitId(u.id)));
+            AppState.userMaster = AppState.userMaster.filter(u => !isDeletedFor(getUserFacilityId(u), u.id));
             if (AppState.activeUsersPerFacility && typeof AppState.activeUsersPerFacility === 'object') {
               Object.keys(AppState.activeUsersPerFacility).forEach(fid => {
                 if (Array.isArray(AppState.activeUsersPerFacility[fid])) {
-                  AppState.activeUsersPerFacility[fid] = AppState.activeUsersPerFacility[fid].filter(id => !deletedSet.has(format10DigitId(id)));
+                  AppState.activeUsersPerFacility[fid] = AppState.activeUsersPerFacility[fid].filter(id => !isDeletedFor(fid, id));
                 }
               });
             }
@@ -21198,7 +21225,8 @@
         let addedCount = 0;
         INITIAL_MASTER_USERS.forEach(defUser => {
           const uid10 = format10DigitId(defUser.id);
-          if (!existingUserIds.has(uid10) && !deletedSet.has(uid10)) {
+          const defFacId = normalizeFacilityId(defUser.facilityId) || 'fac_kusunoki';
+          if (!existingUserIds.has(uid10) && !isDeletedFor(defFacId, uid10)) {
             AppState.userMaster.push(JSON.parse(JSON.stringify(defUser)));
             existingUserIds.add(uid10);
             addedCount++;
@@ -21210,7 +21238,7 @@
         }
         ['fac_kusunoki', 'fac_sakura', 'fac_short_mirai', 'fac_mirai_nakaoka'].forEach(fid => {
           if (!AppState.activeUsersPerFacility[fid] || !Array.isArray(AppState.activeUsersPerFacility[fid]) || AppState.activeUsersPerFacility[fid].length === 0) {
-            AppState.activeUsersPerFacility[fid] = (INITIAL_ACTIVE_USERS[fid] ? [...INITIAL_ACTIVE_USERS[fid]] : []).filter(id => !deletedSet.has(format10DigitId(id)));
+            AppState.activeUsersPerFacility[fid] = (INITIAL_ACTIVE_USERS[fid] ? [...INITIAL_ACTIVE_USERS[fid]] : []).filter(id => !isDeletedFor(fid, id));
           }
         });
 
@@ -21741,7 +21769,7 @@
       const targetM = AppState.targetMonth || '2026-07';
       const rawActiveUserIds = getActiveUserIds(AppState.currentFacilityId, targetM);
       const activeUserIds = rawActiveUserIds.filter(uId => {
-        const user = findUserById(uId);
+        const user = findUserById(uId, null, AppState.currentFacilityId);
         const recKey = `${AppState.currentFacilityId}_${targetM}_${uId}`;
         const userRec = AppState.records[recKey];
         const isPending = !!(userRec?.isPending ?? user?.isPendingCareLevel ?? user?.isPending);
@@ -21821,7 +21849,7 @@
       if (comparisonTableBody) comparisonTableBody.innerHTML = '';
 
       activeUserIds.forEach(uId => {
-        const user = findUserById(uId);
+        const user = findUserById(uId, null, AppState.currentFacilityId);
         if (!user) return;
 
         const recKey = `${AppState.currentFacilityId}_${targetM}_${uId}`;
@@ -22207,7 +22235,7 @@
       for (let i = 0; i < userSelect.options.length; i++) {
         const opt = userSelect.options[i];
         if (!opt.value) continue;
-        const u = findUserById(opt.value);
+        const u = findUserById(opt.value, null, AppState.currentFacilityId);
         if (u) {
           targetUsers.push(u);
         } else {
@@ -22383,7 +22411,7 @@
         }
       }
       closeUserSearchModal();
-      const user = findUserById(userId);
+      const user = findUserById(userId, null, AppState.currentFacilityId);
       if (user && typeof showToast === 'function') {
         showToast(`👤 ${user.name} 様の実績入力画面に切り替えました`, 'success');
       }
@@ -22613,7 +22641,7 @@
 
       let validUsers = [];
       activeUserIds.forEach(uId => {
-        const u = findUserById(uId, AppState.targetMonth);
+        const u = findUserById(uId, AppState.targetMonth, AppState.currentFacilityId);
         if (u) {
           validUsers.push(u);
         }
@@ -22756,7 +22784,7 @@
         chkDischargeInfo.checked = (serviceType === '有料ホーム') && !!existingRec.useDischargeInfo;
       }
 
-      const currentUser = findUserById(userId);
+      const currentUser = findUserById(userId, null, AppState.currentFacilityId);
       const chkUserExempt = document.getElementById('chkUserExempt');
       if (chkUserExempt) {
         chkUserExempt.checked = !!(existingRec.isExempt ?? currentUser?.isExempt);
@@ -23127,7 +23155,7 @@
       card.style.opacity = isUse ? '1' : '0.6';
 
       const userSelect = document.getElementById('inputUserSelect');
-      const user = userSelect ? findUserById(userSelect.value) : null;
+      const user = userSelect ? findUserById(userSelect.value, null, AppState.currentFacilityId) : null;
       const isNoTransport = !!user?.noTransport;
 
       const pickChk = document.getElementById(`pick_${day}`);
@@ -23182,7 +23210,7 @@
           card.className = `day-card ${shouldBeActive ? 'active-day' : ''}`;
           card.style.opacity = shouldBeActive ? '1' : '0.6';
 
-          const quickUser = findUserById(document.getElementById('inputUserSelect')?.value);
+          const quickUser = findUserById(document.getElementById('inputUserSelect')?.value, null, AppState.currentFacilityId);
           const isNoTransport = !!quickUser?.noTransport;
           const pickChk = document.getElementById(`pick_${d}`);
           const dropChk = document.getElementById(`drop_${d}`);
@@ -23220,7 +23248,7 @@
       const userSelect = document.getElementById('inputUserSelect');
       if (!userSelect || !userSelect.value) return;
 
-      const user = findUserById(userSelect.value);
+      const user = findUserById(userSelect.value, null, AppState.currentFacilityId);
       if (!user || !user.scheduleDays || !Array.isArray(user.scheduleDays) || user.scheduleDays.length === 0) {
         showToast('この利用者には登録利用枠が設定されていません', 'warning');
         return;
@@ -23292,7 +23320,7 @@
         }
         if (!userId) return;
 
-        const user = findUserById(userId);
+        const user = findUserById(userId, null, AppState.currentFacilityId);
         if (!user) return;
 
       const currentFac = AppState.facilities[AppState.currentFacilityId] || {};
@@ -23561,7 +23589,7 @@
       if (!userSelect || !userSelect.value) return;
 
       const userId = userSelect.value;
-      const user = findUserById(userId);
+      const user = findUserById(userId, null, AppState.currentFacilityId);
       const fac = AppState.facilities[AppState.currentFacilityId] || {};
       const serviceType = fac.type || '有料ホーム';
 
@@ -23955,7 +23983,7 @@
       if (!userSelect || !userSelect.value) return;
 
       const userId = userSelect.value;
-      const user = findUserById(userId);
+      const user = findUserById(userId, null, AppState.currentFacilityId);
       const fac = AppState.facilities[AppState.currentFacilityId] || {};
       const serviceType = fac.type || '有料ホーム';
       const daysInMonth = getDaysInTargetMonth(AppState.targetMonth);
@@ -24525,7 +24553,7 @@
       if (!userSelect || !userSelect.value) return;
 
       const userId = userSelect.value;
-      const user = findUserById(userId);
+      const user = findUserById(userId, null, AppState.currentFacilityId);
       const fac = AppState.facilities[AppState.currentFacilityId] || {};
       const serviceType = fac.type || '有料ホーム';
       const careInfo = getUserCareInfo(user, serviceType);
@@ -24805,7 +24833,7 @@
 
       let saveOralCount = 0;
       if (isDayService) {
-        const uObj = findUserById(userId);
+        const uObj = findUserById(userId, null, AppState.currentFacilityId);
         const careInfo = getUserCareInfo(uObj, serviceType);
         if (careInfo.isYoushien) {
           saveOralCount = document.getElementById('chkOralTrainingYoushien')?.checked ? 1 : 0;
@@ -24893,7 +24921,7 @@
       }
 
       AppState.records[recKey] = recordObj;
-      const matchedUser = findUserById(userId);
+      const matchedUser = findUserById(userId, null, AppState.currentFacilityId);
       if (matchedUser) {
         matchedUser.isExempt = recordObj.isExempt;
         matchedUser.isPendingCareLevel = recordObj.isPending;
@@ -24933,7 +24961,7 @@
       const activeUserIds = getActiveUserIds(AppState.currentFacilityId, targetM);
       let validUsers = [];
       activeUserIds.forEach(uId => {
-        const u = findUserById(uId, targetM);
+        const u = findUserById(uId, targetM, AppState.currentFacilityId);
         if (u) validUsers.push(u);
       });
       if (validUsers.length === 0) {
@@ -25288,7 +25316,7 @@
       const engine = CareEngines[serviceType] || CareEngines['有料ホーム'];
       const rawActiveUserIds = getActiveUserIds(AppState.currentFacilityId, targetM);
       const activeUserIds = rawActiveUserIds.filter(uId => {
-        const user = findUserById(uId);
+        const user = findUserById(uId, null, AppState.currentFacilityId);
         const recKey = `${AppState.currentFacilityId}_${targetM}_${uId}`;
         const userRec = AppState.records[recKey];
         const isPending = !!(userRec?.isPending ?? user?.isPendingCareLevel ?? user?.isPending);
@@ -25324,7 +25352,7 @@
       let validUserIndex = 0;
 
       activeUserIds.forEach(uId => {
-        const user = findUserById(uId);
+        const user = findUserById(uId, null, AppState.currentFacilityId);
         if (!user) return;
         validUserIndex++;
 
@@ -26058,7 +26086,7 @@
       const id10 = format10DigitId(editIdEl.value);
       if (!id10) return;
 
-      const rawUser = findRawUserById(id10);
+      const rawUser = findRawUserById(id10, AppState.currentFacilityId);
       if (!rawUser) return;
 
       // 1. 履歴データの即時クローン保存
@@ -26088,7 +26116,7 @@
 
       // 4. 直近編集マップ登録＆スプレッドシートへ即時同期
       window._recentLocallyEditedUsers = window._recentLocallyEditedUsers || new Map();
-      window._recentLocallyEditedUsers.set(id10, { user: { ...rawUser }, editedAt: Date.now() });
+      window._recentLocallyEditedUsers.set(userCompositeKey(getUserFacilityId(rawUser), id10), { user: { ...rawUser }, editedAt: Date.now() });
       syncSingleUserMasterToGas(rawUser);
 
       // 5. 背景の一覧画面も最新の有効期限・介護度で即時再描画
@@ -26495,8 +26523,9 @@
       }
 
       document.getElementById('editModalHeaderTitle').textContent = `➕ 新規利用者の登録（${curFacName}）`;
-      // 【重要】直前に別の利用者を編集していた場合のID残留を防止（残留すると保存時に別人のデータを上書きしてしまう）
+      // 【重要】直前に別の利用者を編集していた場合のID・施設の残留を防止（残留すると保存時に別人のデータを上書きしてしまう）
       window._currentEditingOriginalUserId = null;
+      window._currentEditingOriginalFacilityId = null;
       document.getElementById('modalEditId').value = '';
       document.getElementById('modalEditName').value = '';
       const kanaAddEl = document.getElementById('modalEditKana');
@@ -26552,12 +26581,13 @@
 
     function openEditUserModal(userId) {
       setupBirthInputListenersOnce();
-      const rawUser = findRawUserById(userId);
+      const rawUser = findRawUserById(userId, AppState.currentFacilityId);
       if (!rawUser) return;
-      const user = findUserById(userId);
+      const user = findUserById(userId, null, AppState.currentFacilityId);
 
-      // 元のIDを保持（ID編集時の安全な追跡用）
+      // 元のID・元の施設を保持（ID編集時・施設変更時の安全な追跡用）
       window._currentEditingOriginalUserId = user.id;
+      window._currentEditingOriginalFacilityId = getUserFacilityId(rawUser);
 
       const currentFac = AppState.facilities[AppState.currentFacilityId] || {};
       const serviceType = currentFac.type || '有料ホーム';
@@ -27312,13 +27342,14 @@
 
       saveUserMasterBackup(); // 取込直前の自動バックアップ
 
-      // 削除済みリストから解除（再登録・取込を許可）
+      // 削除済みリストから解除（再登録・取込を許可）。新形式（複合キー）・旧形式（ID単体）の両方を解除する
       if (Array.isArray(AppState.deletedUserIds)) {
         const addedIds = new Set([
           ...newUsers.map(u => format10DigitId(u.id)),
           ...updateUsers.map(u => format10DigitId(u.candidate?.id || u.existing?.id))
         ]);
-        AppState.deletedUserIds = AppState.deletedUserIds.filter(did => !addedIds.has(format10DigitId(did)));
+        const addedKeys = new Set(Array.from(addedIds).map(id => userCompositeKey(curFacId, id)));
+        AppState.deletedUserIds = AppState.deletedUserIds.filter(did => !addedIds.has(format10DigitId(did)) && !addedKeys.has(did));
       }
 
       // 1. 重複（更新）利用者の反映 ＆ 【全自動履歴生成・同期】
@@ -27530,7 +27561,7 @@
         }, 5000);
         // 【退所状態の保護】スプレッドシートへの保存が確認できたら、ローカル優先の保護を解除する
         if (ok && window._pendingDischargeOverrides) {
-          delete window._pendingDischargeOverrides[u.id];
+          delete window._pendingDischargeOverrides[userCompositeKey(getUserFacilityId(u), u.id)];
         }
         if (typeof callback === 'function') callback(ok);
       });
@@ -27694,13 +27725,18 @@
       }
 
       const origId = window._currentEditingOriginalUserId || id;
+      // 【複数施設対応】編集を開始した時点の元の施設（施設を変更して保存した場合でも、
+      // 既存行を正しく見つけるために「開始時点の施設」を使う。新規登録時はnullなので保存先施設で代用）
       const editFacilityEl = document.getElementById('modalEditFacility');
       const targetFacilityId = editFacilityEl ? (normalizeFacilityId(editFacilityEl.value) || AppState.currentFacilityId) : (AppState.currentFacilityId || 'fac_kusunoki');
+      const origFacilityId = window._currentEditingOriginalFacilityId || targetFacilityId;
 
-      // 既存利用者の特定（元IDまたは新ID）
-      let existingIndex = AppState.userMaster.findIndex(u => format10DigitId(u.id) === format10DigitId(origId));
+      // 既存利用者の特定（元ID＋元の施設、または新ID＋保存先施設）
+      // 【複数施設対応】同じ保険番号が他施設にも登録されている場合に誤って同一人物と判定しないよう、
+      // 施設が一致する場合のみ既存とみなす
+      let existingIndex = AppState.userMaster.findIndex(u => format10DigitId(u.id) === format10DigitId(origId) && getUserFacilityId(u) === origFacilityId);
       if (existingIndex < 0) {
-        existingIndex = AppState.userMaster.findIndex(u => format10DigitId(u.id) === id);
+        existingIndex = AppState.userMaster.findIndex(u => format10DigitId(u.id) === id && getUserFacilityId(u) === targetFacilityId);
       }
 
       // 認定要介護度 ＆ 負担割合 各改定履歴の保存データ確定
@@ -27931,10 +27967,11 @@
         });
       }
 
-      // 削除済みリストから解除（再登録・情報変更を許可）
+      // 削除済みリストから解除（再登録・情報変更を許可）。新形式（複合キー）・旧形式（ID単体）の両方を解除する
       if (Array.isArray(AppState.deletedUserIds)) {
         const id10 = format10DigitId(id);
-        AppState.deletedUserIds = AppState.deletedUserIds.filter(did => format10DigitId(did) !== id10);
+        const key10 = userCompositeKey(targetFacilityId, id10);
+        AppState.deletedUserIds = AppState.deletedUserIds.filter(did => format10DigitId(did) !== id10 && did !== key10);
       }
 
       const wasNewRegistration = existingIndex < 0;
@@ -27968,10 +28005,10 @@
       }
 
       // 直近ローカル編集マップに登録（照合ダッシュボードや定期同期での上書き巻き戻りを完全にブロック）
-      const updatedUserObj = findUserById(id) || AppState.userMaster.find(u => format10DigitId(u.id) === id);
+      const updatedUserObj = findUserById(id, null, targetFacilityId) || AppState.userMaster.find(u => format10DigitId(u.id) === id && getUserFacilityId(u) === targetFacilityId);
       if (updatedUserObj) {
         window._recentLocallyEditedUsers = window._recentLocallyEditedUsers || new Map();
-        window._recentLocallyEditedUsers.set(id, { user: { ...updatedUserObj }, editedAt: Date.now() });
+        window._recentLocallyEditedUsers.set(userCompositeKey(targetFacilityId, id), { user: { ...updatedUserObj }, editedAt: Date.now() });
         // ピンポイント即時クラウド書き換え（1〜2秒でスプレッドシートの行を更新）
         syncSingleUserMasterToGas(updatedUserObj);
       }
@@ -27981,7 +28018,11 @@
     }
 
     function deleteUserMaster(userId) {
-      const user = findUserById(userId);
+      // 【複数施設対応】削除ボタンは常に現在表示中の施設の一覧から押されるため、
+      // 対象施設は被保険者番号単体ではなく「今ログイン中の施設」で確定する
+      // （同じ被保険者番号が他施設にも登録されている場合に、そちらまで消さないため）
+      const targetFacilityId = AppState.currentFacilityId || 'fac_kusunoki';
+      const user = AppState.userMaster.find(u => format10DigitId(u.id) === format10DigitId(userId) && getUserFacilityId(u) === targetFacilityId) || findUserById(userId);
       const userName = user ? user.name : 'この利用者';
       const confirmed = window.confirm(`⚠️【利用者の削除確認】\n\n利用者「${userName}」を本当にマスタから削除しますか？\n\n※誤って削除ボタンを押した場合は「キャンセル」を押してください。\n※「OK」を押した場合でも、直前の自動バックアップから復元可能です。`);
       if (!confirmed) return;
@@ -27997,17 +28038,19 @@
       });
 
       // 1. 削除済みIDリストに記録（クラウド同期やページ再読み込みによる勝手な復活を100%防止）
+      // 【複数施設対応】施設ID＋保険番号の複合キーで記録し、他施設の同一保険番号には影響させない
       if (!Array.isArray(AppState.deletedUserIds)) AppState.deletedUserIds = [];
-      if (!AppState.deletedUserIds.includes(uid10)) {
-        AppState.deletedUserIds.push(uid10);
+      const deletedKey = userCompositeKey(targetFacilityId, uid10);
+      if (!AppState.deletedUserIds.includes(deletedKey)) {
+        AppState.deletedUserIds.push(deletedKey);
       }
 
-      // 2. 利用者マスタから完全削除
-      AppState.userMaster = (AppState.userMaster || []).filter(u => format10DigitId(u.id) !== uid10);
+      // 2. 利用者マスタから完全削除（同じ被保険者番号が他施設にもある場合、その施設分は残す）
+      AppState.userMaster = (AppState.userMaster || []).filter(u => !(format10DigitId(u.id) === uid10 && getUserFacilityId(u) === targetFacilityId));
 
-      // 3. 各施設の所属利用者IDリストも同期
+      // 3. 削除対象施設の所属利用者IDリストのみ同期（他施設の同一IDは触らない）
       if (AppState.facilities && typeof AppState.facilities === 'object') {
-        Object.keys(AppState.facilities).forEach(fId => {
+        [targetFacilityId].forEach(fId => {
           if (AppState.activeUsersPerFacility && Array.isArray(AppState.activeUsersPerFacility[fId])) {
             AppState.activeUsersPerFacility[fId] = AppState.activeUsersPerFacility[fId].filter(id => format10DigitId(id) !== uid10);
           }
@@ -28020,7 +28063,7 @@
 
       // 4. クラウド自動同期（Googleスプレッドシートから該当行を即時物理削除し、他PCにも削除を同期）
       if (AppState.gasUrl && AppState.gasUrl.includes('script.google.com')) {
-        sendGasPostRequest({ action: 'deleteUserMaster', userId: uid10 }, (ok) => {
+        sendGasPostRequest({ action: 'deleteUserMaster', userId: uid10, facilityId: targetFacilityId }, (ok) => {
           console.log(`[CloudSync] 利用者「${userName}」(ID: ${uid10})の行削除リクエストを送信しました (結果: ${ok})`);
         });
       }
@@ -28126,7 +28169,7 @@
           <td class="p-2"><span class="text-xs font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200">${facName}</span></td>
           <td class="p-2 text-[11px]">${recText}</td>
           <td class="p-2">
-            <select class="text-xs p-1 border rounded font-bold" onchange="changeUserFacilityDirectly('${u.id}', this.value)">
+            <select class="text-xs p-1 border rounded font-bold" onchange="changeUserFacilityDirectly('${u.id}', this.value, '${uFacId}')">
               <option value="fac_kusunoki" ${uFacId === 'fac_kusunoki' ? 'selected' : ''}>有料老人ホームくすの木</option>
               <option value="fac_sakura" ${uFacId === 'fac_sakura' ? 'selected' : ''}>グループホーム桜</option>
               <option value="fac_mirai_nakaoka" ${uFacId === 'fac_mirai_nakaoka' ? 'selected' : ''}>デイサービス未来中岡</option>
@@ -28138,8 +28181,10 @@
       });
     }
 
-    function changeUserFacilityDirectly(userId, targetFacId) {
-      const u = findUserById(userId);
+    // 【複数施設対応】sourceFacilityIdで「どの施設の、どの登録を」動かすかを明示する
+    // （同じ保険番号が複数施設に登録されていても取り違えないため）
+    function changeUserFacilityDirectly(userId, targetFacId, sourceFacilityId) {
+      const u = sourceFacilityId ? findRawUserById(userId, sourceFacilityId) : findUserById(userId);
       if (!u) return;
       const newFacName = AppState.facilities[targetFacId]?.name || '新施設';
 
@@ -28171,7 +28216,8 @@
 
       Object.keys(AppState.activeUsersPerFacility || {}).forEach(fId => {
         AppState.activeUsersPerFacility[fId] = (AppState.activeUsersPerFacility[fId] || []).filter(uId => {
-          return AppState.userMaster.some(u => format10DigitId(u.id) === format10DigitId(uId));
+          // 【複数施設対応】同じ被保険者番号が他施設にだけ存在する場合はこの施設の在籍とみなさない
+          return AppState.userMaster.some(u => format10DigitId(u.id) === format10DigitId(uId) && getUserFacilityId(u) === fId);
         });
       });
 
@@ -29011,12 +29057,14 @@
       AppState.userMaster.forEach(u => {
         const id = format10DigitId(u.id);
         if (!id) return;
+        // 【複数施設対応】同じ被保険者番号でも施設が違えば別人の登録として扱う
+        const key = userCompositeKey(getUserFacilityId(u), id);
         const formattedName = ensureHonorific(u.name);
-        if (!map.has(id)) {
-          map.set(id, { ...u, id: id, name: formattedName });
+        if (!map.has(key)) {
+          map.set(key, { ...u, id: id, name: formattedName });
         } else {
-          const existing = map.get(id);
-          map.set(id, {
+          const existing = map.get(key);
+          map.set(key, {
             id: id,
             name: formattedName || existing.name,
             kana: u.kana || existing.kana || guessKanaFromName(formattedName || existing.name) || '',
@@ -29961,17 +30009,21 @@
         }
 
         // 2. マスタとの照合（被保険者番号、内部枝番、または氏名による自動照合）
+        // 【複数施設対応】この取込は常に現在ログイン中の施設向けなので、他施設の同一保険番号・同姓同名と
+        // 取り違えないよう、現在の施設に所属する利用者だけを照合対象にする
+        const curFacIdForImport = AppState.currentFacilityId || 'fac_kusunoki';
         rawRecords.forEach(rec => {
-          let matchedUser = rec.id ? findUserById(rec.id) : null;
+          let matchedUser = rec.id ? findUserById(rec.id, null, curFacIdForImport) : null;
           if (!matchedUser && rec.name) {
             const cleanRecName = normalizeKanjiForMatch(rec.name);
             matchedUser = AppState.userMaster.find(u => {
+              if (getUserFacilityId(u) !== curFacIdForImport) return false;
               const uCleanName = normalizeKanjiForMatch(u.name);
               return uCleanName && (uCleanName === cleanRecName || cleanRecName.includes(uCleanName) || uCleanName.includes(cleanRecName));
             });
           }
           if (!matchedUser && rec.id) {
-            matchedUser = AppState.userMaster.find(u => u.id === rec.id || String(u.id).endsWith(rec.id));
+            matchedUser = AppState.userMaster.find(u => getUserFacilityId(u) === curFacIdForImport && (u.id === rec.id || String(u.id).endsWith(rec.id)));
           }
 
           if (matchedUser) {
@@ -30087,7 +30139,7 @@
       const list = [];
 
       activeUserIds.forEach(uId => {
-        const user = findUserById(uId);
+        const user = findUserById(uId, null, AppState.currentFacilityId);
         if (!user) return;
         const recKey = `${AppState.currentFacilityId}_${targetM}_${uId}`;
         const soft = AppState.softwareData[recKey];
@@ -30277,7 +30329,7 @@
       tbody.innerHTML = '';
 
       const activeUserIds = AppState.activeUsersPerFacility[AppState.currentFacilityId] || [];
-      const usersInFac = activeUserIds.map(uId => findUserById(uId)).filter(Boolean);
+      const usersInFac = activeUserIds.map(uId => findUserById(uId, null, AppState.currentFacilityId)).filter(Boolean);
 
       if (currentUnmatchedRecords.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-500 font-bold">未突合の被保険者番号はありません（全員突合済みです）</td></tr>`;
@@ -30330,7 +30382,7 @@
         return;
       }
 
-      const targetUser = findUserById(targetUserId);
+      const targetUser = findUserById(targetUserId, null, AppState.currentFacilityId);
       if (!targetUser) {
         showToast('選択された利用者が見つかりませんでした', 'error');
         return;
@@ -30466,7 +30518,7 @@
 
       if (activeUserIds.length > 0) {
         activeUserIds.forEach(uId => {
-          const user = findUserById(uId);
+          const user = findUserById(uId, null, AppState.currentFacilityId);
           if (user) {
             csvContent += `"${user.id}","${user.name.replace(/"/g, '""')}","24500","120000","31"\r\n`;
           }
@@ -30737,7 +30789,7 @@
 
         AppState.records[recKey] = recordObj;
 
-        const user = findUserById(uId);
+        const user = findUserById(uId, null, AppState.currentFacilityId);
         const extraAdditions = {
           linkageCount: 0,
           useDischargeInfo: (serviceType === '有料ホーム') && !!recordObj.useDischargeInfo,
@@ -30775,17 +30827,19 @@
     // ==========================================
 
     // 退所ステータスの共通設定ヘルパー
-    function setDischargedStatus(userId, isDischarged, dischargedAt = '', reason = '') {
+    // 【複数施設対応】facilityId省略時は現在ログイン中の施設を対象にする（同じ保険番号が他施設にもある場合の取り違え防止）
+    function setDischargedStatus(userId, isDischarged, dischargedAt = '', reason = '', facilityId) {
       if (!userId) return false;
       const id10 = format10DigitId(userId);
-      const rawUser = findRawUserById(id10);
+      const targetFacId = facilityId || AppState.currentFacilityId || 'fac_kusunoki';
+      const rawUser = findRawUserById(id10, targetFacId) || findRawUserById(id10);
       if (!rawUser) return false;
 
       rawUser.isDischarged = !!isDischarged;
       rawUser.dischargedAt = isDischarged ? (dischargedAt || (typeof getCurrentDateString === 'function' ? getCurrentDateString() : new Date().toISOString().split('T')[0])) : '';
       // 【退所状態の保護】スプレッドシートへの保存が確認できるまで、この利用者の退所状態はクラウド側の古い値で上書きしない
       if (!window._pendingDischargeOverrides) window._pendingDischargeOverrides = {};
-      window._pendingDischargeOverrides[id10] = Date.now();
+      window._pendingDischargeOverrides[userCompositeKey(getUserFacilityId(rawUser), id10)] = Date.now();
       rawUser.dischargeReason = isDischarged ? (reason || '利用終了') : '';
 
       const curFacId = getUserFacilityId(rawUser);
@@ -30851,7 +30905,7 @@
       const nameEl = document.getElementById('modalEditName');
       if (!editIdEl || !editIdEl.value) return;
       const userId = editIdEl.value;
-      const rawUser = findRawUserById(userId);
+      const rawUser = findRawUserById(userId, AppState.currentFacilityId);
       const userName = rawUser ? rawUser.name : (nameEl?.value || 'この利用者');
 
       _dischargeConfirmUserId = userId;
@@ -30898,7 +30952,7 @@
     function confirmDischargeFromModal() {
       if (!_dischargeConfirmUserId) return;
       const userId = _dischargeConfirmUserId;
-      const rawUser = findRawUserById(userId);
+      const rawUser = findRawUserById(userId, AppState.currentFacilityId);
       const userName = rawUser ? rawUser.name : 'この利用者';
 
       const defaultDate = (typeof getCurrentDateString === 'function') ? getCurrentDateString() : new Date().toISOString().split('T')[0];
@@ -31008,7 +31062,7 @@
 
     // 終了者BOXから利用再開（通常マスタ復帰）
     function restoreDischargedUser(userId) {
-      const rawUser = findRawUserById(userId);
+      const rawUser = findRawUserById(userId, AppState.currentFacilityId);
       if (!rawUser) return;
       if (!window.confirm(`↩️【利用再開（マスタ復帰）の確認】\n\n「${rawUser.name}」の利用を再開し、通常の一覧マスタへ復帰させますか？\n（※通常の一覧テーブルや当月入力画面に再表示されるようになります）`)) {
         return;
@@ -31020,7 +31074,7 @@
 
     // 終了者BOXからの完全物理削除（管理者用）
     function permanentlyDeleteUserFromBox(userId) {
-      const rawUser = findRawUserById(userId);
+      const rawUser = findRawUserById(userId, AppState.currentFacilityId);
       if (!rawUser) return;
       if (!window.confirm(`⚠️⚠️⚠️【完全削除の警告】\n\n「${rawUser.name}」のデータを完全に削除しますか？\n\n※この操作を実行すると、基本情報や履歴データが完全に消去されます。\n（通常は終了者BOXに入れたままで安全に保管されます）\n\n本当に完全に削除してよろしいですか？`)) {
         return;
