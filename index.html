@@ -26496,6 +26496,8 @@
       }
 
       document.getElementById('editModalHeaderTitle').textContent = `➕ 新規利用者の登録（${curFacName}）`;
+      // 【重要】直前に別の利用者を編集していた場合のID残留を防止（残留すると保存時に別人のデータを上書きしてしまう）
+      window._currentEditingOriginalUserId = null;
       document.getElementById('modalEditId').value = '';
       document.getElementById('modalEditName').value = '';
       const kanaAddEl = document.getElementById('modalEditKana');
