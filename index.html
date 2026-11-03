@@ -25668,6 +25668,7 @@
         }
 
         const tr = document.createElement('tr');
+        tr.id = 'userMasterRow_' + format10DigitId(u.id);
         tr.innerHTML = `
           <td class="font-bold font-mono">${format10DigitId(u.id)}</td>
           <td class="font-bold text-slate-900">
@@ -27936,6 +27937,8 @@
         AppState.deletedUserIds = AppState.deletedUserIds.filter(did => format10DigitId(did) !== id10);
       }
 
+      const wasNewRegistration = existingIndex < 0;
+
       deduplicateUserMaster();
       Object.keys(AppState.facilities).forEach(fId => {
         const fUsers = AppState.userMaster.filter(u => getUserFacilityId(u) === fId);
@@ -27945,7 +27948,24 @@
       saveStateToLocalStorage();
       closeEditUserModal();
       renderAllViews();
-      showToast('利用者マスタを更新・保存しました', 'success');
+      showToast(wasNewRegistration ? `✅「${name}」を新規登録しました（一覧の該当行までスクロールします）` : '利用者マスタを更新・保存しました', 'success');
+
+      // 【新規登録時のみ】大人数の一覧に埋もれて「追加されたのに見つからない」と感じないよう、
+      // 保存した本人の行まで自動スクロールし、一時的にハイライト表示する
+      if (wasNewRegistration) {
+        setTimeout(() => {
+          const row = document.getElementById('userMasterRow_' + format10DigitId(id));
+          if (row) {
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            row.style.transition = 'background-color 0.3s ease';
+            row.style.backgroundColor = '#fef08a';
+            setTimeout(() => {
+              row.style.backgroundColor = '';
+              setTimeout(() => { row.style.transition = ''; }, 1500);
+            }, 2500);
+          }
+        }, 150);
+      }
 
       // 直近ローカル編集マップに登録（照合ダッシュボードや定期同期での上書き巻き戻りを完全にブロック）
       const updatedUserObj = findUserById(id) || AppState.userMaster.find(u => format10DigitId(u.id) === id);
