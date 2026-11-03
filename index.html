@@ -1079,6 +1079,7 @@
             <button id="quickFillOutDaysBtn" onclick="quickFillCalendar('all_out')" class="btn btn-sm btn-warning bg-amber-600 hover:bg-amber-700 text-white font-bold shadow-sm">⚡ 全日未利用選択</button>
             <button id="quickFillHospitalBtn" onclick="quickFillCalendar('all_hospital')" class="btn btn-sm text-white font-bold shadow-sm hidden" style="background-color:#9333ea;">🏥 全日入院・外出</button>
             <button id="quickClearAllBtn" onclick="quickFillCalendar('clear')" class="btn btn-sm btn-secondary bg-slate-600 hover:bg-slate-700 text-white font-bold shadow-sm">🧹 全選択クリア</button>
+            <button id="bulkFillAllUsersBtn" onclick="bulkFillAllDaysForActiveUsers()" class="btn btn-sm text-white font-bold shadow-sm hidden" style="background-color:#0f766e;" title="今月まだ実績が未入力の利用者「全員」を、全日利用でまとめて設定します（既に入力済みの方は変更しません）">⚡👥 全員まとめて全日利用選択</button>
             <button id="applyUserScheduleBtn" onclick="applyUserScheduleToCalendar()" class="btn btn-sm btn-primary bg-indigo-600 hover:bg-indigo-700 text-white font-bold hidden shadow-sm">⚡ 登録利用曜日を適用</button>
           </div>
 
@@ -20704,6 +20705,10 @@
                 }
 
                 if (existing) {
+                  // 【退所状態の保護】ローカルで退所操作後、まだスプレッドシート保存が確認できていない間は
+                  // クラウド側の古い値で上書きせず、ローカルの退所状態を優先する
+                  const pendingSince = window._pendingDischargeOverrides && window._pendingDischargeOverrides[iu.id];
+                  const hasPendingDischargeOverride = !!pendingSince && (Date.now() - pendingSince < 600000); // 10分で安全に失効
                   userMap.set(iu.id, {
                     ...existing,
                     name: iu.name || existing.name,
@@ -20718,9 +20723,9 @@
                     ratioEndDate: iu.ratioEndDate || existing.ratioEndDate || '',
                     careHistory: cHist,
                     ratioHistory: rHist,
-                    isDischarged: (iu.isDischarged !== undefined) ? !!iu.isDischarged : !!existing.isDischarged,
-                    dischargedAt: iu.dischargedAt || existing.dischargedAt || '',
-                    dischargeReason: iu.dischargeReason || existing.dischargeReason || ''
+                    isDischarged: hasPendingDischargeOverride ? !!existing.isDischarged : ((iu.isDischarged !== undefined) ? !!iu.isDischarged : !!existing.isDischarged),
+                    dischargedAt: hasPendingDischargeOverride ? (existing.dischargedAt || '') : (iu.dischargedAt || existing.dischargedAt || ''),
+                    dischargeReason: hasPendingDischargeOverride ? (existing.dischargeReason || '') : (iu.dischargeReason || existing.dischargeReason || '')
                   });
                 } else {
                   iu.careHistory = cHist;
@@ -22564,6 +22569,11 @@
       if (hospitalBtn) {
         if (isKusunokiOrSakura) hospitalBtn.classList.remove('hidden');
         else hospitalBtn.classList.add('hidden');
+      }
+      const bulkFillBtn = document.getElementById('bulkFillAllUsersBtn');
+      if (bulkFillBtn) {
+        if (isKusunokiOrSakura) bulkFillBtn.classList.remove('hidden');
+        else bulkFillBtn.classList.add('hidden');
       }
 
       let validUsers = [];
@@ -24866,6 +24876,81 @@
       if (AppState.gasUrl && AppState.gasUrl.includes('script.google.com')) {
         syncSingleRecordToGas(recordObj, recKey);
       }
+    }
+
+    // 【くすの木・グループホーム専用】今月まだ実績未入力の利用者「全員」に、まとめて「全日利用」を設定する
+    // ※既に実績が入力済みの利用者は対象から除外し、上書きしない（安全のため）
+    async function bulkFillAllDaysForActiveUsers() {
+      if (isCurrentMonthLocked()) {
+        showToast('⚠️ この月は実績確定（ロック）されています。編集するには画面上部の「ロック解除」を押してください。', 'warning');
+        return;
+      }
+
+      const currentFac = AppState.facilities[AppState.currentFacilityId] || {};
+      const serviceType = currentFac.type || '有料ホーム';
+      const isKusunokiOrSakura = (AppState.currentFacilityId === 'fac_kusunoki' || AppState.currentFacilityId === 'fac_sakura' || serviceType === '有料ホーム' || serviceType === 'グループホーム');
+      if (!isKusunokiOrSakura) {
+        showToast('この機能はくすの木・グループホームのみ対応しています', 'warning');
+        return;
+      }
+
+      const targetM = AppState.targetMonth || '2026-07';
+      const activeUserIds = getActiveUserIds(AppState.currentFacilityId, targetM);
+      let validUsers = [];
+      activeUserIds.forEach(uId => {
+        const u = findUserById(uId, targetM);
+        if (u) validUsers.push(u);
+      });
+      if (validUsers.length === 0) {
+        showToast('対象の利用者がいません', 'warning');
+        return;
+      }
+
+      const unenteredUsers = validUsers.filter(u => {
+        const recKey = `${AppState.currentFacilityId}_${targetM}_${format10DigitId(u.id)}`;
+        return !AppState.records || !AppState.records[recKey];
+      });
+
+      if (unenteredUsers.length === 0) {
+        showToast('対象の利用者は全員、今月の実績が既に入力済みです（上書きはしません）', 'info');
+        return;
+      }
+
+      const skippedCount = validUsers.length - unenteredUsers.length;
+      const confirmMsg = `今月まだ実績が未入力の利用者 ${unenteredUsers.length} 名に「全日利用」を一括設定します。\n`
+        + (skippedCount > 0 ? `※既に入力済みの ${skippedCount} 名は変更しません。\n` : '')
+        + `\n実行しますか？`;
+      if (!window.confirm(confirmMsg)) return;
+
+      const userSelect = document.getElementById('inputUserSelect');
+      const originalUserId = userSelect ? userSelect.value : null;
+
+      showToast(`⚡👥 ${unenteredUsers.length}名の一括設定を開始します...`, 'info');
+
+      // 1名ずつ処理する間、既存関数が出す個別トーストは一時的に抑制する（最後にまとめて1回だけ表示）
+      const originalShowToast = window.showToast;
+      window.showToast = function() {};
+      try {
+        for (let i = 0; i < unenteredUsers.length; i++) {
+          const u = unenteredUsers[i];
+          window._lastActiveUserId = u.id;
+          if (userSelect) userSelect.value = u.id;
+          renderUserRecordForm(true);
+          quickFillCalendar('all_use');
+          saveCurrentRecordForm();
+          // GASへの連続リクエストが詰まらないよう、1名ごとに少し間隔を空ける
+          await new Promise(resolve => setTimeout(resolve, 250));
+        }
+      } finally {
+        window.showToast = originalShowToast;
+        if (originalUserId && userSelect) {
+          window._lastActiveUserId = originalUserId;
+          userSelect.value = originalUserId;
+          renderUserRecordForm(true);
+        }
+      }
+
+      showToast(`✅ ${unenteredUsers.length}名を「全日利用」で一括設定しました`, 'success');
     }
 
     function renderMasterConfig(isTypeChange = false) {
@@ -27405,6 +27490,10 @@
         setTimeout(() => {
           window._isUserMasterSavingToCloud = false;
         }, 5000);
+        // 【退所状態の保護】スプレッドシートへの保存が確認できたら、ローカル優先の保護を解除する
+        if (ok && window._pendingDischargeOverrides) {
+          delete window._pendingDischargeOverrides[u.id];
+        }
         if (typeof callback === 'function') callback(ok);
       });
     }
@@ -30637,6 +30726,9 @@
 
       rawUser.isDischarged = !!isDischarged;
       rawUser.dischargedAt = isDischarged ? (dischargedAt || (typeof getCurrentDateString === 'function' ? getCurrentDateString() : new Date().toISOString().split('T')[0])) : '';
+      // 【退所状態の保護】スプレッドシートへの保存が確認できるまで、この利用者の退所状態はクラウド側の古い値で上書きしない
+      if (!window._pendingDischargeOverrides) window._pendingDischargeOverrides = {};
+      window._pendingDischargeOverrides[id10] = Date.now();
       rawUser.dischargeReason = isDischarged ? (reason || '利用終了') : '';
 
       const curFacId = getUserFacilityId(rawUser);
