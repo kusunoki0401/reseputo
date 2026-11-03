@@ -2223,6 +2223,43 @@
 
 
   <!-- ========================================== -->
+  <!-- 🚪 利用終了（退所）確認モーダル -->
+  <!-- ========================================== -->
+  <div id="dischargeConfirmModal" class="modal hidden">
+    <div class="card w-[420px] max-w-[95%] shadow-2xl border border-slate-300">
+      <div class="card-header bg-gradient-to-r from-rose-700 via-rose-600 to-rose-700 text-white py-3 px-4 flex items-center justify-between shrink-0">
+        <h3 class="text-white text-sm font-bold flex items-center gap-2">
+          <span>🚪 利用終了（退所）の確認</span>
+        </h3>
+        <button type="button" onclick="closeDischargeConfirmModal()" class="text-white hover:text-rose-200 font-bold text-xl px-1 cursor-pointer">&times;</button>
+      </div>
+      <div class="p-4 space-y-3">
+        <p class="text-xs text-slate-700 leading-relaxed">「<strong id="dischargeConfirmUserName" class="text-rose-700"></strong>」を利用終了（退所）にしますか？<br>通常の一覧から非表示になり、「📦 終了者BOX」へ移動します。<br>※過去の実績データや基本情報は安全に保管され、いつでも復帰できます。</p>
+        <div class="form-group">
+          <label class="font-bold text-slate-700 text-xs mb-1 block">退所日（利用終了日）:</label>
+          <input type="date" id="dischargeConfirmDateInput" class="form-control text-sm">
+        </div>
+        <div class="form-group">
+          <label class="font-bold text-slate-700 text-xs mb-1 block">終了理由・メモ（省略可）:</label>
+          <select id="dischargeConfirmReasonSelect" class="form-control text-sm mb-1.5" onchange="handleDischargeReasonSelectChange()">
+            <option value="退所">退所</option>
+            <option value="逝去">逝去</option>
+            <option value="入院">入院</option>
+            <option value="転居">転居</option>
+            <option value="施設都合">施設都合</option>
+            <option value="__other__">その他（自由入力）</option>
+          </select>
+          <input type="text" id="dischargeConfirmReasonInput" class="form-control text-sm hidden" placeholder="理由を入力">
+        </div>
+      </div>
+      <div class="form-actions p-3 border-t border-slate-200 bg-slate-50 flex justify-end gap-3 shrink-0">
+        <button type="button" onclick="closeDischargeConfirmModal()" class="btn btn-secondary">キャンセル</button>
+        <button type="button" onclick="confirmDischargeFromModal()" class="btn btn-danger bg-rose-600 hover:bg-rose-700 text-white">🚪 利用終了にする</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
   <!-- 📦 終了者BOX（利用終了・退所者一覧）モーダル -->
   <!-- ========================================== -->
   <div id="dischargedUserBoxModal" class="modal hidden">
@@ -30787,7 +30824,8 @@
       return true;
     }
 
-    // 編集モーダルから利用終了を実行
+    // 編集モーダルから利用終了を実行（退所日はカレンダー入力・理由はプルダウンで選択）
+    let _dischargeConfirmUserId = null;
     function dischargeUserFromModal() {
       const editIdEl = document.getElementById('modalEditId');
       const nameEl = document.getElementById('modalEditName');
@@ -30796,14 +30834,62 @@
       const rawUser = findRawUserById(userId);
       const userName = rawUser ? rawUser.name : (nameEl?.value || 'この利用者');
 
+      _dischargeConfirmUserId = userId;
+      const nameSpan = document.getElementById('dischargeConfirmUserName');
+      if (nameSpan) nameSpan.textContent = userName;
+
       const defaultDate = (typeof getCurrentDateString === 'function') ? getCurrentDateString() : new Date().toISOString().split('T')[0];
-      const promptDate = window.prompt(`🚪【利用終了（退所）の確認】\n\n「${userName}」を利用終了（退所）にしますか？\n\n通常の一覧から非表示になり、「📦 終了者BOX」へ移動します。\n（※過去の実績データや基本情報は安全に保管され、いつでも復帰できます）\n\n退所日（利用終了日）を入力してください（例: ${defaultDate}）:`, defaultDate);
+      const dateInput = document.getElementById('dischargeConfirmDateInput');
+      if (dateInput) dateInput.value = defaultDate;
 
-      if (promptDate === null) return; // キャンセル
+      const reasonSelect = document.getElementById('dischargeConfirmReasonSelect');
+      if (reasonSelect) reasonSelect.value = '退所';
+      const reasonInput = document.getElementById('dischargeConfirmReasonInput');
+      if (reasonInput) {
+        reasonInput.value = '';
+        reasonInput.classList.add('hidden');
+      }
 
-      const validDate = cleanDateStringToYmd(promptDate) || defaultDate;
-      const reason = window.prompt('終了理由またはメモを入力してください（省略可）:', '退所') || '利用終了';
+      const modal = document.getElementById('dischargeConfirmModal');
+      if (modal) modal.classList.remove('hidden');
+    }
 
+    // 終了理由プルダウンで「その他」を選んだ時だけ自由入力欄を表示
+    function handleDischargeReasonSelectChange() {
+      const sel = document.getElementById('dischargeConfirmReasonSelect');
+      const input = document.getElementById('dischargeConfirmReasonInput');
+      if (!sel || !input) return;
+      if (sel.value === '__other__') {
+        input.classList.remove('hidden');
+        input.value = '';
+        input.focus();
+      } else {
+        input.classList.add('hidden');
+      }
+    }
+
+    function closeDischargeConfirmModal() {
+      const modal = document.getElementById('dischargeConfirmModal');
+      if (modal) modal.classList.add('hidden');
+      _dischargeConfirmUserId = null;
+    }
+
+    // 利用終了確認モーダルの「利用終了にする」ボタン
+    function confirmDischargeFromModal() {
+      if (!_dischargeConfirmUserId) return;
+      const userId = _dischargeConfirmUserId;
+      const rawUser = findRawUserById(userId);
+      const userName = rawUser ? rawUser.name : 'この利用者';
+
+      const defaultDate = (typeof getCurrentDateString === 'function') ? getCurrentDateString() : new Date().toISOString().split('T')[0];
+      const dateInput = document.getElementById('dischargeConfirmDateInput');
+      const validDate = cleanDateStringToYmd(dateInput?.value) || dateInput?.value || defaultDate;
+
+      const reasonSelect = document.getElementById('dischargeConfirmReasonSelect');
+      const reasonInput = document.getElementById('dischargeConfirmReasonInput');
+      const reason = ((reasonSelect?.value === '__other__') ? (reasonInput?.value || '').trim() : reasonSelect?.value) || '利用終了';
+
+      closeDischargeConfirmModal();
       setDischargedStatus(userId, true, validDate, reason);
       closeEditUserModal();
       showToast(`✅「${userName}」を利用終了にし、終了者BOXへ移動しました`, 'info');
