@@ -20687,19 +20687,14 @@
                 if (!iu.id) return;
                 const existing = userMap.get(iu.id);
 
-                // 【ローカル即時編集の保護】このPCで直近60秒以内に編集・保存された利用者は、クラウド側の反映タイムラグによる巻き戻りを100%防止
+                // 【ローカル即時編集の保護】このPCで直近60秒以内に編集・保存された利用者は、クラウド側の反映タイムラグによる巻き戻りを防止
+                // （※ratio/careLevelだけでなく、編集した全項目を対象にする。氏名・フリガナ・所属施設・認定履歴等だけを変更した
+                // 場合にratio/careLevelの一致判定だけで保護が解除され、クラウド側の古い値に巻き戻るのを防ぐため）
+                let recentLocalEntry = null;
                 if (window._recentLocallyEditedUsers && window._recentLocallyEditedUsers.has(iu.id)) {
                   const localEntry = window._recentLocallyEditedUsers.get(iu.id);
                   if (now - localEntry.editedAt < 60000) {
-                    if (iu.ratio === localEntry.user.ratio && iu.careLevel === localEntry.user.careLevel) {
-                      // クラウド側にも正しく反映されたことを確認できたので保護を解除
-                      window._recentLocallyEditedUsers.delete(iu.id);
-                    } else {
-                      // クラウド側がまだ古い値（反映待ち）のため、ローカルで修正した値を最優先維持
-                      iu.ratio = localEntry.user.ratio;
-                      iu.careLevel = localEntry.user.careLevel;
-                      iu.birth = localEntry.user.birth;
-                    }
+                    recentLocalEntry = localEntry.user;
                   } else {
                     window._recentLocallyEditedUsers.delete(iu.id);
                   }
@@ -20746,20 +20741,23 @@
                   // クラウド側の古い値で上書きせず、ローカルの退所状態を優先する
                   const pendingSince = window._pendingDischargeOverrides && window._pendingDischargeOverrides[iu.id];
                   const hasPendingDischargeOverride = !!pendingSince && (Date.now() - pendingSince < 600000); // 10分で安全に失効
+                  const lu = recentLocalEntry; // 直近60秒以内のローカル編集値（あれば最優先）
+                  const luCareHist = lu && Array.isArray(lu.careHistory) && lu.careHistory.length > 0 ? lu.careHistory : null;
+                  const luRatioHist = lu && Array.isArray(lu.ratioHistory) && lu.ratioHistory.length > 0 ? lu.ratioHistory : null;
                   userMap.set(iu.id, {
                     ...existing,
-                    name: iu.name || existing.name,
-                    kana: iu.kana || existing.kana || guessKanaFromName(iu.name),
-                    birth: (iu.birth && iu.birth !== '-') ? formatBirthToWareki(iu.birth) : (formatBirthToWareki(existing.birth) || '-'),
-                    careLevel: iu.careLevel || existing.careLevel,
-                    ratio: iu.ratio || existing.ratio || '1割',
-                    facilityId: iu.facilityId || existing.facilityId,
-                    careStartDate: iu.careStartDate || existing.careStartDate || '',
-                    careEndDate: iu.careEndDate || existing.careEndDate || '',
-                    ratioStartDate: iu.ratioStartDate || existing.ratioStartDate || '',
-                    ratioEndDate: iu.ratioEndDate || existing.ratioEndDate || '',
-                    careHistory: cHist,
-                    ratioHistory: rHist,
+                    name: lu ? (lu.name || existing.name) : (iu.name || existing.name),
+                    kana: lu ? (lu.kana || existing.kana) : (iu.kana || existing.kana || guessKanaFromName(iu.name)),
+                    birth: lu ? (formatBirthToWareki(lu.birth) || existing.birth || '-') : ((iu.birth && iu.birth !== '-') ? formatBirthToWareki(iu.birth) : (formatBirthToWareki(existing.birth) || '-')),
+                    careLevel: lu ? (lu.careLevel || existing.careLevel) : (iu.careLevel || existing.careLevel),
+                    ratio: lu ? (lu.ratio || existing.ratio || '1割') : (iu.ratio || existing.ratio || '1割'),
+                    facilityId: lu ? (lu.facilityId || existing.facilityId) : (iu.facilityId || existing.facilityId),
+                    careStartDate: lu ? (lu.careStartDate || existing.careStartDate || '') : (iu.careStartDate || existing.careStartDate || ''),
+                    careEndDate: lu ? (lu.careEndDate || existing.careEndDate || '') : (iu.careEndDate || existing.careEndDate || ''),
+                    ratioStartDate: lu ? (lu.ratioStartDate || existing.ratioStartDate || '') : (iu.ratioStartDate || existing.ratioStartDate || ''),
+                    ratioEndDate: lu ? (lu.ratioEndDate || existing.ratioEndDate || '') : (iu.ratioEndDate || existing.ratioEndDate || ''),
+                    careHistory: luCareHist || cHist,
+                    ratioHistory: luRatioHist || rHist,
                     isDischarged: hasPendingDischargeOverride ? !!existing.isDischarged : ((iu.isDischarged !== undefined) ? !!iu.isDischarged : !!existing.isDischarged),
                     dischargedAt: hasPendingDischargeOverride ? (existing.dischargedAt || '') : (iu.dischargedAt || existing.dischargedAt || ''),
                     dischargeReason: hasPendingDischargeOverride ? (existing.dischargeReason || '') : (iu.dischargeReason || existing.dischargeReason || '')
