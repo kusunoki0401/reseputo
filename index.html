@@ -25260,6 +25260,11 @@
 
       // GASクラウド連携URLが設定されている場合はスプレッドシートへ即時送信
       if (AppState.gasUrl && AppState.gasUrl.includes('script.google.com')) {
+        // 【保存中の上書き防止】送信中に定期自動同期（5秒おき）が古いクラウドデータで
+        // この保存結果を上書きしてしまわないよう、保存完了までブロックする
+        // （利用者マスタの保存と同じ仕組みを流用）
+        window._isUserMasterSavingToCloud = true;
+        window._lastUserMasterSaveTime = Date.now();
         sendGasPostRequest({
           action: 'saveFacilityMaster',
           facilityId: targetFacilityId,
@@ -25268,6 +25273,9 @@
           additionMaster: AppState.additionMaster
         }, (ok) => {
           console.log('[CloudSync] 施設加算設定をスプレッドシートへ送信完了:', ok);
+          setTimeout(() => {
+            window._isUserMasterSavingToCloud = false;
+          }, 5000);
         });
         showToast(`✅ ${fac.name} の加算マスタ（単位数・割合）＆届出設定を保存し、スプレッドシートへ送信・更新しました`, 'success');
       } else {
