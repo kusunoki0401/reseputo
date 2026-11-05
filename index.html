@@ -20869,6 +20869,15 @@
                 if (cFac.name) lFac.name = cFac.name;
                 if (cFac.unitRate) lFac.unitRate = cFac.unitRate;
                 if (cFac.updatedAt) lFac.updatedAt = cFac.updatedAt;
+                // 【基本コスト設定の全PC共有】家賃・光熱費・食費・管理費・日用品費・ショートステイ居室料等。
+                // これまでここが抜けていたため、PCごとに違う値が表示される原因になっていた
+                ['rent', 'utility', 'breakfast', 'lunch', 'dinner', 'snack', 'dailyGoodsCost', 'admin',
+                 'shortStayPrivateToilet', 'shortStayPrivateNoToilet', 'shortStayMulti',
+                 'shortRoomBurdenPrivate', 'shortRoomBurdenMulti', 'shortMealExcessRate'].forEach(key => {
+                  if (cFac[key] !== undefined && cFac[key] !== null && cFac[key] !== '') {
+                    lFac[key] = cFac[key];
+                  }
+                });
               });
 
               // ローカルバックアップも即座に更新し、全端末で完全同期
