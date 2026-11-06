@@ -20668,7 +20668,8 @@
                   ratioHistory: u.ratioHistory || (Array.isArray(u) ? u[11] : '') || '',
                   isDischarged: (u.isDischarged !== undefined) ? !!u.isDischarged : false,
                   dischargedAt: u.dischargedAt || '',
-                  dischargeReason: u.dischargeReason || ''
+                  dischargeReason: u.dischargeReason || '',
+                  foodLimitStage: u.foodLimitStage || 'none'
                 });
               });
 
@@ -20782,7 +20783,8 @@
                     ratioHistory: luRatioHist || rHist,
                     isDischarged: hasPendingDischargeOverride ? !!existing.isDischarged : ((iu.isDischarged !== undefined) ? !!iu.isDischarged : !!existing.isDischarged),
                     dischargedAt: hasPendingDischargeOverride ? (existing.dischargedAt || '') : (iu.dischargedAt || existing.dischargedAt || ''),
-                    dischargeReason: hasPendingDischargeOverride ? (existing.dischargeReason || '') : (iu.dischargeReason || existing.dischargeReason || '')
+                    dischargeReason: hasPendingDischargeOverride ? (existing.dischargeReason || '') : (iu.dischargeReason || existing.dischargeReason || ''),
+                    foodLimitStage: lu ? (lu.foodLimitStage || existing.foodLimitStage || 'none') : (iu.foodLimitStage || existing.foodLimitStage || 'none')
                   });
                 } else {
                   iu.careHistory = cHist;
@@ -25667,6 +25669,9 @@
         const oralTag = (curFac.type === 'デイサービス' && u.oralTrainingCount > 0)
           ? ` <span class="bg-teal-100 text-teal-800 border border-teal-300 text-[10px] px-1.5 py-0.5 rounded font-bold ml-1">👄口腔(${u.oralTrainingCount}回)</span>`
           : '';
+        const foodLimitTag = (curFac.type === 'ショートステイ')
+          ? ` <span class="bg-orange-100 text-orange-800 border border-orange-300 text-[10px] px-1.5 py-0.5 rounded font-bold ml-1">🍚${({stage1:'第1段階',stage2:'第2段階',stage3_1:'第3段階①',stage3_2:'第3段階②'})[u.foodLimitStage] || '第4段階'}</span>`
+          : '';
         // 📜介護(件数) バッジはユーザー指示により非表示化
 
         let schedTag = '';
@@ -25722,7 +25727,7 @@
             ${schedTag}
           </td>
           <td>${formatBirthToWareki(u.birth)}</td>
-          <td><span class="badge badge-warning font-bold">${eff.careLevel || u.careLevel || '要介護2'}</span>${pendingTag}${noTransTag}${oralTag}</td>
+          <td><span class="badge badge-warning font-bold">${eff.careLevel || u.careLevel || '要介護2'}</span>${pendingTag}${noTransTag}${oralTag}${foodLimitTag}</td>
           <td class="text-left py-2 px-2.5">${validityHtml}</td>
           <td><span class="font-bold text-slate-900">${eff.ratio || u.ratio || '1割'}</span>${exemptTag}</td>
           <td><span class="text-xs bg-blue-50 text-blue-800 font-bold px-2 py-1 rounded border border-blue-200">${facName}</span></td>
@@ -27557,7 +27562,8 @@
         ratioHistory: JSON.stringify(userObj.ratioHistory || []),
         isDischarged: !!userObj.isDischarged,
         dischargedAt: userObj.dischargedAt || '',
-        dischargeReason: userObj.dischargeReason || ''
+        dischargeReason: userObj.dischargeReason || '',
+        foodLimitStage: userObj.foodLimitStage || 'none'
       };
 
       const payload = {
@@ -27623,7 +27629,8 @@
           ratioHistory: JSON.stringify(u.ratioHistory || []),
           isDischarged: !!u.isDischarged,
           dischargedAt: u.dischargedAt || '',
-          dischargeReason: u.dischargeReason || ''
+          dischargeReason: u.dischargeReason || '',
+          foodLimitStage: u.foodLimitStage || 'none'
         };
       });
 
@@ -27686,7 +27693,8 @@
           ratioHistory: JSON.stringify(u.ratioHistory || []),
           isDischarged: !!u.isDischarged,
           dischargedAt: u.dischargedAt || '',
-          dischargeReason: u.dischargeReason || ''
+          dischargeReason: u.dischargeReason || '',
+          foodLimitStage: u.foodLimitStage || 'none'
         };
       });
 
