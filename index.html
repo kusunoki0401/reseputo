@@ -23518,11 +23518,10 @@
       if (serviceType === 'ショートステイ') {
         const priorDaysInput = document.getElementById('shortPriorContinuousDays');
         let priorDaysVal = priorDaysInput ? priorDaysInput.value : '';
-        const recWithPrior = {
-          ...tempRec,
-          priorContinuousDays: (priorDaysVal !== '' ? Number(priorDaysVal) : null)
-        };
-        consecutiveInfo = calcShortStayConsecutiveDays(userId, AppState.targetMonth, recWithPrior);
+        // 【バグ修正】この値をtempRecにも持たせないと、後段のcomputeSelfPay(tempRec,...)が
+        // 入力中の継続日数を見ずに前月実績からの自動推定にフォールバックし、内訳モーダルと金額がズレる
+        tempRec.priorContinuousDays = (priorDaysVal !== '' ? Number(priorDaysVal) : null);
+        consecutiveInfo = calcShortStayConsecutiveDays(userId, AppState.targetMonth, tempRec);
         shortLongTermDeductDays = consecutiveInfo.deductDays;
         shortDay31Count = consecutiveInfo.day31Count || 0;
 
@@ -24388,6 +24387,9 @@
         const evalRec = {
           ...(currentRec || {}),
           days: liveDays,
+          // 【バグ修正】ここで渡し忘れると、computeSelfPay内部が前月実績からの自動推定にフォールバックし、
+          // 画面に入力中の継続日数と31日目判定がズレる（上部サマリーと同じ修正）
+          priorContinuousDays: (priorDaysVal !== '' && priorDaysVal !== undefined) ? Number(priorDaysVal) : null,
           shortCustomSelfPayCost: customSelfPayTotal,
           shortTvRentalCount: tvRentalCount,
           shortMiraiBentoCount: miraiBentoCount,
@@ -24693,8 +24695,12 @@
       const formTvCnt = Number(document.getElementById('shortTvRentalCount')?.value || 0);
       const formBentoCnt = Number(document.getElementById('shortMiraiBentoCount')?.value || 0);
       const formTrialCnt = Number(document.getElementById('shortTrialCount')?.value || 0);
+      const billingPriorDaysVal = document.getElementById('shortPriorContinuousDays')?.value;
+      const livePriorContinuousDays = (billingPriorDaysVal !== '' && billingPriorDaysVal !== undefined) ? Number(billingPriorDaysVal) : null;
       const currentRec = savedRec ? {
         ...savedRec,
+        // 【バグ修正】保存済み値より、画面に入力中の値を優先しないと31日目判定が内訳とズレる
+        priorContinuousDays: livePriorContinuousDays !== null ? livePriorContinuousDays : savedRec.priorContinuousDays,
         shortCustomSelfPayCost: (savedRec.shortCustomSelfPayCost !== undefined ? savedRec.shortCustomSelfPayCost : formCustomCost),
         shortTvRentalCount: (savedRec.shortTvRentalCount !== undefined ? savedRec.shortTvRentalCount : formTvCnt),
         shortMiraiBentoCount: (savedRec.shortMiraiBentoCount !== undefined ? savedRec.shortMiraiBentoCount : formBentoCnt),
@@ -24702,6 +24708,7 @@
         familyLunchCost: Number(document.getElementById('kusunokiFamilyLunchCost')?.value || 0),
         useInitialFee: !!document.getElementById('chkSelfInitialFee')?.checked
       } : {
+        priorContinuousDays: livePriorContinuousDays,
         diaperCost: Number(document.getElementById('selfDiaperCost')?.value || 0),
         hospitalTransportCost: Number(document.getElementById('ghSelfHospitalTransportCost')?.value || 0),
         dailyGoodsCost: Number(document.getElementById('ghSelfDailyGoodsCost')?.value || 0),
