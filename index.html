@@ -3729,9 +3729,12 @@
 
     // 月間合計単位数を、保険給付対象の単位数と、支給限度額超過（全額自己負担）の単位数に分ける。
     // breakdown は computeInsuranceUnits が extraAdditions._breakdown に書き込む内訳
-    // { preTreatmentUnits: 処遇改善加算適用前の単位数, serviceStrengthUnits: サービス提供体制加算の単位数, percentRate: 処遇改善加算率(%) }。
+    // { preTreatmentUnits: 処遇改善加算適用前の単位数, serviceStrengthUnits: サービス提供体制加算の単位数,
+    //   serviceStrengthDailyRate: サ提供加算の1日(回)あたり単位数, dailyBaseRatePerDay: 限度額対象の1日(回)あたり単位数,
+    //   percentRate: 処遇改善加算率(%) }。
     // 計算順: ①限度額対象単位＝処遇改善加算適用前の単位数からサービス提供体制加算を除いたもの
-    //        ②その単位が限度額を超えた分にサービス提供体制加算を足す
+    //        ②限度額超過単位を、限度額対象の1日あたり単位数で割った日数（切り捨て）分だけ、
+    //          サービス提供体制加算の日額を超過分に加える
     //        ③処遇改善加算率を掛けた単位数が自費対象単位（全額自己負担）
     function splitUnitsByBenefitLimit(units, levelName, serviceType, breakdown) {
       if (serviceType !== 'ショートステイ' && serviceType !== 'デイサービス') {
@@ -3741,6 +3744,8 @@
       if (!limit || !breakdown) return { insuredUnits: units, excessUnits: 0, limitUnits: limit || null };
 
       const serviceStrengthUnits = breakdown.serviceStrengthUnits || 0;
+      const serviceStrengthDailyRate = breakdown.serviceStrengthDailyRate || 0;
+      const dailyBaseRatePerDay = breakdown.dailyBaseRatePerDay || 0;
       const percentRate = breakdown.percentRate || 0;
       const preTreatmentUnits = (breakdown.preTreatmentUnits !== undefined) ? breakdown.preTreatmentUnits : units;
 
@@ -3748,9 +3753,12 @@
       const excessBase = Math.max(0, limitBaseUnits - limit);
       if (excessBase <= 0) return { insuredUnits: units, excessUnits: 0, limitUnits: limit };
 
-      const excessWithService = excessBase + serviceStrengthUnits;
+      // 超過単位に相当する日数（切り捨て）分だけ、サービス提供体制加算を超過分に加える
+      const excessDays = dailyBaseRatePerDay > 0 ? Math.floor(excessBase / dailyBaseRatePerDay) : 0;
+      const excessServiceStrength = serviceStrengthDailyRate * excessDays;
+      const excessWithService = excessBase + excessServiceStrength;
       const excessUnits = Math.round(excessWithService * (1 + percentRate / 100));
-      return { insuredUnits: units - excessUnits, excessUnits, limitUnits: limit };
+      return { insuredUnits: units - excessUnits, excessUnits, limitUnits: limit, excessDays };
     }
 
     // 【複数施設対応】facilityIdを渡すと、その施設に所属する方だけを対象に検索する
@@ -3910,6 +3918,8 @@
           let monthlyAddUnits = 0;
           let percentRate = 0;
           let serviceStrengthUnits = 0; // 【支給限度額管理対象外】サービス提供体制加算の単位数
+          let serviceStrengthDailyRate = 0; // サービス提供体制加算の1回あたり単位数
+          let dailyBaseRatePerDay = careInfo.dailyRate; // 【限度額対象】1回あたり単位数（基本単位＋加算マスタのdaily加算。処遇改善・サ提供は除く）
 
           selectedAddIds.forEach(addId => {
             const item = currentTypeAdditions.find(a => a.id === addId);
@@ -3929,11 +3939,17 @@
                 } else {
                   dailyAddUnits += 6;
                   serviceStrengthUnits += 6 * useDays;
+                  serviceStrengthDailyRate += 6;
                 }
               } else {
                 if (item.type === 'daily') {
                   dailyAddUnits += (item.rate || 0);
-                  if (addId.includes('service_strength')) serviceStrengthUnits += (item.rate || 0) * useDays;
+                  if (addId.includes('service_strength')) {
+                    serviceStrengthUnits += (item.rate || 0) * useDays;
+                    serviceStrengthDailyRate += (item.rate || 0);
+                  } else {
+                    dailyBaseRatePerDay += (item.rate || 0);
+                  }
                 }
                 else if (item.type === 'monthly') {
                   monthlyAddUnits += (item.rate || 0);
@@ -3953,6 +3969,8 @@
           total = Math.max(0, total);
           if (extraAdditions && extraAdditions._breakdown) {
             extraAdditions._breakdown.serviceStrengthUnits = serviceStrengthUnits;
+            extraAdditions._breakdown.serviceStrengthDailyRate = serviceStrengthDailyRate;
+            extraAdditions._breakdown.dailyBaseRatePerDay = dailyBaseRatePerDay;
             extraAdditions._breakdown.percentRate = percentRate;
             extraAdditions._breakdown.preTreatmentUnits = preTreatmentUnits;
           }
@@ -4090,6 +4108,8 @@
           const selectedAddIds = fac.additions || [];
           let percentRate = 0;
           let serviceStrengthUnits = 0; // 【支給限度額管理対象外】サービス提供体制加算の単位数
+          let serviceStrengthDailyRate = 0; // サービス提供体制加算の1日あたり単位数
+          let dailyBaseRatePerDay = baseRate; // 【限度額対象】1日あたり単位数（基本単位＋加算マスタのdaily加算。処遇改善・サ提供は除く）
 
           selectedAddIds.forEach(addId => {
             if (addId === 'short_indiv_training' || addId === 'short_transport') return;
@@ -4113,7 +4133,12 @@
               if (item.type === 'daily') {
                 const addUnits = (item.rate || 0) * insuranceUseDays;
                 total += addUnits;
-                if (addId.includes('service_strength')) serviceStrengthUnits += addUnits;
+                if (addId.includes('service_strength')) {
+                  serviceStrengthUnits += addUnits;
+                  serviceStrengthDailyRate += (item.rate || 0);
+                } else {
+                  dailyBaseRatePerDay += (item.rate || 0);
+                }
               }
               else if (item.type === 'monthly') total += (item.rate || 0);
               else if (item.type === 'percent') percentRate += normalizePercentValue(item.percent || 0);
@@ -4127,6 +4152,8 @@
           total = Math.max(0, total);
           if (extraAdditions && extraAdditions._breakdown) {
             extraAdditions._breakdown.serviceStrengthUnits = serviceStrengthUnits;
+            extraAdditions._breakdown.serviceStrengthDailyRate = serviceStrengthDailyRate;
+            extraAdditions._breakdown.dailyBaseRatePerDay = dailyBaseRatePerDay;
             extraAdditions._breakdown.percentRate = percentRate;
             extraAdditions._breakdown.preTreatmentUnits = preTreatmentUnits;
           }
