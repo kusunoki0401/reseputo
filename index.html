@@ -1333,6 +1333,15 @@
 
             <hr class="divider">
 
+            <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-4">
+              <h5 class="text-xs font-bold text-slate-700 mb-2">📋 要介護度別 基本単位数（<span id="baseCareLevelServiceTypeLabel"></span>・法定値のため編集不可）</h5>
+              <div class="overflow-x-auto">
+                <table class="w-full text-xs text-center" id="baseCareLevelRatesTable">
+                  <!-- Dynamic (renderMasterConfig) -->
+                </table>
+              </div>
+            </div>
+
             <div class="mb-4">
               <h4 class="font-bold text-slate-900 mb-1">【取得加算・減算マスタ設定＆単位数編集】</h4>
               <p class="text-xs text-slate-500">※届出を行っている加算にチェックを入れ、単位数や割合(%)が最新の届出と異なる場合は右側の入力欄で書き換えて「保存」を押してください。</p>
@@ -3629,6 +3638,15 @@
       return effUser;
     }
 
+    // 【要介護度別 基本単位数】サービス種別(≒施設の種類)ごとの1日(回)あたり単位数。
+    // グループホームは法制度上要支援1が対象外のためキーが無い。
+    const BASE_CARE_LEVEL_RATES = {
+      'グループホーム': { '要支援2': 749, '要介護1': 753, '要介護2': 788, '要介護3': 812, '要介護4': 828, '要介護5': 845 },
+      'ショートステイ': { '要支援1': 479, '要支援2': 596, '要介護1': 645, '要介護2': 715, '要介護3': 787, '要介護4': 856, '要介護5': 926 },
+      'デイサービス': { '要支援1': 436, '要支援2': 447, '要介護1': 416, '要介護2': 478, '要介護3': 540, '要介護4': 600, '要介護5': 663 },
+      '有料ホーム': { '要支援1': 183, '要支援2': 313, '要介護1': 542, '要介護2': 609, '要介護3': 679, '要介護4': 744, '要介護5': 813 }
+    };
+
     function getUserCareInfo(user, serviceType = '有料ホーム', useDays = 0, targetMonth = null) {
       if (!user) return { isYoushien: false, isJigyou: false, levelName: '要介護2', dailyRate: 609, isPending: false };
       const effUser = (user.isFromHistory !== undefined) ? user : getEffectiveUser(user, targetMonth);
@@ -3679,41 +3697,8 @@
         levelName = '要支援1'; isYoushien = true;
       }
 
-      let dailyRate = 609;
-      if (serviceType === 'グループホーム') {
-        if (levelName === '要支援2') dailyRate = 749;
-        else if (levelName === '要介護1') dailyRate = 753;
-        else if (levelName === '要介護2') dailyRate = 788;
-        else if (levelName === '要介護3') dailyRate = 812;
-        else if (levelName === '要介護4') dailyRate = 828;
-        else if (levelName === '要介護5') dailyRate = 845;
-        else dailyRate = 749;
-      } else if (serviceType === 'ショートステイ') {
-        if (levelName === '要支援1') dailyRate = 479;
-        else if (levelName === '要支援2') dailyRate = 596;
-        else if (levelName === '要介護1') dailyRate = 645;
-        else if (levelName === '要介護2') dailyRate = 715;
-        else if (levelName === '要介護3') dailyRate = 787;
-        else if (levelName === '要介護4') dailyRate = 856;
-        else if (levelName === '要介護5') dailyRate = 926;
-      } else if (serviceType === 'デイサービス') {
-        if (levelName === '要支援1') dailyRate = 436;
-        else if (levelName === '要支援2') dailyRate = 447;
-        else if (levelName === '要介護1') dailyRate = 416;
-        else if (levelName === '要介護2') dailyRate = 478;
-        else if (levelName === '要介護3') dailyRate = 540;
-        else if (levelName === '要介護4') dailyRate = 600;
-        else if (levelName === '要介護5') dailyRate = 663;
-        else dailyRate = 478;
-      } else {
-        if (levelName === '要支援1') dailyRate = 183;
-        else if (levelName === '要支援2') dailyRate = 313;
-        else if (levelName === '要介護1') dailyRate = 542;
-        else if (levelName === '要介護2') dailyRate = 609;
-        else if (levelName === '要介護3') dailyRate = 679;
-        else if (levelName === '要介護4') dailyRate = 744;
-        else if (levelName === '要介護5') dailyRate = 813;
-      }
+      const rateTable = BASE_CARE_LEVEL_RATES[serviceType] || BASE_CARE_LEVEL_RATES['有料ホーム'];
+      let dailyRate = (rateTable[levelName] !== undefined) ? rateTable[levelName] : 609;
 
       return { isYoushien, levelName, dailyRate, isPending };
     }
@@ -25157,6 +25142,19 @@
       }
 
       document.getElementById('unitRateInput').value = 10;
+
+      const baseRatesTable = document.getElementById('baseCareLevelRatesTable');
+      const baseRatesLabel = document.getElementById('baseCareLevelServiceTypeLabel');
+      if (baseRatesTable) {
+        const rates = BASE_CARE_LEVEL_RATES[selectedType] || {};
+        const levels = ['要支援1', '要支援2', '要介護1', '要介護2', '要介護3', '要介護4', '要介護5'];
+        const applicable = levels.filter(l => rates[l] !== undefined);
+        if (baseRatesLabel) baseRatesLabel.textContent = selectedType;
+        baseRatesTable.innerHTML = `
+          <tr class="bg-slate-100">${applicable.map(l => `<th class="border border-slate-300 p-1">${l}</th>`).join('')}</tr>
+          <tr>${applicable.map(l => `<td class="border border-slate-300 p-1 font-bold text-blue-700">${rates[l]}単位</td>`).join('')}</tr>
+        `;
+      }
 
       document.getElementById('costBreakfast').value = fac.breakfast || 0;
       document.getElementById('costLunch').value = fac.lunch || 0;
