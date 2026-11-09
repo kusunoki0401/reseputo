@@ -30828,7 +30828,10 @@
             }
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
-            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            // 「月別売上集計表内訳 (2)」シートがあれば優先的に読み込む（区分変更等の遡及請求が合算された
+            // 1枚目シートと異なり、当月分のみの金額になっているため、現場入力実績との突合が正しくなる）
+            const monthlySheetName = workbook.SheetNames.find(n => /\(2\)\s*$/.test(n)) || workbook.SheetNames[0];
+            const firstSheet = workbook.Sheets[monthlySheetName];
             const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
             executeRowsImport(rows, type, file.name);
           } catch (err) {
