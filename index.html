@@ -30113,17 +30113,7 @@
         // 対象月の自動連動（CSV内に提供年月が明記されていた場合）
         if (detectedMonth && detectedMonth !== AppState.targetMonth) {
           AppState.targetMonth = detectedMonth;
-          const targetMonthSelect = document.getElementById('targetMonthSelect');
-          if (targetMonthSelect) {
-            let hasOpt = Array.from(targetMonthSelect.options).some(o => o.value === detectedMonth);
-            if (!hasOpt) {
-              const opt = document.createElement('option');
-              opt.value = detectedMonth;
-              opt.textContent = `${detectedMonth.slice(0, 4)}年${Number(detectedMonth.slice(5, 7))}月`;
-              targetMonthSelect.appendChild(opt);
-            }
-            targetMonthSelect.value = detectedMonth;
-          }
+          syncMonthInputs();
         }
 
         const targetM = AppState.targetMonth || '2026-07';
