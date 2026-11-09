@@ -29885,7 +29885,7 @@
             // ファイル名や先頭行テキストから月度を検出 (例: "くすの木 9月売上一覧", "2026年9月")
             if (!detectedMonth) {
               const metaSampleTxt = (fileName || '') + ' ' + rows.slice(0, 5).map(r => (r || []).join(' ')).join(' ');
-            const mMatch = metaSampleTxt.match(/(?:20\d\d|[R令和]?\d+)[年/-]?\s*(\d{1,2})\s*月/);
+            const mMatch = metaSampleTxt.match(/(?:20\d\d|[R令和]\s*\d+)[年/-]?\s*(\d{1,2})\s*月/);
             const mMatchSales = metaSampleTxt.match(/(\d{1,2})\s*月\s*(?:売上|実績|請求)/);
             if (mMatch) {
               const yrMatch = metaSampleTxt.match(/(20\d\d)年?/);
