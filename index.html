@@ -23947,7 +23947,14 @@
           return;
         }
 
-        if (item.type === 'daily') {
+        if (serviceType === 'デイサービス' && addId === 'service_strength_day_3' && careInfo.isYoushien) {
+          // 要支援は月額（要支援1=24、要支援2=48）。計算側(3918行付近)と同じ扱い
+          const u = careInfo.levelName === '要支援1' ? 24 : careInfo.levelName === '要支援2' ? 48 : 0;
+          if (u > 0 && useDays > 0) {
+            subtotalUnits += u;
+            detailLines.push({ name: item.name, formula: `${careInfo.levelName}月額`, units: u });
+          }
+        } else if (item.type === 'daily') {
           const billDays = (serviceType === 'ショートステイ' && shortStayDay31Count === 0) ? insuranceUseDays : useDays;
           const u = (item.rate || 0) * billDays;
           subtotalUnits += u;
