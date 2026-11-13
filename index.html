@@ -842,7 +842,7 @@
             <span>メニュー</span>
           </button>
           <div>
-            <h1 id="pageTitle">照合ダッシュボード</h1>
+            <h1 id="pageTitle">照合ダッシュボード</h1><span class="text-[10px] text-slate-400">v2026.11.13-1</span>
             <p id="pageSubTitle" class="subtitle">介護ソフトデータと現場入力実績の1円・1単位差分判定</p>
           </div>
         </div>
@@ -1028,9 +1028,13 @@
             </label>
             
             <label class="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border-2 border-amber-400 rounded-lg text-xs font-bold text-amber-900 cursor-pointer hover:bg-amber-100 transition shadow-sm select-none" title="生活保護受給者や災害免除対象者。チェックを入れると介護保険の自己負担額が0円になり、県/公費へ10割請求となります">
-              <input type="checkbox" id="chkUserExempt" onchange="updateLiveUserRecordSummary()" class="w-4 h-4 text-amber-600 rounded cursor-pointer accent-amber-600">
+              <input type="checkbox" id="chkUserExempt" onchange="syncExemptTypeUi(); updateLiveUserRecordSummary()" class="w-4 h-4 text-amber-600 rounded cursor-pointer accent-amber-600">
               <span>🛡️ 減免対象（生保・災害等）</span>
             </label>
+            <select id="selUserExemptType" onchange="updateLiveUserRecordSummary()" class="hidden px-2 py-1.5 bg-amber-50 border-2 border-amber-400 rounded-lg text-xs font-bold text-amber-900" title="災害減免で要支援の方は、デイサービスの場合、利用1回でも月額の単位数で請求します">
+              <option value="seiho">生保</option>
+              <option value="saigai">災害減免</option>
+            </select>
             
             <label class="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 border-2 border-purple-400 rounded-lg text-xs font-bold text-purple-900 cursor-pointer hover:bg-purple-100 transition shadow-sm select-none" title="要介護度の区分変更申請中など。チェックを入れると突合（照合）および確認完了報告書の集計・印刷から除外されます">
               <input type="checkbox" id="chkUserPending" onchange="updateLiveUserRecordSummary()" class="w-4 h-4 text-purple-600 rounded cursor-pointer accent-purple-600">
@@ -3647,6 +3651,12 @@
       '有料ホーム': { '要支援1': 183, '要支援2': 313, '要介護1': 542, '要介護2': 609, '要介護3': 679, '要介護4': 744, '要介護5': 813 }
     };
 
+    // 減免の種別（生保/災害減免）セレクトは、減免チェックが入っているときだけ表示
+    function syncExemptTypeUi() {
+      const chk = document.getElementById('chkUserExempt'), sel = document.getElementById('selUserExemptType');
+      if (chk && sel) sel.classList.toggle('hidden', !chk.checked);
+    }
+
     function getUserCareInfo(user, serviceType = '有料ホーム', useDays = 0, targetMonth = null) {
       if (!user) return { isYoushien: false, isJigyou: false, levelName: '要介護2', dailyRate: 609, isPending: false };
       const effUser = (user.isFromHistory !== undefined) ? user : getEffectiveUser(user, targetMonth);
@@ -3870,9 +3880,9 @@
           let baseUnits = 0;
           if (careInfo.isYoushien) {
             if (careInfo.levelName === '要支援1') {
-              baseUnits = (useDays >= 5) ? 1798 : (useDays * 436);
+              baseUnits = (useDays >= 5 || extraAdditions.disasterExempt) ? 1798 : (useDays * 436);
             } else if (careInfo.levelName === '要支援2') {
-              baseUnits = (useDays >= 9) ? 3621 : (useDays * 447);
+              baseUnits = (useDays >= 9 || extraAdditions.disasterExempt) ? 3621 : (useDays * 447);
             } else {
               baseUnits = useDays * careInfo.dailyRate;
             }
@@ -22026,6 +22036,7 @@
           longTermDeductDays: shortLongTermDeductDays,
           insuranceDeductDays: shortInsuranceDeductDays,
           day31Count: shortDay31Count,
+          disasterExempt: !!(userRec?.isExempt ?? user?.isExempt) && userRec?.exemptType === 'saigai',
           oralTrainingCount: (serviceType === 'デイサービス') ? Number(userRec?.oralTrainingCount ?? (user?.oralTrainingCount || 0)) : 0
         };
 
@@ -22878,6 +22889,9 @@
       if (chkUserExempt) {
         chkUserExempt.checked = !!(existingRec.isExempt ?? currentUser?.isExempt);
       }
+      const selExemptType = document.getElementById('selUserExemptType');
+      if (selExemptType) selExemptType.value = existingRec.exemptType === 'saigai' ? 'saigai' : 'seiho';
+      syncExemptTypeUi();
       const chkUserPending = document.getElementById('chkUserPending');
       if (chkUserPending) {
         chkUserPending.checked = !!(existingRec.isPending ?? currentUser?.isPendingCareLevel ?? currentUser?.isPending);
@@ -23625,6 +23639,7 @@
         longTermDeductDays: shortLongTermDeductDays,
         insuranceDeductDays: consecutiveInfo?.insuranceDeductDays,
         day31Count: shortDay31Count,
+        disasterExempt: !!document.getElementById('chkUserExempt')?.checked && document.getElementById('selUserExemptType')?.value === 'saigai',
         oralTrainingCount: liveOralCount
       };
 
@@ -24770,6 +24785,7 @@
         longTermDeductDays: modalLongTermDeductDays,
         insuranceDeductDays: modalInsuranceDeductDays,
         day31Count: modalDay31Count,
+        disasterExempt: !!document.getElementById('chkUserExempt')?.checked && document.getElementById('selUserExemptType')?.value === 'saigai',
         oralTrainingCount: modalBillingOralCount
       };
 
@@ -24978,6 +24994,7 @@
         shortMealExcessDays: Number(document.getElementById('shortMealExcessDays')?.value || 0),
         priorContinuousDays: (document.getElementById('shortPriorContinuousDays')?.value !== '' ? Number(document.getElementById('shortPriorContinuousDays').value) : null),
         isExempt: !!document.getElementById('chkUserExempt')?.checked,
+        exemptType: document.getElementById('selUserExemptType')?.value === 'saigai' ? 'saigai' : 'seiho',
         isPending: !!document.getElementById('chkUserPending')?.checked,
         useInitialFee: !!document.getElementById('chkSelfInitialFee')?.checked,
         familyLunchCost: Number(document.getElementById('kusunokiFamilyLunchCost')?.value || 0),
@@ -25574,6 +25591,7 @@
           longTermDeductDays: shortLongTermDeductDays,
           insuranceDeductDays: shortInsuranceDeductDays,
           day31Count: shortDay31Count,
+          disasterExempt: !!(userRec?.isExempt ?? user?.isExempt) && userRec?.exemptType === 'saigai',
           oralTrainingCount: (serviceType === 'デイサービス') ? Number(userRec?.oralTrainingCount ?? (user?.oralTrainingCount || 0)) : 0
         };
 
