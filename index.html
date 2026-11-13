@@ -843,7 +843,7 @@
             <span>メニュー</span>
           </button>
           <div>
-            <h1 id="pageTitle">照合ダッシュボード</h1><span class="text-[10px] text-slate-400">v2026.11.13-2</span>
+            <h1 id="pageTitle">照合ダッシュボード</h1><span class="text-[10px] text-slate-400">v2026.11.13-3</span>
             <p id="pageSubTitle" class="subtitle">介護ソフトデータと現場入力実績の1円・1単位差分判定</p>
           </div>
         </div>
@@ -25471,7 +25471,7 @@
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({
             action: 'sendReportToChatwork',
-            fileName: '確認完了報告書_' + fac.name + '_' + m + '.pdf',
+            fileName: 'kakunin_report_' + String(facId).replace(/[^A-Za-z0-9_-]/g, '') + '_' + m + '.pdf', // ChatWorkは日本語ファイル名が文字化けする
             message: '[info][title]確認完了報告書[/title]' + fac.name + ' ' + m + ' 分\n介護レセプト・自費請求の確認が完了しました。[/info]',
             pdfBase64: uri.slice(uri.indexOf('base64,') + 7)
           })
