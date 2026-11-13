@@ -11,6 +11,7 @@
   
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha384-Yv5O+t3uE3hunW8uyrbpPW3iw6/5/Y7HitWJBLgqfMoA36NogMmy+8wWZMpn3HWc" crossorigin="anonymous"></script>
 
   <style>
     :root {
@@ -842,7 +843,7 @@
             <span>メニュー</span>
           </button>
           <div>
-            <h1 id="pageTitle">照合ダッシュボード</h1><span class="text-[10px] text-slate-400">v2026.11.13-1</span>
+            <h1 id="pageTitle">照合ダッシュボード</h1><span class="text-[10px] text-slate-400">v2026.11.13-2</span>
             <p id="pageSubTitle" class="subtitle">介護ソフトデータと現場入力実績の1円・1単位差分判定</p>
           </div>
         </div>
@@ -1469,6 +1470,7 @@
               <label for="reportTargetMonth" class="text-xs font-bold text-slate-700">対象月選択:</label>
               <input type="month" id="reportTargetMonth" class="form-control text-xs font-bold py-1 px-2 border border-slate-300 rounded-lg shadow-sm" onchange="changeReportTargetMonth(this.value)">
               <button id="printReportBtn" class="btn btn-secondary" onclick="window.print()">🖨️ 報告書を印刷 / PDF保存</button>
+              <button id="sendReportBtn" class="btn btn-primary" onclick="confirmAndSendReport()">✅ 確認完了 → ChatWorkへ送信</button>
             </div>
           </div>
 
@@ -25435,6 +25437,56 @@
       renderAllViews();
       renderMasterConfig(true);
     }
+
+    window.confirmAndSendReport = async function() {
+      const facId = AppState.currentFacilityId;
+      const fac = AppState.facilities[facId];
+      const m = AppState.targetMonth || getCurrentYearMonth();
+      if (!fac) return;
+      if (!AppState.gasUrl || !AppState.gasUrl.includes('script.google.com')) {
+        alert('クラウド(GAS)のURLが未設定のため送信できません。');
+        return;
+      }
+      const sentKey = 'reportSentToChatwork_' + facId + '_' + m;
+      let prev = null;
+      try { prev = localStorage.getItem(sentKey); } catch (e) {}
+      const msg = fac.name + ' ' + m + ' 分の確認完了報告書をPDFにして、ChatWorkへ送信します。\n内容を確認済みですか？' +
+        (prev ? '\n\n※すでに ' + prev + ' に送信済みです。もう一度送信しますか？' : '');
+      if (!confirm(msg)) return;
+
+      const btn = document.getElementById('sendReportBtn');
+      const label = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = '⏳ PDF作成・送信中…';
+      try {
+        const uri = await html2pdf().set({
+          margin: [8, 6, 8, 6],
+          image: { type: 'jpeg', quality: 0.9 },
+          html2canvas: { scale: 1.5, useCORS: true, scrollY: 0 },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+          pagebreak: { mode: ['css', 'legacy'], avoid: ['.report-prevent-break', 'tr'] }
+        }).from(document.getElementById('reportPaper')).outputPdf('datauristring');
+        const res = await fetch(AppState.gasUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'sendReportToChatwork',
+            fileName: '確認完了報告書_' + fac.name + '_' + m + '.pdf',
+            message: '[info][title]確認完了報告書[/title]' + fac.name + ' ' + m + ' 分\n介護レセプト・自費請求の確認が完了しました。[/info]',
+            pdfBase64: uri.slice(uri.indexOf('base64,') + 7)
+          })
+        });
+        const r = await res.json();
+        if (r.status !== 'success') throw new Error(r.message || '送信に失敗しました');
+        try { localStorage.setItem(sentKey, new Date().toLocaleString('ja-JP')); } catch (e) {}
+        showToast('✅ ChatWorkへ送信しました', 'success');
+      } catch (err) {
+        alert('ChatWorkへの送信に失敗しました。\n' + err.message + '\n\n（ChatWorkに届いているか確認してから、再送してください）');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = label;
+      }
+    };
 
     window.changeReportTargetMonth = function(newMonth) {
       if (!newMonth) return;
